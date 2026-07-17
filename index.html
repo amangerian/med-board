@@ -3671,6 +3671,90 @@ function birdRevealHtml(idx, revealed){
   </div>`;
 }
 
+// ── TELEPHONE-WIRE AVIARY (v3) ───────────────────────────────────────────
+// Earned birds perch on a telephone wire instead of a card grid. The full
+// portraits are whole scenes, so each species gets a compact side-profile
+// "perched" rendition in its own colors; tapping a bird opens its portrait.
+// Styles are indexed to BIRDS: Cardinal, Goldfinch, Blue Jay, Robin, Oriole.
+const PERCH_STYLES=[
+  {body:'#e53935',head:'#e53935',belly:'#c62828',wing:'#c62828',beak:'#f4a63a',face:'#161616',crest:true},
+  {body:'#f6c915',head:'#f6c915',belly:'#f6c915',wing:'#151515',beak:'#e8a0b0',cap:'#151515'},
+  {body:'#4b8ad6',head:'#4b8ad6',belly:'#dfeaf5',wing:'#12305e',beak:'#161616',crest:true},
+  {body:'#6d6a62',head:'#4a4842',belly:'#d1622a',wing:'#5c584f',beak:'#f2c23a'},
+  {body:'#f0821e',head:'#151515',belly:'#f0821e',wing:'#151515',beak:'#9aa0a6'}
+];
+// One perched bird, feet at (x,y) on the wire. Alternates facing via `flip`.
+function perchedBirdSvg(bi,x,y,flip){
+  const s=PERCH_STYLES[bi%PERCH_STYLES.length];
+  const b=BIRDS[bi%BIRDS.length];
+  return `<g transform="translate(${x},${y})" onclick="showAviaryBird(${bi})" style="cursor:pointer">
+    <title>${escHtml(b.name)}</title>
+    <g transform="scale(${flip?-1:1},1)">
+      <path d="M-3 0 L-3 -5 M3 0 L3 -5" stroke="#3a3a3a" stroke-width="1.6" stroke-linecap="round" fill="none"/>
+      <path d="M7 -16 L21 -7 L10 -19 Z" fill="${s.wing}"/>
+      <ellipse cx="0" cy="-15" rx="11" ry="9" fill="${s.body}"/>
+      <path d="M-8 -12 q8 9 16 0 q-3 7 -8 7 q-5 0 -8 -7 Z" fill="${s.belly}"/>
+      <ellipse cx="3" cy="-16" rx="6.5" ry="4.5" fill="${s.wing}" transform="rotate(-18 3 -16)" opacity=".9"/>
+      <circle cx="-7" cy="-26" r="6.5" fill="${s.head}"/>
+      ${s.cap?`<path d="M-13.5 -26 a6.5 6.5 0 0 1 12 -4 q-7 -3 -12 4 Z" fill="${s.cap}"/>`:''}
+      ${s.crest?`<path d="M-8 -31 L-4.5 -40 L-1.5 -30 Z" fill="${s.head}"/>`:''}
+      ${s.face?`<path d="M-13 -26 q3.5 4 7.5 3 l-.5 -5.5 Z" fill="${s.face}"/>`:''}
+      <path d="M-13 -27.5 L-19.5 -25.5 L-13 -23.5 Z" fill="${s.beak}"/>
+      <circle cx="-8.5" cy="-27.5" r="1.4" fill="#111"/>
+    </g>
+  </g>`;
+}
+// The wire scene: sky, sun, poles with crossarms, and one sagging wire per
+// 6 birds. Birds are spaced along the wire and sit on its actual curve.
+function aviaryWireHtml(earned){
+  const perWire=6, rows=Math.max(1,Math.ceil(earned.length/perWire));
+  const W=800, sag=34, px0=34, px1=W-34;
+  const wireYs=[]; for(let r=0;r<rows;r++) wireYs.push(64+r*84);
+  const H=wireYs[wireYs.length-1]+sag+52;
+  const bez=(t,y)=>(1-t)*(1-t)*y + 2*(1-t)*t*(y+2*sag) + t*t*y;
+  let svg=`<svg viewBox="0 0 ${W} ${H}" xmlns="http://www.w3.org/2000/svg" style="width:100%;display:block;border-radius:12px">
+    <defs><linearGradient id="avsky" x1="0" y1="0" x2="0" y2="1"><stop offset="0" stop-color="#d8ecfb"/><stop offset="1" stop-color="#f7fbff"/></linearGradient></defs>
+    <rect width="${W}" height="${H}" fill="url(#avsky)"/>
+    <circle cx="${W-92}" cy="44" r="21" fill="#ffd66e" opacity=".85"/>
+    <ellipse cx="150" cy="38" rx="46" ry="12" fill="#fff" opacity=".8"/>
+    <ellipse cx="192" cy="46" rx="34" ry="10" fill="#fff" opacity=".55"/>
+    <ellipse cx="${W/2}" cy="${H-4}" rx="${W*.7}" ry="14" fill="#cfe6c8" opacity=".7"/>`;
+  for(const px of [px0,px1]){
+    svg+=`<rect x="${px-5}" y="26" width="10" height="${H-36}" rx="3" fill="#7a5230"/>`;
+    for(const wy of wireYs){
+      svg+=`<rect x="${px-26}" y="${wy-7}" width="52" height="7" rx="3" fill="#8a6238"/>
+        <rect x="${px-22}" y="${wy-13}" width="5" height="7" fill="#5f6b76"/>
+        <rect x="${px+17}" y="${wy-13}" width="5" height="7" fill="#5f6b76"/>`;
+    }
+  }
+  for(let r=0;r<rows;r++){
+    const wy=wireYs[r];
+    svg+=`<path d="M ${px0} ${wy} Q ${W/2} ${wy+2*sag} ${px1} ${wy}" stroke="#3a4149" stroke-width="2.5" fill="none"/>`;
+    const items=earned.slice(r*perWire,(r+1)*perWire);
+    items.forEach((bi,j)=>{
+      const t=(j+1)/(items.length+1);
+      svg+=perchedBirdSvg(bi, px0+(px1-px0)*t, bez(t,wy)-1, j%2===1);
+    });
+  }
+  svg+='</svg>';
+  return svg;
+}
+// Tap a perched bird → its full portrait appears below the wire (tap again to close).
+let aviaryOpenBird=null;
+function showAviaryBird(bi){
+  const el=document.getElementById('aviary-portrait'); if(!el) return;
+  if(aviaryOpenBird===bi){ el.innerHTML=''; aviaryOpenBird=null; return; }
+  aviaryOpenBird=bi;
+  const b=BIRDS[bi%BIRDS.length];
+  el.innerHTML=`<div style="max-width:420px;margin:14px auto 0;border:1px solid #e5e7eb;border-radius:12px;overflow:hidden;box-shadow:var(--card-shadow)">
+    <div style="width:100%;padding-top:57.14%;position:relative"><div style="position:absolute;inset:0">${b.svg}</div></div>
+    <div style="display:flex;justify-content:space-between;align-items:center;padding:10px 14px">
+      <div style="font-weight:700;color:var(--navy);font-size:14px">${b.name}</div>
+      <button class="btn-secondary" style="padding:4px 10px;font-size:12px" onclick="showAviaryBird(${bi})">Close</button>
+    </div>
+  </div>`;
+}
+
 function renderStreak(){
   const st=currentStreak(), lg=DB.streak.longest||0;
   const av=DB.aviary||{revealed:0,current:0,earned:[]};
@@ -3684,13 +3768,13 @@ function renderStreak(){
   document.getElementById('streak-reveal-bar').style.width=Math.round((av.revealed||0)/7*100)+'%';
   const g=document.getElementById('streak-gallery');
   const earned=av.earned||[];
+  aviaryOpenBird=null;   // fresh render — close any open portrait
   if(!earned.length){
-    g.innerHTML='<p style="color:var(--muted);font-size:14px">No birds yet. Study every day — after 7 days your first bird joins the aviary and appears on your dashboard forever.</p>';
+    g.innerHTML=aviaryWireHtml([])+'<p style="color:var(--muted);font-size:14px;margin-top:10px;text-align:center">An empty wire, for now. Study every day — after 7 days your first bird lands here and appears on your dashboard forever.</p>';
   } else {
-    g.innerHTML='<div style="display:grid;grid-template-columns:repeat(auto-fill,minmax(150px,1fr));gap:12px">'+earned.map(bi=>{
-      const b=BIRDS[bi%BIRDS.length];
-      return `<div style="border:1px solid #e5e7eb;border-radius:10px;overflow:hidden"><div style="width:100%;padding-top:57.14%;position:relative"><div style="position:absolute;inset:0">${b.svg}</div></div><div style="padding:8px 10px;font-size:13px;font-weight:600;color:var(--navy)">${b.name}</div></div>`;
-    }).join('')+'</div>';
+    g.innerHTML=aviaryWireHtml(earned)
+      +'<p style="text-align:center;color:var(--muted);font-size:12px;margin-top:8px">Tap a bird to see its portrait · '+earned.length+' on the wire</p>'
+      +'<div id="aviary-portrait"></div>';
   }
 }
 
