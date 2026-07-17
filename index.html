@@ -203,6 +203,22 @@ tr:hover td{background:#fafbff}
   /* 16px inputs stop iOS Safari from zooming the page on focus */
   .form-group input,.form-group select,.form-group textarea,#browser-search,.setting-row input[type=number]{font-size:16px}
 }
+/* ── TUTORIAL / FIRST-RUN TOUR (v3) ─────────────────────────────────── */
+#tutorial-overlay{position:fixed;inset:0;background:rgba(15,23,42,.62);z-index:300;display:none;align-items:center;justify-content:center;padding:18px;backdrop-filter:blur(2px)}
+#tutorial-card{background:#fff;border-radius:16px;max-width:480px;width:100%;max-height:86vh;overflow-y:auto;box-shadow:0 20px 60px rgba(0,0,0,.35);display:flex;flex-direction:column}
+#tutorial-head{background:linear-gradient(135deg,var(--navy),var(--blue));color:#fff;padding:20px 24px}
+#tutorial-icon{font-size:32px;margin-bottom:6px}
+#tutorial-title{font-size:19px;font-weight:800}
+#tutorial-body{padding:18px 24px 8px;font-size:14px;line-height:1.65;color:var(--text)}
+#tutorial-body ul{margin:8px 0 0 18px;padding:0}
+#tutorial-body li{margin-bottom:6px}
+#tutorial-dots{display:flex;gap:6px;justify-content:center;padding:10px 24px 0}
+.tut-dot{width:8px;height:8px;border-radius:50%;background:#dbe3ec;transition:background .2s}
+.tut-dot.active{background:var(--blue)}
+#tutorial-foot{display:flex;justify-content:space-between;align-items:center;gap:10px;padding:14px 24px 20px}
+#tutorial-skip{background:none;border:none;color:var(--muted);font-size:13px;font-weight:600;cursor:pointer;padding:8px 4px}
+#tutorial-skip:hover{color:var(--navy);text-decoration:underline}
+@media(max-width:640px){#tutorial-card{max-height:80vh}}
 </style>
 </head>
 <body>
@@ -932,6 +948,13 @@ front,back,subject,content_area,tags<br>
       </div>
     </div>
     <div class="panel settings-section">
+      <h3>Help</h3>
+      <div class="setting-row">
+        <div><div class="setting-label">App tour</div><div class="setting-desc">Replay the walkthrough of the basics and noteworthy features</div></div>
+        <button class="btn-secondary" onclick="startTutorial()">Replay Tour</button>
+      </div>
+    </div>
+    <div class="panel settings-section">
       <h3>Study Preferences</h3>
       <div class="setting-row">
         <div><div class="setting-label">New cards per day</div><div class="setting-desc">Limit new cards introduced daily</div></div>
@@ -1094,6 +1117,25 @@ A: [answer]. Citation: Harrison's Principles of Internal Medicine, 21e, Ch. 245.
 </div>
 
 </div><!-- end #main -->
+
+<!-- TUTORIAL / FIRST-RUN TOUR (v3) -->
+<div id="tutorial-overlay">
+  <div id="tutorial-card">
+    <div id="tutorial-head">
+      <div id="tutorial-icon"></div>
+      <div id="tutorial-title"></div>
+    </div>
+    <div id="tutorial-body"></div>
+    <div id="tutorial-dots"></div>
+    <div id="tutorial-foot">
+      <button id="tutorial-skip" onclick="endTutorial()">Skip tour</button>
+      <div style="display:flex;gap:8px">
+        <button id="tutorial-back" class="btn-secondary" onclick="tutorialBack()">Back</button>
+        <button id="tutorial-next" class="btn-primary" onclick="tutorialNext()">Next</button>
+      </div>
+    </div>
+  </div>
+</div>
 
 <div id="toast"></div>
 
@@ -3592,6 +3634,24 @@ function renderFlames(n, cap){
   return '🔥'.repeat(n);
 }
 
+// Reveal the bird's NAME at the same 7-day pace as its portrait (v3): each
+// study day uncovers a proportional share of letters, in a scrambled but
+// deterministic order so the name can't be read early. Spaces always show;
+// hidden letters render as dim blanks. Day 7 = full name.
+function birdNameRevealHtml(name, revealed){
+  revealed=Math.min(7,Math.max(0,revealed|0));
+  if(revealed>=7) return escHtml(name);
+  const chars=[...String(name)];
+  const letterIdx=chars.map((ch,i)=>ch===' '?null:i).filter(i=>i!==null);
+  // Deterministic scramble: stable sort by a small hash of each position.
+  const order=[...letterIdx].sort((a,b)=>((a*17+5)%13)-((b*17+5)%13)||a-b);
+  const shown=new Set(order.slice(0, Math.floor(letterIdx.length*revealed/7)));
+  return chars.map((ch,i)=> ch===' '
+    ? '<span style="display:inline-block;width:.45em"></span>'
+    : (shown.has(i) ? escHtml(ch) : '<span style="opacity:.3">▁</span>')
+  ).join('');
+}
+
 // Render the current bird as a 7×2 tile grid. `revealed` = study-days (0-7);
 // two of the 14 tiles uncover per day so the bird completes in 7 days.
 function birdRevealHtml(idx, revealed){
@@ -3618,7 +3678,7 @@ function renderStreak(){
   document.getElementById('streak-longest').textContent=lg;
   document.getElementById('streak-birds').textContent=(av.earned||[]).length;
   document.getElementById('streak-flames').innerHTML=renderFlames(st);
-  document.getElementById('streak-bird-name').textContent=BIRDS[av.current%BIRDS.length].name;
+  document.getElementById('streak-bird-name').innerHTML=birdNameRevealHtml(BIRDS[av.current%BIRDS.length].name, av.revealed||0);
   document.getElementById('streak-reveal-count').textContent=av.revealed||0;
   document.getElementById('streak-reveal').innerHTML=birdRevealHtml(av.current, av.revealed||0);
   document.getElementById('streak-reveal-bar').style.width=Math.round((av.revealed||0)/7*100)+'%';
@@ -4654,6 +4714,77 @@ function renderPRITEWeakList(an){
 }
 
 // ═══════════════════════════════════════════════════════════
+// TUTORIAL / FIRST-RUN TOUR (v3)
+// Shown automatically on first launch (DB.settings.tutorialSeen unset),
+// skippable at any point, and replayable from Settings → Help.
+// ═══════════════════════════════════════════════════════════
+const TUTORIAL_STEPS=[
+  {icon:'👋',title:'Welcome to MedBoard Prep',body:`
+    <p>A board-prep dashboard built for IM &amp; Psychiatry residents. Flashcards with modern spaced repetition, plus analytics that connect <em>your actual score reports</em> to what you study next.</p>
+    <p style="margin-top:10px">Everything runs and stays <strong>on this device</strong> — nothing is uploaded anywhere. This tour takes about a minute, and you can replay it anytime from <strong>Settings → Help</strong>.</p>`},
+  {icon:'🃏',title:'Study — the daily core',body:`
+    <p>Tap a card to flip it, then rate how it went: <strong style="color:#dc2626">Again</strong>, <strong style="color:#d97706">Hard</strong>, <strong style="color:#1d4ed8">Good</strong>, or <strong style="color:#16a34a">Easy</strong>.</p>
+    <ul>
+      <li>The <strong>FSRS</strong> algorithm schedules each card to return right before you'd forget it — no wasted reviews.</li>
+      <li>New cards are limited per day (default 10) so a big deck can't bury you.</li>
+      <li>On a keyboard: <kbd>Space</kbd> flips, <kbd>A</kbd> <kbd>S</kbd> <kbd>D</kbd> <kbd>F</kbd> rate.</li>
+    </ul>`},
+  {icon:'🗂️',title:'Cards — build your deck',body:`
+    <p>Four ways to add cards:</p>
+    <ul>
+      <li><strong>Create</strong> one at a time, or batch-paste many at once.</li>
+      <li><strong>Import CSV</strong> files (a format guide is included).</li>
+      <li><strong>Import Anki decks</strong> (.apkg) — images and cloze cards come along.</li>
+      <li><strong>AI generate:</strong> copy the built-in prompt into Claude, paste the results back.</li>
+    </ul>
+    <p style="margin-top:8px">Every card is auto-sorted into official ABIM/ABPN exam content areas.</p>`},
+  {icon:'📄',title:'Your score reports work here',body:`
+    <p>Drop your <strong>ITE</strong>, <strong>MKSAP</strong>, and <strong>PRITE</strong> PDF score reports into their pages. They're parsed on-device into a weakness map: which content areas are below the national mean, trending down, or missed in both sources at once.</p>`},
+  {icon:'🎯',title:'Weak Areas — study what matters',body:`
+    <p>The app blends four signals — exam blueprint weight, your flashcard command, ITE percentile, and MKSAP % — into one ranked <strong>"study next"</strong> list.</p>
+    <p style="margin-top:8px">Each weak area generates a Claude prompt for cited, board-style practice questions; paste the output back and it becomes cards auto-tagged to that area.</p>`},
+  {icon:'🎓',title:'Exam Readiness',body:`
+    <p>Set your exam dates and get a weighted <strong>readiness %</strong> per exam, a pacing check (are you learning new cards fast enough to finish in time?), and a list of <strong>tested topics you have no card for</strong> — pulled from objectives you actually missed on the ITE and MKSAP.</p>`},
+  {icon:'🔥',title:'Streak &amp; Aviary',body:`
+    <p>Study every day to keep your streak. Each study day uncovers pieces of a mystery bird — <em>both its portrait and its name</em> reveal gradually over 7 days. Finish the week and the bird joins your aviary (and lives faintly on your dashboard, forever).</p>`},
+  {icon:'💾',title:'Keep your data safe',body:`
+    <p>Your cards and progress live only in this browser. Two habits worth having:</p>
+    <ul>
+      <li><strong>Back up</strong> from Settings → Backup every week or so — the .json file restores everything, anywhere.</li>
+      <li>On a phone, use Share → <strong>Add to Home Screen</strong> for the full app experience (works offline).</li>
+    </ul>
+    <p style="margin-top:10px">That's the tour — good luck with your boards!</p>`}
+];
+let tutStep=0;
+function startTutorial(){
+  tutStep=0;
+  document.getElementById('tutorial-overlay').style.display='flex';
+  renderTutorialStep();
+}
+function renderTutorialStep(){
+  const s=TUTORIAL_STEPS[tutStep], last=tutStep===TUTORIAL_STEPS.length-1;
+  document.getElementById('tutorial-icon').textContent=s.icon;
+  document.getElementById('tutorial-title').innerHTML=s.title;
+  document.getElementById('tutorial-body').innerHTML=s.body;
+  document.getElementById('tutorial-dots').innerHTML=TUTORIAL_STEPS.map((_,i)=>`<div class="tut-dot${i===tutStep?' active':''}"></div>`).join('');
+  document.getElementById('tutorial-back').style.visibility=tutStep===0?'hidden':'visible';
+  document.getElementById('tutorial-next').textContent=last?'Start studying':'Next';
+  document.getElementById('tutorial-skip').style.visibility=last?'hidden':'visible';
+  document.getElementById('tutorial-card').scrollTop=0;
+}
+function tutorialNext(){
+  if(tutStep>=TUTORIAL_STEPS.length-1) return endTutorial();
+  tutStep++; renderTutorialStep();
+}
+function tutorialBack(){
+  if(tutStep>0){ tutStep--; renderTutorialStep(); }
+}
+function endTutorial(){
+  document.getElementById('tutorial-overlay').style.display='none';
+  if(!DB.settings.tutorialSeen){ DB.settings.tutorialSeen=true; saveDB(); }
+}
+
+// ═══════════════════════════════════════════════════════════
 // INIT
 // ═══════════════════════════════════════════════════════════
 async function init(){
@@ -4670,6 +4801,9 @@ async function init(){
   seedSampleCards();
 
   renderDashboard();
+
+  // First launch: run the feature tour (skippable; replayable from Settings → Help).
+  if(!DB.settings.tutorialSeen) startTutorial();
 
   // PWA (v3): register the offline service worker when served over http(s).
   // Silently skipped when opened as a local file (file:// can't run SWs).
