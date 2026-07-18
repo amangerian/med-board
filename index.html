@@ -254,9 +254,12 @@ tr:hover td{background:#fafbff}
 <div id="page-dashboard" class="page active" style="position:relative">
   <div id="dashboard-aviary-bg" style="position:absolute;inset:0;pointer-events:none;z-index:0;overflow:hidden"></div>
   <div style="position:relative;z-index:1">
-  <div class="page-header">
-    <h2 id="greeting">Good morning</h2>
-    <p>Track your board prep progress across Internal Medicine and Psychiatry</p>
+  <div class="page-header" style="display:flex;align-items:flex-end;gap:20px;flex-wrap:wrap">
+    <div style="flex:0 1 auto">
+      <h2 id="greeting">Good morning</h2>
+      <p>Track your board prep progress across Internal Medicine and Psychiatry</p>
+    </div>
+    <div id="dash-wire" title="Your aviary" style="flex:1 1 180px;min-width:150px;height:74px;align-self:stretch;overflow:visible"></div>
   </div>
   <div class="stat-grid">
     <div class="stat-card">
@@ -1980,6 +1983,7 @@ function renderDashboard(){
   const greet=hour<12?'Good morning':hour<17?'Good afternoon':'Good evening';
   const nm=(DB.settings.name||'').trim();
   document.getElementById('greeting').textContent=greet+(nm?', '+nm:'');
+  renderDashWire();
 
   const dueAll=getDueCards('all');
   const dueIM=getDueCards('IM');
@@ -3703,13 +3707,14 @@ const PERCH_STYLES=[
   {body:'#6d6a62',head:'#4a4842',belly:'#d1622a',wing:'#5c584f',beak:'#f2c23a'},
   {body:'#f0821e',head:'#151515',belly:'#f0821e',wing:'#151515',beak:'#9aa0a6'}
 ];
-// One perched bird, feet at (x,y) on the wire. Alternates facing via `flip`.
-function perchedBirdSvg(bi,x,y,flip){
+// Inner artwork of one perched bird (feet at local origin). `flip` mirrors it
+// so it faces right instead of left. Shared by the Aviary wire and the
+// animated dashboard-header wire.
+function perchedBirdInner(bi,flip){
   const s=PERCH_STYLES[bi%PERCH_STYLES.length];
   const b=BIRDS[bi%BIRDS.length];
-  return `<g transform="translate(${x},${y})" onclick="showAviaryBird(${bi})" style="cursor:pointer">
-    <title>${escHtml(b.name)}</title>
-    <g transform="scale(${flip?-1:1},1)">
+  return `<title>${escHtml(b.name)}</title>
+    <g class="pb-face" transform="scale(${flip?-1:1},1)">
       <path d="M-3 0 L-3 -5 M3 0 L3 -5" stroke="#3a3a3a" stroke-width="1.6" stroke-linecap="round" fill="none"/>
       <path d="M7 -16 L21 -7 L10 -19 Z" fill="${s.wing}"/>
       <ellipse cx="0" cy="-15" rx="11" ry="9" fill="${s.body}"/>
@@ -3721,8 +3726,11 @@ function perchedBirdSvg(bi,x,y,flip){
       ${s.face?`<path d="M-13 -26 q3.5 4 7.5 3 l-.5 -5.5 Z" fill="${s.face}"/>`:''}
       <path d="M-13 -27.5 L-19.5 -25.5 L-13 -23.5 Z" fill="${s.beak}"/>
       <circle cx="-8.5" cy="-27.5" r="1.4" fill="#111"/>
-    </g>
-  </g>`;
+    </g>`;
+}
+// One perched bird positioned with feet at (x,y) on a wire, tappable.
+function perchedBirdSvg(bi,x,y,flip){
+  return `<g transform="translate(${x},${y})" onclick="showAviaryBird(${bi})" style="cursor:pointer">${perchedBirdInner(bi,flip)}</g>`;
 }
 // The wire scene: sky, sun, poles with crossarms, and one sagging wire per
 // 6 birds. Birds are spaced along the wire and sit on its actual curve.
@@ -3773,6 +3781,89 @@ function showAviaryBird(bi){
       <button class="btn-secondary" style="padding:4px 10px;font-size:12px" onclick="showAviaryBird(${bi})">Close</button>
     </div>
   </div>`;
+}
+
+// ── DASHBOARD HEADER WIRE (v3) ───────────────────────────────────────────
+// Earned birds also perch on a small wire beside the greeting, and every few
+// seconds one of them hops along the wire or flies to a new spot. Purely
+// decorative: skipped under prefers-reduced-motion, paused off-dashboard.
+const DASH_WIRE={x0:14,x1:446,y:30,sag:20,W:460,H:74,scale:.62};
+let dashWireState={birds:[],timer:null,animating:false};
+function dashWirePoint(t){
+  const {x0,x1,y,sag}=DASH_WIRE;
+  return { x: x0+(x1-x0)*t,
+           y: (1-t)*(1-t)*y + 2*(1-t)*t*(y+2*sag) + t*t*y };
+}
+function renderDashWire(){
+  const host=document.getElementById('dash-wire'); if(!host) return;
+  const earned=(DB.aviary&&DB.aviary.earned)||[];
+  const {W,H,x0,x1,y,sag,scale}=DASH_WIRE;
+  // Preserve current perch spots across re-renders so birds don't teleport.
+  if(dashWireState.birds.length!==earned.length || dashWireState.birds.some((b,i)=>b.bi!==earned[i])){
+    dashWireState.birds=earned.map((bi,i)=>({bi,t:(i+1)/(earned.length+1),flip:i%2===1}));
+  }
+  dashWireState.animating=false;
+  let svg=`<svg viewBox="0 0 ${W} ${H}" preserveAspectRatio="xMaxYMid meet" style="width:100%;height:100%;display:block;overflow:visible" aria-hidden="true">
+    <path d="M ${x0} ${y} Q ${(x0+x1)/2} ${y+2*sag} ${x1} ${y}" stroke="#3a4149" stroke-width="2" fill="none" opacity=".8"/>
+    <rect x="${x0-3}" y="${y-6}" width="5" height="9" rx="2" fill="#5f6b76"/>
+    <rect x="${x1-2}" y="${y-6}" width="5" height="9" rx="2" fill="#5f6b76"/>`;
+  dashWireState.birds.forEach((b,i)=>{
+    const p=dashWirePoint(b.t);
+    svg+=`<g class="dash-bird" data-i="${i}" transform="translate(${p.x},${p.y-1}) scale(${scale})" onclick="navigate('streak')" style="cursor:pointer">${perchedBirdInner(b.bi,b.flip)}</g>`;
+  });
+  svg+='</svg>';
+  host.innerHTML=svg;
+  host.style.display=earned.length?'':'none';   // hide the bare wire until a bird is earned
+  startDashWireLoop();
+}
+function startDashWireLoop(){
+  if(dashWireState.timer) return;
+  try{ if(window.matchMedia&&matchMedia('(prefers-reduced-motion: reduce)').matches) return; }catch(e){}
+  dashWireState.timer=setInterval(()=>{
+    const host=document.getElementById('dash-wire');
+    if(!host||!host.isConnected||!dashWireState.birds.length||dashWireState.animating) return;
+    if(!document.getElementById('page-dashboard').classList.contains('active')) return;
+    if(document.visibilityState==='hidden') return;
+    // Birds are mostly still: each 9s tick has only a 25% chance of a move,
+    // so on average one bird stirs every ~35-40 seconds.
+    if(Math.random()>0.25) return;
+    moveDashBird();
+  }, 9000);
+}
+function moveDashBird(){
+  const birds=dashWireState.birds;
+  const i=Math.floor(Math.random()*birds.length);
+  const b=birds[i];
+  const el=document.querySelector(`#dash-wire g.dash-bird[data-i="${i}"]`);
+  if(!el) return;
+  // Pick a landing spot, biased away from the other birds' perches.
+  let t1=0.06+Math.random()*0.88;
+  for(let tries=0;tries<6;tries++){
+    if(birds.every((o,j)=>j===i||Math.abs(o.t-t1)>0.09)) break;
+    t1=0.06+Math.random()*0.88;
+  }
+  const t0=b.t;
+  if(Math.abs(t1-t0)<0.03) return;                     // not worth moving
+  const fly=Math.abs(t1-t0)>0.22 || Math.random()<0.3; // long moves fly, short ones hop
+  const dur=fly?1500:800, lift=fly?24+Math.random()*16:5;
+  b.flip=t1>t0;                                        // face the direction of travel
+  const face=el.querySelector('.pb-face');
+  if(face) face.setAttribute('transform',`scale(${b.flip?-1:1},1)`);
+  dashWireState.animating=true;
+  const raf=window.requestAnimationFrame||(cb=>setTimeout(()=>cb(performance.now()),16));
+  const start=performance.now();
+  function frame(now){
+    const s=Math.min(1,(now-start)/dur);
+    const e=s<.5?2*s*s:1-Math.pow(-2*s+2,2)/2;         // easeInOutQuad
+    const t=t0+(t1-t0)*e;
+    const p=dashWirePoint(t);
+    const yy=p.y-1-lift*Math.sin(Math.PI*e);           // arc above the wire
+    const tilt=fly?Math.sin(s*Math.PI*5)*7:0;          // wingbeat wobble in flight
+    el.setAttribute('transform',`translate(${p.x},${yy}) scale(${DASH_WIRE.scale}) rotate(${tilt})`);
+    if(s<1) raf(frame);
+    else { b.t=t1; el.setAttribute('transform',`translate(${p.x},${p.y-1}) scale(${DASH_WIRE.scale})`); dashWireState.animating=false; }
+  }
+  raf(frame);
 }
 
 function renderStreak(){
