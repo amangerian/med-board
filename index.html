@@ -984,14 +984,14 @@ front,back,subject,content_area,tags<br>
       <h3>Backup &amp; Restore</h3>
       <div class="alert alert-info" style="margin-bottom:14px">Your cards and progress live only in this browser. Back up regularly — a backup file lets you restore everything or move to another computer/browser.</div>
       <div class="setting-row">
-        <div><div class="setting-label">Full backup</div><div class="setting-desc">Download everything (cards, scheduling, streak, settings) as a .json file</div></div>
+        <div><div class="setting-label">Full backup</div><div class="setting-desc">Download everything — cards, scheduling, streak &amp; aviary, settings, and your parsed ITE / MKSAP / PRITE score reports — as a .json file</div></div>
         <button class="btn-primary" onclick="exportBackup()">Download Backup</button>
       </div>
       <div class="setting-row">
-        <div><div class="setting-label">Restore from backup</div><div class="setting-desc">Load a .json backup. Choose to merge with or replace current data.</div></div>
+        <div><div class="setting-label">Restore from backup</div><div class="setting-desc"><strong>Merge</strong> keeps your existing cards and their progress, adds any cards the backup has that you don't, and updates your ITE/MKSAP/PRITE reports from the file. <strong>Replace</strong> wipes this device and restores the backup exactly — use this when setting up a new phone or browser.</div></div>
         <div style="display:flex;gap:8px;align-items:center">
-          <label style="font-size:12px;color:var(--muted);display:flex;align-items:center;gap:5px"><input type="radio" name="restore-mode" value="merge" checked> Merge</label>
-          <label style="font-size:12px;color:var(--muted);display:flex;align-items:center;gap:5px"><input type="radio" name="restore-mode" value="replace"> Replace</label>
+          <label style="font-size:12px;color:var(--muted);display:flex;align-items:center;gap:5px" title="Adds new cards, keeps your progress, updates score reports"><input type="radio" name="restore-mode" value="merge" checked> Merge</label>
+          <label style="font-size:12px;color:var(--muted);display:flex;align-items:center;gap:5px" title="Deletes everything on this device and restores the backup exactly"><input type="radio" name="restore-mode" value="replace"> Replace</label>
           <button class="btn-secondary" onclick="document.getElementById('backup-file').click()">Choose File…</button>
           <input type="file" id="backup-file" accept=".json,application/json" style="display:none" onchange="handleBackupFile(event)">
         </div>
@@ -3626,11 +3626,19 @@ function saveSetting(key,val){
 // FULL BACKUP / RESTORE  (cards + scheduling + logs + streak + settings)
 // ═══════════════════════════════════════════════════════════
 function exportBackup(){
+  // The whole DB travels in `data` — cards, scheduling, settings, streak,
+  // aviary AND the parsed ITE/MKSAP/PRITE score reports. The counts below are
+  // informational so a backup file can be identified without opening the app.
   const payload={
     format:'medboard-backup',
-    version:1,
+    version:2,
     exportedAt:new Date().toISOString(),
     cardCount:DB.cards.length,
+    reportCounts:{
+      ite:(DB.iteReports||[]).length,
+      mksap:(DB.mksapReports||[]).length,
+      prite:(DB.priteReports||[]).length
+    },
     data:DB
   };
   const blob=new Blob([JSON.stringify(payload,null,2)],{type:'application/json'});
@@ -3640,7 +3648,8 @@ function exportBackup(){
   a.download='medboard_backup_'+today()+'.json';
   a.click();
   setTimeout(()=>URL.revokeObjectURL(url),1000);
-  toast(`Backed up ${DB.cards.length} cards`);
+  const nRep=payload.reportCounts.ite+payload.reportCounts.mksap+payload.reportCounts.prite;
+  toast(`Backed up ${DB.cards.length} cards${nRep?` + ${nRep} score report${nRep===1?'':'s'}`:''}`);
 }
 
 function handleBackupFile(e){
@@ -3671,6 +3680,11 @@ function restoreBackup(incoming, mode){
     DB.dailyLog=incoming.dailyLog||{};
     DB.streak=incoming.streak||{current:0,longest:0,lastDate:null};
     DB.aviary=incoming.aviary||{revealed:0,current:0,earned:[],lastDate:null};
+    // Score reports travel with the backup too (v3 fix — these were silently
+    // dropped before, so moving to a new device lost every ITE/MKSAP/PRITE report).
+    DB.iteReports=incoming.iteReports||[];
+    DB.mksapReports=incoming.mksapReports||[];
+    DB.priteReports=incoming.priteReports||[];
   } else {
     // Merge: add cards whose id isn't already present (fall back to front+back key).
     const have=new Set(DB.cards.map(c=>c.id));
@@ -3694,9 +3708,33 @@ function restoreBackup(incoming, mode){
       DB.aviary.earned=DB.aviary.earned||[];
       incoming.aviary.earned.forEach(b=>{ if(!DB.aviary.earned.includes(b)) DB.aviary.earned.push(b); });
     }
+    // Score reports UPSERT on merge (incoming wins for the same exam), matching
+    // what happens when you re-upload a PDF for a year you already have. Cards
+    // deliberately behave differently — they're never overwritten, because local
+    // scheduling progress is irreplaceable, while a score report is a fixed
+    // document that is identical wherever it came from.
+    let repAdded=0, repUpdated=0;
+    const mergeReports=(listName, key)=>{
+      const incomingList=incoming[listName]||[];
+      if(!incomingList.length) return;
+      DB[listName]=DB[listName]||[];
+      incomingList.forEach(r=>{
+        const k=key(r);
+        const at=DB[listName].findIndex(x=>key(x)===k);
+        if(at>=0){ DB[listName][at]=r; repUpdated++; }
+        else { DB[listName].push(r); repAdded++; }
+      });
+    };
+    mergeReports('iteReports',   r=>String(r.year));
+    mergeReports('mksapReports', r=>String(r.product)+'||'+String(r.activity));
+    mergeReports('priteReports', r=>String(r.examDate));
+
     saveDB();
     renderSettings();
-    toast(`Merged backup — added ${addedN} new card${addedN===1?'':'s'}`);
+    const repBits=[];
+    if(repAdded) repBits.push(`${repAdded} report${repAdded===1?'':'s'} added`);
+    if(repUpdated) repBits.push(`${repUpdated} updated`);
+    toast(`Merged — ${addedN} new card${addedN===1?'':'s'}${repBits.length?' · '+repBits.join(', '):''}`);
     return;
   }
   saveDB();
