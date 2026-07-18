@@ -353,13 +353,19 @@ tr:hover td{background:#fafbff}
       <div class="trophy">🎉</div>
       <h3>Session Complete!</h3>
       <p id="session-summary"></p>
-      <button class="btn-primary" onclick="navigate('dashboard')">Back to Dashboard</button>
+      <div style="display:flex;gap:10px;justify-content:center;flex-wrap:wrap">
+        <button class="btn-primary" onclick="navigate('dashboard')">Back to Dashboard</button>
+        <button class="btn-secondary" onclick="openExtraStudy()">Keep studying →</button>
+      </div>
     </div>
     <div id="no-cards-msg">
       <div style="font-size:48px;margin-bottom:12px">✅</div>
       <h3 style="font-size:20px;font-weight:700;color:var(--navy);margin-bottom:8px">All caught up!</h3>
-      <p style="color:var(--muted);margin-bottom:20px">No cards due for this filter. Add more cards or come back tomorrow.</p>
-      <button class="btn-primary" onclick="navigate('create')">Create Cards</button>
+      <p style="color:var(--muted);margin-bottom:20px">No cards due for this filter. You're done for today — but you can push ahead if you want.</p>
+      <div style="display:flex;gap:10px;justify-content:center;flex-wrap:wrap">
+        <button class="btn-primary" onclick="openExtraStudy()">Keep studying →</button>
+        <button class="btn-secondary" onclick="navigate('create')">Create Cards</button>
+      </div>
     </div>
   </div>
 </div>
@@ -1121,6 +1127,62 @@ A: [answer]. Citation: Harrison's Principles of Internal Medicine, 21e, Ch. 245.
 </div>
 
 </div><!-- end #main -->
+
+<!-- KEEP STUDYING (extra session) -->
+<div id="extra-modal" style="display:none;position:fixed;inset:0;background:rgba(0,0,0,.5);z-index:200;align-items:center;justify-content:center;padding:18px">
+  <div style="background:#fff;border-radius:14px;padding:24px;width:100%;max-width:520px;max-height:88vh;overflow-y:auto">
+    <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:6px">
+      <div style="font-size:17px;font-weight:700;color:var(--navy)">Keep studying</div>
+      <button onclick="closeExtraStudy()" style="background:none;border:none;font-size:22px;cursor:pointer;color:var(--muted)">×</button>
+    </div>
+    <p style="font-size:13px;color:var(--muted);margin-bottom:14px">Study beyond today's queue — either new cards you haven't seen yet, or cards scheduled for the days ahead.</p>
+
+    <div class="form-group">
+      <label>What to study</label>
+      <select id="extra-source" onchange="updateExtraPreview()">
+        <option value="auto">New cards first, then review ahead (recommended)</option>
+        <option value="new">Only new cards I haven't seen</option>
+        <option value="ahead">Only review cards, pulled forward</option>
+      </select>
+    </div>
+
+    <div class="form-group">
+      <label style="display:flex;align-items:center;gap:8px;cursor:pointer">
+        <input type="checkbox" id="extra-focus" onchange="updateExtraPreview()" style="width:auto">
+        <span>Focus on my weakest areas</span>
+      </label>
+      <div id="extra-focus-areas" style="font-size:12px;color:var(--muted);margin-top:6px;line-height:1.5"></div>
+    </div>
+
+    <div class="grid-2" style="gap:12px">
+      <div class="form-group">
+        <label>Subject</label>
+        <select id="extra-subject" onchange="updateExtraPreview()">
+          <option value="all">Both</option>
+          <option value="IM">Internal Medicine</option>
+          <option value="Psych">Psychiatry</option>
+        </select>
+      </div>
+      <div class="form-group">
+        <label>How many cards</label>
+        <select id="extra-limit" onchange="updateExtraPreview()">
+          <option value="10">10</option>
+          <option value="20" selected>20</option>
+          <option value="30">30</option>
+          <option value="50">50</option>
+        </select>
+      </div>
+    </div>
+
+    <div id="extra-preview" style="font-size:13px;color:var(--navy);background:#f8faff;border-radius:8px;padding:10px 12px;margin-bottom:12px"></div>
+    <div id="extra-warning" class="alert alert-warn" style="margin-bottom:14px"></div>
+
+    <div style="display:flex;gap:10px;flex-wrap:wrap">
+      <button class="btn-primary" id="extra-start-btn" onclick="startExtraSession()">Start extra session</button>
+      <button class="btn-secondary" onclick="closeExtraStudy()">Cancel</button>
+    </div>
+  </div>
+</div>
 
 <!-- TUTORIAL / FIRST-RUN TOUR (v3) -->
 <div id="tutorial-overlay">
@@ -2157,7 +2219,113 @@ function initStudy(){
   studyState.sessionTotal=0;
   studyState.flipped=false;
   studyState.revealed=false;
+  studyState.extra=false;
   document.getElementById('study-count-label').textContent=due.length+' cards due';
+  showCurrentCard();
+}
+
+// ═══════════════════════════════════════════════════════════
+// KEEP STUDYING — optional extra session past today's queue
+// Two sources, because they cost very different things:
+//   • NEW cards beyond the daily cap: adds future reviews, but every one is
+//     material you hadn't learned yet — the honest way to get ahead.
+//   • REVIEW cards pulled forward: you see them before the scheduler thinks
+//     you need to, so the interval grows less than it would have. Same card,
+//     more repetitions, sooner. That's the real cost worth warning about.
+// ═══════════════════════════════════════════════════════════
+function extraMatch(c, subject){
+  if(c.suspended) return false;
+  if(subject==='IM'    && c.subject==='Psych') return false;
+  if(subject==='Psych' && c.subject==='IM')    return false;
+  return true;
+}
+// Weakest content areas from the same ranking that powers "Study next".
+function extraFocusAreas(subject){
+  let rows=computeStudyPriorities();
+  if(subject!=='all') rows=rows.filter(r=>r.subject===subject);
+  return rows.slice(0,5).map(r=>r.area);
+}
+// Build the candidate pool for an extra session.
+function buildExtraQueue(source, subject, limit, focus){
+  const t=today();
+  const areas=focus?extraFocusAreas(subject):null;
+  const inFocus=c=>!areas||!areas.length||areas.includes(c.contentArea);
+  // New cards never seen — beyond today's newPerDay allowance.
+  let fresh=DB.cards.filter(c=>extraMatch(c,subject) && (c.totalReviews||0)===0 && c.introducedDate!==t)
+    .sort((a,b)=>String(a.createdDate||'').localeCompare(String(b.createdDate||'')));
+  // Review cards scheduled for a future day, soonest-due first (least disruptive).
+  let ahead=DB.cards.filter(c=>extraMatch(c,subject) && (c.totalReviews||0)>0 && c.dueDate>t)
+    .sort((a,b)=>String(a.dueDate).localeCompare(String(b.dueDate)));
+  if(areas&&areas.length){
+    const ff=fresh.filter(inFocus), fa=ahead.filter(inFocus);
+    // Only narrow to the focus areas if they actually have material.
+    if(ff.length||fa.length){ fresh=ff; ahead=fa; }
+  }
+  let pool;
+  if(source==='new') pool=fresh;
+  else if(source==='ahead') pool=ahead;
+  else pool=[...fresh,...ahead];          // 'auto' — cheapest cards first
+  return {queue:pool.slice(0,limit), freshN:fresh.length, aheadN:ahead.length};
+}
+function openExtraStudy(){
+  document.getElementById('extra-modal').style.display='flex';
+  updateExtraPreview();
+}
+function closeExtraStudy(){ document.getElementById('extra-modal').style.display='none'; }
+function updateExtraPreview(){
+  const source=document.getElementById('extra-source').value;
+  const subject=document.getElementById('extra-subject').value;
+  const limit=+document.getElementById('extra-limit').value;
+  const focus=document.getElementById('extra-focus').checked;
+  const areas=focus?extraFocusAreas(subject):[];
+  const fx=document.getElementById('extra-focus-areas');
+  fx.innerHTML = !focus
+    ? 'Uses your ranked weak areas (blueprint weight + card command + ITE/MKSAP/PRITE gaps).'
+    : (areas.length? 'Drawing from: '+areas.map(a=>escHtml(a)).join(' · ')
+                   : '<span style="color:#c2410c">No ranked areas yet — upload a score report or review more cards. Falling back to all areas.</span>');
+
+  const {queue,freshN,aheadN}=buildExtraQueue(source,subject,limit,focus);
+  const pv=document.getElementById('extra-preview');
+  const warn=document.getElementById('extra-warning');
+  const btn=document.getElementById('extra-start-btn');
+  if(!queue.length){
+    pv.innerHTML='<strong>Nothing available</strong> — no unseen cards and nothing scheduled ahead for this selection.';
+    warn.style.display='none';
+    btn.disabled=true; btn.style.opacity=.5;
+    return;
+  }
+  btn.disabled=false; btn.style.opacity=1;
+  const nNew=queue.filter(c=>(c.totalReviews||0)===0).length;
+  const nAhead=queue.length-nNew;
+  pv.innerHTML=`<strong>${queue.length} card${queue.length===1?'':'s'}</strong> queued`+
+    (nNew?` · ${nNew} new`:'')+(nAhead?` · ${nAhead} pulled forward`:'')+
+    `<div style="color:var(--muted);font-size:12px;margin-top:3px">Available: ${freshN} unseen · ${aheadN} scheduled ahead</div>`;
+  // Honest, specific warning — tuned to what this particular session will do.
+  warn.style.display='';
+  if(nAhead&&nNew) warn.innerHTML=`<strong>Heads up:</strong> the ${nNew} new card${nNew===1?'':'s'} will enter your rotation and add reviews over the coming days. The ${nAhead} pulled-forward card${nAhead===1?' is':'s are'} being seen early, so ${nAhead===1?'its interval grows':'their intervals grow'} less than if you'd waited — expect a heavier queue tomorrow and this week.`;
+  else if(nAhead) warn.innerHTML=`<strong>Heads up:</strong> these ${nAhead} card${nAhead===1?'':'s'} aren't due yet. Reviewing early earns a smaller interval increase than waiting would, so they'll come back sooner and today's work partly repeats. Fine occasionally; not a habit worth building.`;
+  else warn.innerHTML=`<strong>Heads up:</strong> ${nNew} new card${nNew===1?'':'s'} beyond today's limit of ${DB.settings.newPerDay||10}. Nothing is wasted — but each one joins your review rotation, so tomorrow and the next few days get busier.`;
+}
+function startExtraSession(){
+  const source=document.getElementById('extra-source').value;
+  const subject=document.getElementById('extra-subject').value;
+  const limit=+document.getElementById('extra-limit').value;
+  const focus=document.getElementById('extra-focus').checked;
+  const {queue}=buildExtraQueue(source,subject,limit,focus);
+  if(!queue.length){ toast('No cards available for that selection'); return; }
+  closeExtraStudy();
+  navigate('study');
+  document.getElementById('session-complete').style.display='none';
+  document.getElementById('no-cards-msg').style.display='none';
+  document.getElementById('study-card-wrap').style.display='';
+  studyState.queue=[...queue].sort(()=>Math.random()-0.5);
+  studyState.idx=0;
+  studyState.sessionCorrect=0;
+  studyState.sessionTotal=0;
+  studyState.flipped=false;
+  studyState.revealed=false;
+  studyState.extra=true;                 // changes the end-of-session wording
+  document.getElementById('study-count-label').textContent=queue.length+' extra card'+(queue.length===1?'':'s')+(focus?' · weak areas':'');
   showCurrentCard();
 }
 
@@ -2246,7 +2414,9 @@ function endSession(){
   const sc=document.getElementById('session-complete');
   sc.style.display='block';
   const acc=studyState.sessionTotal>0?Math.round(studyState.sessionCorrect/studyState.sessionTotal*100):0;
-  document.getElementById('session-summary').textContent=`Reviewed ${studyState.sessionTotal} cards · ${acc}% accuracy · ${studyState.sessionCorrect} correct`;
+  document.getElementById('session-summary').textContent=
+    (studyState.extra?'Extra session — ':'')+`Reviewed ${studyState.sessionTotal} cards · ${acc}% accuracy · ${studyState.sessionCorrect} correct`;
+  studyState.extra=false;
 }
 
 // ── Mid-review actions (edit / flag / delete the current card) ──
