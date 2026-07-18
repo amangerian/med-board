@@ -510,10 +510,11 @@ NOTES:
       <option value="flagged">🚩 Flagged only</option>
       <option value="suspended">⏸ Suspended only</option>
     </select>
+    <button class="btn-secondary" style="padding:9px 14px;font-size:13px" onclick="openCleanup('review')" title="Re-run the classifier across your whole collection">🔁 Re-evaluate categories</button>
   </div>
   <div id="uncat-banner" style="display:none;align-items:center;gap:12px;flex-wrap:wrap;background:#fff7ed;border:1px solid #fed7aa;border-radius:8px;padding:10px 14px;margin-bottom:12px">
     <span style="font-size:13px;color:#9a3412"><strong id="uncat-count">0</strong> cards are Uncategorized.</span>
-    <button class="btn-primary" style="padding:6px 14px;font-size:12px" onclick="openCleanup()">Clean up →</button>
+    <button class="btn-primary" style="padding:6px 14px;font-size:12px" onclick="openCleanup('uncat')">Clean up →</button>
   </div>
   <div id="bulk-bar" style="display:none;align-items:center;gap:12px;flex-wrap:wrap;background:var(--light-blue);border:1px solid #bcdcf5;border-radius:8px;padding:10px 14px;margin-bottom:12px">
     <span id="bulk-count" style="font-weight:700;color:var(--navy);font-size:13px">0 selected</span>
@@ -1167,24 +1168,25 @@ A: [answer]. Citation: Harrison's Principles of Internal Medicine, 21e, Ch. 245.
 <div id="cleanup-modal" style="display:none;position:fixed;inset:0;background:rgba(0,0,0,.5);z-index:200;align-items:center;justify-content:center;padding:20px">
   <div style="background:#fff;border-radius:14px;padding:24px;width:100%;max-width:820px;max-height:90vh;display:flex;flex-direction:column">
     <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:8px">
-      <div style="font-size:17px;font-weight:700;color:var(--navy)">Clean up Uncategorized cards</div>
+      <div style="font-size:17px;font-weight:700;color:var(--navy)" id="cleanup-title">Fix card categories</div>
       <button onclick="closeCleanup()" style="background:none;border:none;font-size:22px;cursor:pointer;color:var(--muted)">×</button>
     </div>
-    <p style="font-size:12.5px;color:var(--muted);margin-bottom:12px">Each row has a best-guess content area preselected — adjust any that look off, then Save. Or re-run the classifier first in case newer keyword updates now match some.</p>
-    <div style="display:flex;gap:8px;flex-wrap:wrap;margin-bottom:12px">
-      <button class="btn-secondary" style="padding:7px 14px;font-size:12px" onclick="reRunCategorize()">Re-run auto-categorize</button>
-      <button class="btn-secondary" style="padding:7px 14px;font-size:12px" onclick="acceptAllGuesses()">Accept all best-guesses</button>
-      <span id="cleanup-status" style="font-size:12px;color:var(--muted);align-self:center;margin-left:auto"></span>
+    <div class="tab-row" style="margin-bottom:10px">
+      <button class="tab-btn active" id="cleanup-tab-uncat" onclick="setCleanupMode('uncat')">Uncategorized</button>
+      <button class="tab-btn" id="cleanup-tab-review" onclick="setCleanupMode('review')">Re-evaluate all cards</button>
     </div>
+    <p style="font-size:12.5px;color:var(--muted);margin-bottom:12px" id="cleanup-help"></p>
+    <div style="display:flex;gap:8px;flex-wrap:wrap;margin-bottom:12px" id="cleanup-actions"></div>
     <div style="overflow:auto;flex:1;border:1px solid #eef2f7;border-radius:8px">
-      <table style="width:100%;border-collapse:collapse;font-size:13px"><thead><tr>
+      <table style="width:100%;border-collapse:collapse;font-size:13px"><thead><tr id="cleanup-thead">
         <th style="text-align:left;padding:8px;background:#f8faff;position:sticky;top:0">Card</th>
         <th style="text-align:left;padding:8px;background:#f8faff;position:sticky;top:0;width:300px">Assign to</th>
       </tr></thead><tbody id="cleanup-tbody"></tbody></table>
     </div>
-    <div style="display:flex;gap:10px;margin-top:14px;align-items:center">
-      <button class="btn-primary" onclick="saveCleanup()">Save assignments</button>
+    <div style="display:flex;gap:10px;margin-top:14px;align-items:center;flex-wrap:wrap">
+      <button class="btn-primary" id="cleanup-save-btn" onclick="saveCleanup()">Save assignments</button>
       <button class="btn-secondary" onclick="closeCleanup()">Close</button>
+      <span id="cleanup-status" style="font-size:12px;color:var(--muted)"></span>
       <span id="cleanup-page-info" style="font-size:12px;color:var(--muted);margin-left:auto"></span>
     </div>
   </div>
@@ -1298,6 +1300,40 @@ const CATEGORY_KEYWORDS = {
   'Paraphilic Disorders':['paraphilia','paraphilic','pedophilia','exhibitionism','voyeurism','fetishism','fetish','sexual sadism','sexual masochism','frotteurism','transvestic'],
 };
 
+// ── v3 coverage expansion ────────────────────────────────────────────────
+// Auditing a real 2,100-card IM deck showed the gaps below. Musculoskeletal
+// and dermatologic cards were the worst offenders: real decks describe them
+// by exam finding and lesion morphology ("anterior knee pain", "pruritic
+// papules"), not by the disease names the original lists keyed on. These are
+// merged into CATEGORY_KEYWORDS rather than inlined above to keep the diff
+// reviewable.
+const CATEGORY_KEYWORDS_EXTRA = {
+  'Rheumatology & Orthopedics':['meniscus','meniscal','rotator cuff','rotator','carpal tunnel','cubital tunnel','sciatica','radiculopathy','herniated disc','disc herniation','spinal stenosis','patellofemoral','iliotibial','it band','anterior cruciate','posterior cruciate','medial collateral','lateral collateral','ligament','tendinopathy','epicondylitis','tennis elbow','golfer elbow','bursitis','plantar fasciitis','rotator cuff tear','labral','labrum','impingement','shoulder pain','knee pain','anterior knee','hip pain','elbow pain','wrist pain','ankle sprain','sprain','dislocation','stress fracture','osteochondritis','de quervain','trigger finger','ganglion cyst','thoracic outlet','ulnar nerve','median nerve','radial nerve','nerve entrapment','lumbar','cervical spine','musculoskeletal','arthralgia','myalgia','range of motion','mcmurray','lachman','anterior drawer','noble test','phalen','tinel','spurling','monoarthritis','polyarthritis','raynaud','hla-b27','spondyloarthritis','spondylitis','sacroiliitis','enthesitis','myositis','myopathy','proximal muscle weakness','azathioprine','thiopurine','anti-synthetase','anti-jo','anti-smith','anti-dsdna','ana titer','antinuclear','inflammatory myopathy','immune-mediated necrotizing','statin-associated myopathy','joint aspiration','synovial fluid','crystal analysis','birefringent','rotator interval','acromioclavicular','supraspinatus','achilles','morton neuroma','frozen shoulder','adhesive capsulitis','osteomalacia','crystal arthropathy','uric acid','allopurinol','colchicine','methotrexate','hydroxychloroquine','biologic therapy','anti-ccp','rheumatoid factor'],
+  'Dermatology':['folliculitis','verruca','wart','nevus','melanocytic','halo nevus','dysplastic nevus','ecthyma','impetigo','scabies','lice','pediculosis','permethrin','photoallergic','phototoxic','photosensitivity','tinea','onychomycosis','seborrheic','keratosis','pityriasis','lichen planus','lichen sclerosus','molluscum','cherry angioma','hemangioma','papule','macule','vesicle','pustule','plaque psoriasis','wheal','nodule on skin','hyperpigmentation','hypopigmented','depigmented','hair follicle','fixed drug eruption','drug eruption','drug rash','erythema nodosum','erythema migrans','cutaneous','epidermis','dermis','skin biopsy','topical steroid','emollient','comedones','pilar','intertrigo','hidradenitis','keloid','xerosis','excoriated','crusted','scaly','pruritic','keratoacanthoma','keratin-filled','dome-shaped','hyperkeratotic','exophytic','sebaceous','telangiectasia','induration','ulcerated lesion','rolled border','pearly'],
+  'Infectious Disease':['sporotrichosis','sporothrix','anthrax','botulism','chancroid','ducreyi','cryptococcal','cryptococcus','histoplasmosis','blastomycosis','coccidioidomycosis','herpes','herpes zoster','zoster','shingles','varicella','acyclovir','valacyclovir','cytomegalovirus','epstein-barr','mononucleosis','pneumocystis','toxoplasmosis','opportunistic infection','antiretroviral','fluoroquinolone','doxycycline','azithromycin','metronidazole','nitrofurantoin','fosfomycin','trimethoprim','beta-lactam','aminoglycoside','cystitis','prostatitis','urethritis','bacteriuria','isolation precautions','airborne precautions','contact precautions','prophylaxis','postexposure','endemic','vector-borne','tick','mosquito','zoonotic','eschar','lymphadenopathy','purulent','empiric therapy','culture and sensitivity','blood culture','gram stain','gram-negative','gram-positive','anaerobe','pseudomonas','klebsiella','salmonella','shigella','campylobacter','listeria','bartonella','brucella','leptospirosis','babesiosis','ehrlichiosis','anaplasmosis'],
+  'Gastroenterology':['hemorrhoid','anal fissure','perianal','fistula','phlegmon','skip lesion','stricture','hamartoma','peutz','jeghers','gi tract','lynch syndrome','spontaneous bacterial peritonitis','small intestinal bacterial overgrowth','sibo','adenomatous polyposis','polyposis','polyp','polypectomy','choledocholithiasis','hepatitis b','hepatitis c','hbsag','hbeag','anti-hbs','anti-hbc','hepatocellular','portal hypertension','budd-chiari','hemochromatosis','autoimmune hepatitis','primary biliary','primary sclerosing','octreotide','gastric varices','proctitis','esophageal manometry','achalasia','eosinophilic esophagitis','zollinger','gastrinoma','lactose intolerance','stool antigen','fecal occult','anti-tnf','infliximab','mesalamine','budesonide','endoscopy','egd','abdominal pain','nausea and vomiting','bloating','osmotic gap','osmotic diarrhea','secretory diarrhea','wilson disease','penicillamine','trientine','steatorrhea'],
+  'Pulmonary Disease':['wells score','wells criteria','d-dimer','pulmonary embolus','venous thromboembolism','right heart strain','solitary pulmonary nodule','pulmonary nodule','pleuritic','v/q scan','ventilation-perfusion','ct angiography','spirometry','fev1','fvc','diffusing capacity','dlco','peak flow','inhaled corticosteroid','bronchodilator','nebulizer','oxygen therapy','mechanical ventilation','intubation','tracheostomy','pulmonary rehabilitation','smoking history','pack-year','lung nodule','chest tube','thoracentesis','exudative','transudative','light criteria'],
+  'Nephrology & Urology':['osmolal gap','anion gap','polycystic kidney','adpkd','tolvaptan','fractional excretion','fena','renal tubular acidosis','albuminuria','nephropathy','membranous','minimal change','focal segmental','goodpasture','contrast nephropathy','urinalysis','urine sediment','casts','urgency','dysuria','frequency','overactive bladder','urinary retention','renal artery stenosis','sglt2','raas','tubulointerstitial','papillary necrosis','hydronephrosis','urothelial','testicular','scrotal','erectile'],
+  'Cardiovascular Disease':['heart score','takotsubo','apical ballooning','stress cardiomyopathy','claudication','constrictive pericarditis','myxoma','atrial myxoma','digoxin','amiodarone','diuretic','furosemide','spironolactone','sacubitril','anti-hypertensive','blood pressure','systolic blood pressure','diastolic','jugular venous','bruit','carotid','orthostatic','echocardiogram','echocardiography','stress test','coronary calcium','ejection fraction','cardiac catheterization','preload','afterload','diastolic dysfunction','antihypertensive','anti-htn','blood pressure control','blood pressure goal','blood pressure target','mm hg','peripheral edema','edema','lower extremity edema','anginal','nitrate','nitroglycerin','revascularization','ranolazine'],
+  'Hematology':['g6pd','glucose-6-phosphate','spherocytosis','microcytic','macrocytic','ferritin','haptoglobin','reticulocyte','schistocyte','myeloproliferative','essential thrombocythemia','myelofibrosis','jak2','factor v leiden','protein c','protein s','antithrombin','antiphospholipid','lupus anticoagulant','apixaban','rivaroxaban','dabigatran','enoxaparin','skin necrosis','smear','peripheral blood smear','bone marrow biopsy','methemoglobinemia','porphyria','splenectomy','eculizumab','paroxysmal nocturnal'],
+  'Endocrinology, Diabetes & Metabolism':['osteitis fibrosa','vitamin d deficiency','calcitriol','bisphosphonate','denosumab','carcinoid','multiple endocrine neoplasia','insulinoma','hypogonadism','testosterone','hyperprolactinemia','sheehan','hypopituitarism','adrenal crisis','primary aldosteronism','conn syndrome','sglt2 inhibitor','glp-1','continuous glucose','thyroid function','tsh','free t4','radioactive iodine','parathyroid hormone','bone density','dexa','obesity','obese','bariatric','weight loss','body mass index','semaglutide','tirzepatide','orlistat','phentermine','sleeve gastrectomy','roux-en-y','gastric bypass'],
+  'Miscellaneous (IM)':['physical activity','aerobic exercise','moderate-intensity','vigorous','lifestyle modification','advance directive','goals of care','decision-making capacity','shared decision','cost-effective','overdiagnosis','lead-time bias','confidence interval','randomized controlled','cohort study','case-control','meta-analysis','pretest probability','posttest probability','absolute risk','relative risk','transitions of care','medication reconciliation','insomnia','sleep hygiene','behavioral therapy for insomnia','central catheter','central line','catheter-related','intravenous to oral','inpatient','hospital-acquired','discharge planning','chronic pain','cannabis','opioid prescribing','pain management','functional status'],
+  'Neurology':['benign paroxysmal','bppv','dix-hallpike','epley','trigeminal neuralgia','normal pressure hydrocephalus','pseudotumor','idiopathic intracranial','myelopathy','lumbar puncture','nerve conduction','electromyography','thrombolysis','tpa','thrombectomy','nihss','carotid endarterectomy',
+    // Dementia/neurocognitive terms previously existed only in the ABPN list,
+    // so IM neurology cards on Alzheimer disease, Lewy body, Huntington and
+    // head trauma matched nothing at all.
+    'dementia','alzheimer','lewy body','frontotemporal','vascular dementia','mild cognitive impairment','cognitive decline','memory impairment','memory loss','donepezil','rivastigmine','memantine','cholinesterase inhibitor','creutzfeldt','prion','rapidly progressive dementia','mesial temporal','hippocampal atrophy','chronic traumatic encephalopathy','repetitive head trauma','traumatic brain injury','concussion','epidural hematoma','subdural hematoma','middle meningeal','lucid interval','huntington','chorea','tic disorder','tourette','myoclonus','restless legs','periodic limb movement','essential tremor','deep brain stimulation','levodopa','carbidopa','wernicke encephalopathy','neuroimaging','mri brain','ct head','horner','ptosis','miosis','anhidrosis','oculomotor','third nerve','demyelinating','demyelination','white matter','transverse myelitis','optic neuritis','ocrelizumab','natalizumab','glatiramer','interferon beta','progressive multifocal','brachial neuritis','parsonage','plexopathy','foot drop','cauda equina','myelitis','paresthesia','numbness','dysesthesia'],
+  'Geriatric Syndromes':['fall risk','deprescribing','beers criteria','advance care','activities of daily living','adl','iadl','cognitive screening','hearing impairment','sarcopenia','failure to thrive','caregiver'],
+  'Medical Oncology':['brca','brca1','brca2','mammography','mammogram','breast mri','germline','genetic testing','hereditary cancer','tumor board','immunotherapy','checkpoint inhibitor','pembrolizumab','nivolumab','car-t','tyrosine kinase','oncologic emergency','tumor lysis','febrile neutropenia','survivorship','surveillance imaging'],
+  'Allergy & Immunology':['epinephrine','autoinjector','skin testing','desensitization','mast cell','tryptase','urticaria','common variable','cvid','complement deficiency'],
+};
+// Merge the expansion into the primary map (dedup, primary list wins order).
+for(const [cat,extra] of Object.entries(CATEGORY_KEYWORDS_EXTRA)){
+  const base=CATEGORY_KEYWORDS[cat]||[];
+  const seen=new Set(base);
+  CATEGORY_KEYWORDS[cat]=base.concat(extra.filter(k=>!seen.has(k)));
+}
+
 // Curated medical abbreviation / synonym expansions. Applied to card text
 // BEFORE keyword scoring so shorthand cards ("STEMI", "COPD", "SLE", "DKA")
 // match the same content-area keywords as spelled-out ones. Each expansion is
@@ -1315,7 +1351,10 @@ const ABBREV_MAP = {
   'uc':'ulcerative colitis','nafld':'fatty liver','pud':'peptic ulcer',
   'ckd':'chronic kidney disease','aki':'acute kidney injury','atn':'acute tubular necrosis',
   'esrd':'end stage renal disease','uti':'urinary tract infection','bph':'benign prostatic hyperplasia',
-  'sbp':'spontaneous bacterial peritonitis',
+  // NOTE: 'sbp' is deliberately NOT expanded — it means both "spontaneous
+  // bacterial peritonitis" and "systolic blood pressure", and guessing wrong
+  // sent blood-pressure cards to Gastroenterology. Both full phrases are
+  // keywords in their own categories instead.
   'dm':'diabetes','t1dm':'diabetes','t2dm':'diabetes','dka':'diabetic ketoacidosis','hhs':'hyperosmolar',
   'sle':'systemic lupus erythematosus','gca':'giant cell arteritis','pmr':'polymyalgia rheumatica','gpa':'granulomatosis',
   'tb':'tuberculosis',
@@ -1325,6 +1364,23 @@ const ABBREV_MAP = {
   'mdd':'major depressive disorder','gad':'generalized anxiety','ocd':'obsessive-compulsive',
   'ptsd':'post-traumatic stress','adhd':'attention deficit','nms':'neuroleptic malignant',
   'ect':'electroconvulsive','pcos':'polycystic ovary','pid':'pelvic inflammatory',
+  // v3 additions — all non-words, so they can't collide with English text.
+  // ('men', 'ra', 'it' and similar real words are deliberately excluded.)
+  'pe':'pulmonary embolism','vte':'venous thromboembolism','sibo':'small intestinal bacterial overgrowth',
+  'fap':'familial adenomatous polyposis','crc':'colorectal cancer','egd':'endoscopy','gi':'gastrointestinal',
+  'adpkd':'polycystic kidney disease','rta':'renal tubular acidosis','fena':'fractional excretion',
+  'g6pd':'glucose-6-phosphate dehydrogenase','pnh':'paroxysmal nocturnal hemoglobinuria',
+  'hbv':'hepatitis b','hcv':'hepatitis c','hbsag':'hepatitis b','hbeag':'hepatitis b',
+  'hsv':'herpes simplex','vzv':'varicella zoster','cmv':'cytomegalovirus','ebv':'epstein-barr',
+  'pjp':'pneumocystis pneumonia','art':'antiretroviral therapy',
+  'acl':'anterior cruciate ligament','pcl':'posterior cruciate ligament',
+  'mcl':'medial collateral ligament','lcl':'lateral collateral ligament',
+  'cts':'carpal tunnel syndrome','oa':'osteoarthritis','ppi':'proton pump inhibitor',
+  'nph':'normal pressure hydrocephalus','bppv':'benign paroxysmal positional vertigo',
+  'dlco':'diffusing capacity','pft':'pulmonary function test','pfts':'pulmonary function test',
+  'hcc':'hepatocellular carcinoma','pbc':'primary biliary cholangitis','psc':'primary sclerosing cholangitis',
+  'mgus':'monoclonal gammopathy','mds':'myelodysplastic syndrome','cbc':'complete blood count',
+  'sglt2':'sodium glucose cotransporter','glp1':'glucagon like peptide',
 };
 function expandAbbrev(text){
   return String(text||'').replace(/[a-z0-9][a-z0-9\-]*/g, w=>{ const e=ABBREV_MAP[w]; return e?(w+' '+e):w; });
@@ -2361,7 +2417,7 @@ function renderBrowser(){
       <td><input type="checkbox" class="row-check" ${checked} onclick="toggleCardSelect('${c.id}',this)"></td>
       <td style="max-width:260px"><div style="overflow:hidden;text-overflow:ellipsis;white-space:nowrap;font-size:13px">${flag}${escHtml(stripHtml(c.front))}</div></td>
       <td>${subjectBadge(c.subject)}</td>
-      <td style="font-size:12px;color:${areaTxt==='Uncategorized'?'#c2410c':'var(--muted)'}">${escHtml(areaTxt)}</td>
+      <td style="font-size:12px"><select class="area-inline" onchange="setCardArea('${c.id}',this.value)" title="Change content area" style="max-width:190px;font-size:11.5px;padding:4px 6px;border:1px solid ${areaTxt==='Uncategorized'?'#f59e0b':'#e5e7eb'};border-radius:6px;background:${areaTxt==='Uncategorized'?'#fffbeb':'#fff'};color:${areaTxt==='Uncategorized'?'#c2410c':'var(--muted)'}">${cleanupOptionsHtml(areaTxt==='Uncategorized'?'':areaTxt)}</select></td>
       <td style="font-size:12px">${due}</td>
       <td style="font-size:13px;font-weight:600">${acc}</td>
       <td>
@@ -2375,6 +2431,16 @@ function renderBrowser(){
   updateBulkBar();
 }
 
+// Inline content-area change straight from the browser table (no modal).
+function setCardArea(id,val){
+  if(!val) return;
+  const c=DB.cards.find(x=>x.id===id); if(!c) return;
+  c.contentArea=val;
+  if(c.subject!=='Both') c.subject = ABIM_CATEGORIES.some(k=>k.name===val)?'IM':'Psych';
+  saveDB();
+  renderBrowser();
+  toast('Moved to '+val);
+}
 function toggleFlag(id){
   const c=DB.cards.find(x=>x.id===id); if(!c) return;
   c.flagged=!c.flagged; saveDB(); renderBrowser();
@@ -2409,11 +2475,112 @@ function cleanupOptionsHtml(selected){
   const grp=(label,cats)=>'<optgroup label="'+label+'">'+cats.map(c=>`<option value="${c.name}"${c.name===selected?' selected':''}>${c.name}</option>`).join('')+'</optgroup>';
   return '<option value="">— leave uncategorized —</option>'+grp('ABIM (Internal Medicine)',ABIM_CATEGORIES)+grp('ABPN (Psychiatry)',ABPN_CATEGORIES);
 }
-function openCleanup(){
-  cleanupIds=DB.cards.filter(c=>(c.contentArea||'Uncategorized')==='Uncategorized').map(c=>c.id);
-  document.getElementById('cleanup-status').textContent='';
-  renderCleanupTable();
+// Two modes: 'uncat' (assign cards with no area) and 'review' (re-run the
+// classifier over every card and show only the ones it would change, so
+// keyword improvements can be applied to a deck that was imported earlier).
+let cleanupMode='uncat', reviewRows=[];
+function openCleanup(mode){
+  setCleanupMode(mode||'uncat');
   document.getElementById('cleanup-modal').style.display='flex';
+}
+function setCleanupMode(mode){
+  cleanupMode=mode;
+  document.getElementById('cleanup-tab-uncat').classList.toggle('active',mode==='uncat');
+  document.getElementById('cleanup-tab-review').classList.toggle('active',mode==='review');
+  document.getElementById('cleanup-status').textContent='';
+  if(mode==='uncat'){
+    document.getElementById('cleanup-title').textContent='Fix card categories';
+    document.getElementById('cleanup-help').textContent='Cards with no content area. Each row has a best-guess preselected — adjust any that look off, then Save.';
+    document.getElementById('cleanup-actions').innerHTML=
+      `<button class="btn-secondary" style="padding:7px 14px;font-size:12px" onclick="reRunCategorize()">Re-run auto-categorize</button>
+       <button class="btn-secondary" style="padding:7px 14px;font-size:12px" onclick="acceptAllGuesses()">Accept all best-guesses</button>`;
+    document.getElementById('cleanup-thead').innerHTML=
+      `<th style="text-align:left;padding:8px;background:#f8faff;position:sticky;top:0">Card</th>
+       <th style="text-align:left;padding:8px;background:#f8faff;position:sticky;top:0;width:300px">Assign to</th>`;
+    document.getElementById('cleanup-save-btn').style.display='';
+    cleanupIds=DB.cards.filter(c=>(c.contentArea||'Uncategorized')==='Uncategorized').map(c=>c.id);
+    renderCleanupTable();
+  } else {
+    document.getElementById('cleanup-title').textContent='Re-evaluate all cards';
+    document.getElementById('cleanup-help').textContent='Runs the current classifier over your whole collection and lists only cards whose category would change. Review the suggestions, untick any you disagree with, then apply.';
+    document.getElementById('cleanup-actions').innerHTML=
+      `<button class="btn-primary" style="padding:7px 14px;font-size:12px" onclick="runReEvaluate()">Scan my collection</button>
+       <button class="btn-secondary" style="padding:7px 14px;font-size:12px" onclick="toggleAllReview(true)">Select all</button>
+       <button class="btn-secondary" style="padding:7px 14px;font-size:12px" onclick="toggleAllReview(false)">Select none</button>`;
+    document.getElementById('cleanup-thead').innerHTML=
+      `<th style="padding:8px;background:#f8faff;position:sticky;top:0;width:34px"></th>
+       <th style="text-align:left;padding:8px;background:#f8faff;position:sticky;top:0">Card</th>
+       <th style="text-align:left;padding:8px;background:#f8faff;position:sticky;top:0;width:340px">Current → Suggested</th>`;
+    document.getElementById('cleanup-save-btn').style.display='none';
+    reviewRows=[];
+    document.getElementById('cleanup-tbody').innerHTML='<tr><td colspan="3" style="padding:22px;text-align:center;color:var(--muted);font-size:13px">Click <strong>Scan my collection</strong> to see what would change.</td></tr>';
+    document.getElementById('cleanup-page-info').textContent='';
+  }
+}
+// Re-run the classifier over every non-suspended card and collect disagreements.
+function runReEvaluate(){
+  reviewRows=[];
+  DB.cards.forEach(c=>{
+    const cur=c.contentArea||'Uncategorized';
+    const sug=autoCategorize(c.front,c.back,c.subject,c.tags);
+    if(sug!=='Uncategorized' && sug!==cur) reviewRows.push({id:c.id,cur,sug,checked:true});
+  });
+  // Uncategorized-first (pure wins), then by current area for easy scanning.
+  reviewRows.sort((a,b)=> (a.cur==='Uncategorized'?0:1)-(b.cur==='Uncategorized'?0:1) || a.cur.localeCompare(b.cur));
+  renderReviewTable();
+  const gained=reviewRows.filter(r=>r.cur==='Uncategorized').length;
+  document.getElementById('cleanup-status').innerHTML=reviewRows.length
+    ? `<strong>${reviewRows.length}</strong> card${reviewRows.length===1?'':'s'} would change${gained?` · ${gained} currently uncategorized`:''}`
+    : 'Everything already matches the current classifier 🎉';
+}
+function renderReviewTable(){
+  const tbody=document.getElementById('cleanup-tbody');
+  if(!reviewRows.length){
+    tbody.innerHTML='<tr><td colspan="3" style="padding:22px;text-align:center;color:var(--muted);font-size:13px">No changes suggested — your categories already match.</td></tr>';
+    document.getElementById('cleanup-page-info').textContent='';
+    document.getElementById('cleanup-actions').querySelector('.btn-primary').textContent='Scan my collection';
+    return;
+  }
+  const shown=reviewRows.slice(0,CLEANUP_PAGE);
+  tbody.innerHTML=shown.map((r,i)=>{
+    const c=DB.cards.find(x=>x.id===r.id); if(!c) return '';
+    return `<tr>
+      <td style="padding:8px;border-bottom:1px solid #f3f4f6;vertical-align:top"><input type="checkbox" class="review-check" data-i="${i}" ${r.checked?'checked':''} onchange="reviewRows[${i}].checked=this.checked"></td>
+      <td style="padding:8px;border-bottom:1px solid #f3f4f6;vertical-align:top"><div style="max-width:380px;font-size:12.5px;color:var(--navy)">${escHtml(stripHtml(c.front).slice(0,140))}</div></td>
+      <td style="padding:8px;border-bottom:1px solid #f3f4f6;vertical-align:top;font-size:12px">
+        <span style="color:${r.cur==='Uncategorized'?'#c2410c':'var(--muted)'}">${escHtml(r.cur)}</span>
+        <span style="color:var(--muted)"> → </span>
+        <strong style="color:#16a34a">${escHtml(r.sug)}</strong>
+      </td>
+    </tr>`;
+  }).join('');
+  document.getElementById('cleanup-page-info').textContent =
+    reviewRows.length>CLEANUP_PAGE ? `Showing first ${CLEANUP_PAGE} of ${reviewRows.length} — apply to continue` : `${reviewRows.length} suggested change${reviewRows.length===1?'':'s'}`;
+  const btn=document.getElementById('cleanup-actions').querySelector('.btn-primary');
+  btn.textContent='Apply selected changes';
+  btn.setAttribute('onclick','applyReEvaluate()');
+}
+function toggleAllReview(v){
+  reviewRows.forEach(r=>r.checked=v);
+  document.querySelectorAll('.review-check').forEach(cb=>cb.checked=v);
+}
+function applyReEvaluate(){
+  const shown=reviewRows.slice(0,CLEANUP_PAGE).filter(r=>r.checked);
+  if(!shown.length){ toast('Nothing selected'); return; }
+  let n=0;
+  shown.forEach(r=>{
+    const c=DB.cards.find(x=>x.id===r.id); if(!c) return;
+    c.contentArea=r.sug;
+    // Keep subject consistent with the taxonomy the new area belongs to.
+    if(c.subject!=='Both') c.subject = ABIM_CATEGORIES.some(k=>k.name===r.sug)?'IM':'Psych';
+    n++;
+  });
+  saveDB();
+  const appliedIds=new Set(shown.map(r=>r.id));
+  reviewRows=reviewRows.filter(r=>!appliedIds.has(r.id));
+  renderReviewTable();
+  document.getElementById('cleanup-status').textContent=`Applied ${n} change${n===1?'':'s'}${reviewRows.length?` · ${reviewRows.length} remaining`:''}`;
+  toast(`Recategorized ${n} card${n===1?'':'s'}`);
 }
 function closeCleanup(){ document.getElementById('cleanup-modal').style.display='none'; renderBrowser(); }
 const CLEANUP_PAGE=40;
