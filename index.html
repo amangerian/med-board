@@ -1169,13 +1169,15 @@ A: [answer]. Citation: Harrison's Principles of Internal Medicine, 21e, Ch. 245.
       <span style="font-size:12px;color:var(--muted)">Paste into Claude, then paste its reply below.</span>
     </div>
     <pre id="coverage-prompt-box" style="flex:0 0 auto;max-height:34vh;overflow:auto;background:#f8faff;border:1px solid #e5e7eb;border-radius:8px;padding:12px;font-size:11.5px;line-height:1.5;white-space:pre-wrap;font-family:ui-monospace,Menlo,monospace;color:#28374d"></pre>
-    <div style="margin-top:12px;display:flex;flex-direction:column;flex:1;min-height:120px">
-      <label style="font-size:13px;font-weight:600;color:var(--navy);margin-bottom:5px">Paste Claude's cards here</label>
-      <textarea id="coverage-paste" placeholder="AREA: Cardiovascular Disease&#10;Q: ...&#10;A: ...&#10;&#10;Q: ...&#10;A: ..." style="flex:1;min-height:110px;padding:10px;border:2px solid #e5e7eb;border-radius:8px;font-size:13px;font-family:inherit;resize:vertical"></textarea>
+    <div class="alert alert-info" style="margin-top:12px">Claude will hand back a <strong>.apkg</strong> (or CSV) file. Save it, then import it from <strong>Cards → Import</strong> — the Anki tab for .apkg, the CSV tab for CSV. Cards it wasn't fully sure of are tagged <code>verify</code>; search that word in the card browser to review them.</div>
+    <div style="margin-top:10px;display:flex;flex-direction:column;flex:1;min-height:110px">
+      <label style="font-size:13px;font-weight:600;color:var(--navy);margin-bottom:5px">…or, if Claude replied with plain text instead of a file, paste it here</label>
+      <textarea id="coverage-paste" placeholder="Q: ...&#10;A: ...&#10;&#10;Q: ...&#10;A: ..." style="flex:1;min-height:100px;padding:10px;border:2px solid #e5e7eb;border-radius:8px;font-size:13px;font-family:inherit;resize:vertical"></textarea>
       <div id="coverage-import-result" style="margin-top:10px"></div>
     </div>
     <div style="display:flex;gap:10px;margin-top:12px;flex-wrap:wrap">
-      <button class="btn-primary" onclick="importCoverageCards()">Import cards</button>
+      <button class="btn-secondary" onclick="importCoverageCards()">Import pasted text</button>
+      <button class="btn-primary" onclick="closeCoveragePrompt();navigate('import')">Go to Import →</button>
       <button class="btn-secondary" onclick="closeCoveragePrompt()">Close</button>
     </div>
   </div>
@@ -3880,15 +3882,18 @@ function renderCoverage(){
     <div style="text-align:center;min-width:120px"><div style="font-size:40px;font-weight:800;color:${col};line-height:1">${pct}%</div><div style="font-size:12px;color:var(--muted)">of tested topics covered</div></div>
     <div style="flex:1;min-width:220px">
       <div style="font-size:13px;color:#42506a"><strong>${cov.coveredObjs}</strong> of <strong>${cov.totalObjs}</strong> topics you were tested on and missed have at least one card. <strong style="color:${cov.gaps?'#b91c1c':'#16a34a'}">${cov.gaps} gap${cov.gaps===1?'':'s'}</strong> with no card yet.</div>
-      ${cov.gaps?`<button class="btn-primary" style="margin-top:10px;padding:7px 15px;font-size:13px" onclick="openCoveragePrompt(null)">✨ One prompt to cover all ${cov.gaps} gap${cov.gaps===1?'':'s'} →</button>
-      <div style="font-size:11.5px;color:var(--muted);margin-top:5px">Builds a single Claude prompt for every gap across all areas, with self-verification built in.</div>`:''}
+      <div style="display:flex;gap:8px;align-items:center;flex-wrap:wrap;margin-top:8px">
+        <button class="btn-secondary" style="padding:6px 13px;font-size:12.5px" onclick="recheckCoverage()">🔄 Re-check coverage</button>
+        <span id="coverage-recheck-msg" style="font-size:12px;color:var(--muted)"></span>
+      </div>
+      ${cov.gaps?`<div style="font-size:11.5px;color:var(--muted);margin-top:6px">Use the button on any area below to have Claude build a ready-to-import Anki deck for that section, with a self-verification pass built into the prompt.</div>`:''}
     </div>
   </div>`;
   html+=cov.areaRows.map((r,i)=>{
     const gapId='cov-'+i;
     const gapObjs=r.objectives.filter(o=>!o.covered);
     const barCol=readinessColor(r.pct);
-    const btn=r.gaps?`<button class="btn-primary" style="padding:4px 11px;font-size:12px" onclick="openCoveragePrompt('${r.area.replace(/'/g,"\\'")}')">Make cards for ${r.gaps} gap${r.gaps===1?'':'s'} →</button>`:'';
+    const btn=r.gaps?`<button class="btn-primary" style="padding:4px 11px;font-size:12px" onclick="openCoveragePrompt('${r.area.replace(/'/g,"\\'")}')">🃏 Build Anki deck for ${r.gaps} gap${r.gaps===1?'':'s'} →</button>`:'';
     const list=gapObjs.length?`<ul class="mk-obj-list" id="${gapId}" style="display:none;margin-top:8px">`+gapObjs.map(o=>`<li>${o.text.replace(/</g,'&lt;')} <span style="color:var(--muted);font-size:11px">(${[...o.sources].join(', ')})</span></li>`).join('')+`</ul>`:'';
     const toggle=gapObjs.length?`<button class="btn-secondary" style="padding:4px 11px;font-size:12px" onclick="var o=document.getElementById('${gapId}');o.style.display=o.style.display==='none'?'':'none'">Show ${r.gaps} gap${r.gaps===1?'':'s'}</button>`:'<span style="font-size:12px;color:#16a34a;font-weight:700">fully covered ✓</span>';
     return `<div style="padding:12px 0;border-bottom:1px solid #eef2f7">
@@ -3903,6 +3908,29 @@ function renderCoverage(){
   }).join('');
   el.innerHTML=html;
 }
+// Re-run the coverage match against the current deck and report what changed
+// since the last check — the payoff after importing a generated deck.
+let lastCoverageSnapshot=null;
+function recheckCoverage(){
+  const before=lastCoverageSnapshot;
+  const cov=objectiveCoverage();          // recomputed from scratch: fresh card index
+  lastCoverageSnapshot={covered:cov.coveredObjs,total:cov.totalObjs,gaps:cov.gaps};
+  renderCoverage();
+  const msg=document.getElementById('coverage-recheck-msg');
+  if(!msg) return;
+  if(before){
+    const d=cov.coveredObjs-before.covered;
+    const newObjs=cov.totalObjs-before.total;
+    msg.innerHTML = d>0
+      ? `<strong style="color:#16a34a">+${d} topic${d===1?'':'s'} now covered</strong>${newObjs>0?` · ${newObjs} new objective${newObjs===1?'':'s'} from added reports`:''}`
+      : d<0 ? `<span style="color:#b91c1c">${d} topic${d===-1?'':'s'} no longer covered</span> (cards deleted or suspended?)`
+      : 'No change — no newly covered topics found.';
+  } else {
+    msg.textContent=`Checked ${cov.totalObjs} tested topic${cov.totalObjs===1?'':'s'} against ${(DB.cards||[]).filter(c=>!c.suspended).length} active cards.`;
+  }
+  toast('Coverage re-checked');
+}
+
 // ═══════════════════════════════════════════════════════════
 // COVERAGE → CARDS
 // Tested topics you missed and have no card for. Rather than routing through
@@ -3914,22 +3942,30 @@ let coverageTargets=[];    // [{area, objectives:[text]}] — current batch
 let coverageAllAreas=[];   // every area in the full gap set (for AREA matching)
 function subjectForArea(area){ return ABIM_CATEGORIES.some(c=>c.name===area)?'IM':(ABPN_CATEGORIES.some(c=>c.name===area)?'Psych':defaultSubject()); }
 function buildCoveragePrompt(groups){
-  const multi=groups.length>1;
-  const total=groups.reduce((n,g)=>n+g.objectives.length,0);
-  const body=groups.map(g=>
-    `### ${g.area}\n`+g.objectives.map(o=>`- ${o}`).join('\n')
-  ).join('\n\n');
-  return `You are helping an internal medicine / psychiatry resident build board-prep flashcards.
+  const area=groups[0].area;
+  const subject=subjectForArea(area);
+  const subjName=subject==='Psych'?'psychiatry':'internal medicine';
+  const objectives=groups.reduce((a,g)=>a.concat(g.objectives),[]);
+  const safeFile=area.replace(/[^A-Za-z0-9]+/g,'_').replace(/^_|_$/g,'');
+  return `You are helping a ${subjName} resident build board-prep flashcards for the content area "${area}".
 
-Below are ${total} educational objective${total===1?'':'s'} from topics they were tested on and got wrong${multi?`, grouped by content area`:` in "${groups[0].area}"`}. They currently have NO flashcard covering ${total===1?'it':'them'}.
+Below are ${objectives.length} educational objective${objectives.length===1?'':'s'} they were tested on, answered incorrectly, and currently have NO flashcard covering.
 
-Write 1-2 flashcards for EACH objective below.
+${objectives.map(o=>`- ${o}`).join('\n')}
 
-${body}
+TASK
+Write 1-2 flashcards for EACH objective above, then package them as a ready-to-import Anki deck file:
+- Use Python with the \`genanki\` library to generate a real .apkg file named \`${safeFile}.apkg\` and give it to me as a download.
+- Deck name: "MedBoard — ${area}"
+- Use the Basic note type (Front / Back).
+- Tag every note: \`tested-topic-coverage\`
+- If you are not able to produce an .apkg file, instead give me a downloadable CSV file with EXACTLY this header and one row per card:
+  front,back,subject,content_area,tags
+  …where subject is \`${subject}\` and content_area is \`${area}\` on every row. Quote any field containing a comma.
 
 CARD REQUIREMENTS
-- One idea per card. Prefer the decision or threshold that gets tested over background trivia.
-- Question side: a short clinical stem or a direct question. Answer side: the key fact plus the one-line "why" that makes it stick.
+- One idea per card. Prefer the decision, threshold or next step that actually gets tested over background trivia.
+- Front: a short clinical stem or direct question. Back: the key fact plus the one-line "why" that makes it stick.
 - Where a number matters (dose, cutoff, timing, score), put the number on the card.
 - End every answer with a citation: guideline or reference plus year — e.g. "Citation: IDSA 2023" or "Citation: Harrison's 21e Ch. 245".
 
@@ -3938,21 +3974,17 @@ These cards get memorised by spaced repetition, so an error becomes a memorised 
 1. Only assert what you are confident is current standard of care. If guidance genuinely changed recently or is contested, say so ON the card instead of silently picking a side.
 2. Do NOT invent citations. If you cannot name a real, specific source, write "Citation: general reference" rather than fabricating a guideline, year, chapter, or PMID.
 3. Do not build cards around a single institution's local protocol or a region-specific formulary.
-4. If an objective is ambiguous or you cannot cover it accurately, write one card stating the concept plainly rather than guessing at specifics.
-5. AFTER drafting everything, do a separate verification pass over your own cards before you answer:
+4. If an objective is ambiguous or you cannot cover it accurately, write one plain card stating the core concept rather than guessing at specifics.
+5. AFTER drafting every card, do a separate verification pass over your own work BEFORE building the file:
    - re-check every dose, threshold, timeframe and first-line agent;
    - correct anything that overstates certainty;
    - delete duplicates and any card whose answer you cannot stand behind;
-   - confirm each objective above actually has a card.
-   Output ONLY the final corrected set — do not show the draft or the review.
-6. If any card remains one you are less than fully confident in, end its answer with [VERIFY]. It will be flagged for the resident to check.
+   - confirm each objective above actually ended up with a card.
+   Build the file from the corrected set only.
+6. If a card remains one you are less than fully confident in, add the extra tag \`verify\` to that note (in addition to \`tested-topic-coverage\`) and end its answer with [VERIFY], so I know to check it.
+7. When you're done, tell me in one line how many cards the file contains and how many you tagged \`verify\`.
 
-OUTPUT FORMAT — exactly this, one blank line between cards, no numbering, no extra commentary:
-
-${multi?`AREA: <one of the content-area headings above>\n`:''}Q: <question>
-A: <answer>. Citation: <source>
-
-${multi?'Include the AREA line on every card so each one files into the right content area.\n':''}Begin.`;
+Begin.`;
 }
 function openCoveragePrompt(area){
   const cov=objectiveCoverage();
@@ -3965,9 +3997,9 @@ function openCoveragePrompt(area){
   // hundred objectives in one message would blow past any model's output limit.
   coverageItems=[]; coverageTargets.forEach(g=>g.objectives.forEach(t=>coverageItems.push({area:g.area,text:t})));
   coverageAllAreas=coverageTargets.map(g=>g.area);
-  document.getElementById('coverage-modal-title').textContent=area?`Make cards — ${area}`:'Make cards for every gap';
+  document.getElementById('coverage-modal-title').textContent=`Build an Anki deck — ${area||coverageTargets[0].area}`;
   document.getElementById('coverage-modal-sub').textContent=
-    `${total} tested topic${total===1?'':'s'} with no card${area?'':`, across ${coverageTargets.length} content area${coverageTargets.length===1?'':'s'}`}. The prompt asks Claude to verify its own cards before answering; anything it's unsure of comes back flagged.`;
+    `${total} tested topic${total===1?'':'s'} in this area with no card yet. The prompt asks Claude to build a ready-to-import deck file and to verify its own cards before packaging them.`;
   document.getElementById('coverage-paste').value='';
   document.getElementById('coverage-import-result').innerHTML='';
   renderCoveragePrompt(0);
@@ -4054,7 +4086,7 @@ function importCoverageCards(){
     (unfiled?` ${unfiled} had no AREA line and went to "${coverageTargets[0].area}".`:'')+
     ` Reopen this panel to see coverage update.</div>`;
   toast(`Imported ${added} cards`);
-  renderCoverage();
+  recheckCoverage();      // show immediately which topics that just closed
 }
 
 function ITE_TO_ABIM_HAS(area){ return Object.values(ITE_TO_ABIM).includes(area) || [...ABIM_CATEGORIES,...ABPN_CATEGORIES].some(c=>c.name===area); }
