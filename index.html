@@ -203,6 +203,13 @@ tr:hover td{background:#fafbff}
   /* 16px inputs stop iOS Safari from zooming the page on focus */
   .form-group input,.form-group select,.form-group textarea,#browser-search,.setting-row input[type=number]{font-size:16px}
 }
+/* ── SPECIALTY MODE (v3) ────────────────────────────────────────────────
+   Categorical IM or Psychiatry residents hide the other specialty entirely.
+   Driven by data-specialty on <body>; 'both' (Med-Psych) shows everything. */
+body[data-specialty="IM"]    .only-psych{display:none!important}
+body[data-specialty="Psych"] .only-im{display:none!important}
+body[data-specialty="IM"]    #study-filter,
+body[data-specialty="Psych"] #study-filter{display:none}
 /* ── TUTORIAL / FIRST-RUN TOUR (v3) ─────────────────────────────────── */
 #tutorial-overlay{position:fixed;inset:0;background:rgba(15,23,42,.62);z-index:300;display:none;align-items:center;justify-content:center;padding:18px;backdrop-filter:blur(2px)}
 #tutorial-card{background:#fff;border-radius:16px;max-width:480px;width:100%;max-height:86vh;overflow-y:auto;box-shadow:0 20px 60px rgba(0,0,0,.35);display:flex;flex-direction:column}
@@ -235,9 +242,9 @@ tr:hover td{background:#fafbff}
     <div class="nav-item" onclick="navigate('cards')"><span class="nav-icon">🗂️</span><span>Cards</span></div>
     <div class="nav-item" onclick="navigate('practice')"><span class="nav-icon">🎯</span><span>Weak Areas</span></div>
     <div class="nav-item" onclick="navigate('analytics')"><span class="nav-icon">📈</span><span>Analytics</span></div>
-    <div class="nav-item" onclick="navigate('ite')"><span class="nav-icon">📄</span><span>ITE Analyzer</span></div>
-    <div class="nav-item" onclick="navigate('mksap')"><span class="nav-icon">📚</span><span>MKSAP</span></div>
-    <div class="nav-item" onclick="navigate('prite')"><span class="nav-icon">🧠</span><span>PRITE</span></div>
+    <div class="nav-item only-im" onclick="navigate('ite')"><span class="nav-icon">📄</span><span>ITE Analyzer</span></div>
+    <div class="nav-item only-im" onclick="navigate('mksap')"><span class="nav-icon">📚</span><span>MKSAP</span></div>
+    <div class="nav-item only-psych" onclick="navigate('prite')"><span class="nav-icon">🧠</span><span>PRITE</span></div>
     <div class="nav-item" onclick="navigate('readiness')"><span class="nav-icon">🎓</span><span>Exam Readiness</span></div>
     <div class="nav-item" onclick="navigate('streak')"><span class="nav-icon">🔥</span><span>Streak &amp; Aviary</span></div>
     <div class="nav-item" onclick="navigate('settings')"><span class="nav-icon">⚙️</span><span>Settings</span></div>
@@ -315,8 +322,8 @@ tr:hover td{background:#fafbff}
   <div id="study-filter">
     <span style="font-size:13px;font-weight:600;color:var(--muted)">Subject:</span>
     <button class="filter-btn active" onclick="setStudyFilter('all',this)">All</button>
-    <button class="filter-btn" onclick="setStudyFilter('IM',this)">Internal Medicine</button>
-    <button class="filter-btn" onclick="setStudyFilter('Psych',this)">Psychiatry</button>
+    <button class="filter-btn only-im" onclick="setStudyFilter('IM',this)">Internal Medicine</button>
+    <button class="filter-btn only-psych" onclick="setStudyFilter('Psych',this)">Psychiatry</button>
     <span style="margin-left:auto;font-size:13px;color:var(--muted)" id="study-count-label"></span>
   </div>
   <div id="study-area">
@@ -659,8 +666,8 @@ front,back,subject,content_area,tags<br>
 <div id="page-analytics" class="page">
   <div class="page-header"><h2>Analytics</h2><p>Performance by ABIM &amp; ABPN content areas</p></div>
   <div class="tab-row">
-    <button class="tab-btn active" onclick="switchTab('analytics','abim',this)">ABIM (Internal Medicine)</button>
-    <button class="tab-btn" onclick="switchTab('analytics','abpn',this)">ABPN (Psychiatry)</button>
+    <button class="tab-btn active only-im" id="tab-abim" onclick="switchTab('analytics','abim',this)">ABIM (Internal Medicine)</button>
+    <button class="tab-btn only-psych" id="tab-abpn" onclick="switchTab('analytics','abpn',this)">ABPN (Psychiatry)</button>
     <button class="tab-btn" onclick="switchTab('analytics','trends',this)">Trends</button>
   </div>
   <div id="analytics-tab-abim" class="tab-content active">
@@ -958,6 +965,17 @@ front,back,subject,content_area,tags<br>
       </div>
     </div>
     <div class="panel settings-section">
+      <h3>Specialty</h3>
+      <div class="setting-row">
+        <div><div class="setting-label">Training program</div><div class="setting-desc">Categorical residents can hide the other specialty entirely — its board-exam pages (ITE &amp; MKSAP for IM, PRITE for Psych), content areas, analytics and exam dates. Nothing is deleted; switch back anytime.</div></div>
+        <select id="set-specialty" onchange="saveSpecialty(this.value)" style="padding:6px 10px;border:2px solid #e5e7eb;border-radius:6px;font-size:14px">
+          <option value="both">Med-Psych (both)</option>
+          <option value="IM">Internal Medicine only</option>
+          <option value="Psych">Psychiatry only</option>
+        </select>
+      </div>
+    </div>
+    <div class="panel settings-section">
       <h3>Help</h3>
       <div class="setting-row">
         <div><div class="setting-label">App tour</div><div class="setting-desc">Replay the walkthrough of the basics and noteworthy features</div></div>
@@ -1084,8 +1102,8 @@ A: [answer]. Citation: Harrison's Principles of Internal Medicine, 21e, Ch. 245.
   <div class="panel" style="margin-bottom:16px">
     <div style="font-weight:700;color:var(--navy);margin-bottom:10px">Exam dates</div>
     <div class="grid-2">
-      <div class="setting-row"><div><div class="setting-label">ABIM (Internal Medicine)</div><div class="setting-desc">Set your IM board date</div></div><input type="date" id="exam-date-IM" onchange="saveExamDate('IM',this.value)" style="padding:6px 10px;border:2px solid #e5e7eb;border-radius:6px;font-size:14px"></div>
-      <div class="setting-row"><div><div class="setting-label">ABPN (Psychiatry)</div><div class="setting-desc">Set your Psych board / PRITE date</div></div><input type="date" id="exam-date-Psych" onchange="saveExamDate('Psych',this.value)" style="padding:6px 10px;border:2px solid #e5e7eb;border-radius:6px;font-size:14px"></div>
+      <div class="setting-row only-im"><div><div class="setting-label">ABIM (Internal Medicine)</div><div class="setting-desc">Set your IM board date</div></div><input type="date" id="exam-date-IM" onchange="saveExamDate('IM',this.value)" style="padding:6px 10px;border:2px solid #e5e7eb;border-radius:6px;font-size:14px"></div>
+      <div class="setting-row only-psych"><div><div class="setting-label">ABPN (Psychiatry)</div><div class="setting-desc">Set your Psych board / PRITE date</div></div><input type="date" id="exam-date-Psych" onchange="saveExamDate('Psych',this.value)" style="padding:6px 10px;border:2px solid #e5e7eb;border-radius:6px;font-size:14px"></div>
     </div>
   </div>
   <div id="readiness-body"></div>
@@ -2068,6 +2086,9 @@ function navigate(page){
   // Cards sidebar item. 'cards' alone defaults to the Browse sub-page.
   const CARDS_SUBS=['create','browser','import'];
   if(page==='cards') page='browser';
+  // Guard: a hidden specialty page can still be reached by stale UI or a
+  // mode switch mid-session — send those back to the dashboard.
+  if(!pageAllowed(page)) page='dashboard';
   const navKey=CARDS_SUBS.includes(page)?'cards':page;
   document.querySelectorAll('.page').forEach(p=>p.classList.remove('active'));
   document.querySelectorAll('.nav-item').forEach(n=>n.classList.remove('active'));
@@ -2115,7 +2136,11 @@ function renderDashboard(){
 
   document.getElementById('stat-due').textContent=dueAll.length;
   document.getElementById('stat-total').textContent=DB.cards.length;
-  document.getElementById('stat-im-psych').textContent=totalIM+' IM · '+totalPs+' Psych';
+  const spNow=currentSpecialty();
+  document.getElementById('stat-im-psych').textContent=
+    spNow==='IM' ? totalIM+' IM cards' :
+    spNow==='Psych' ? totalPs+' Psych cards' :
+    totalIM+' IM · '+totalPs+' Psych';
 
   // 7-day retention
   const logs=Object.entries(DB.dailyLog).filter(([d])=>d>=addDays(t,-7));
@@ -2647,7 +2672,66 @@ function bestGuessCategory(front, back, tags){
 }
 function cleanupOptionsHtml(selected){
   const grp=(label,cats)=>'<optgroup label="'+label+'">'+cats.map(c=>`<option value="${c.name}"${c.name===selected?' selected':''}>${c.name}</option>`).join('')+'</optgroup>';
-  return '<option value="">— leave uncategorized —</option>'+grp('ABIM (Internal Medicine)',ABIM_CATEGORIES)+grp('ABPN (Psychiatry)',ABPN_CATEGORIES);
+  const sp=currentSpecialty();
+  let out='<option value="">— leave uncategorized —</option>';
+  if(sp!=='Psych') out+=grp('ABIM (Internal Medicine)',ABIM_CATEGORIES);
+  if(sp!=='IM')    out+=grp('ABPN (Psychiatry)',ABPN_CATEGORIES);
+  return out;
+}
+
+// ═══════════════════════════════════════════════════════════
+// SPECIALTY MODE — 'both' (Med-Psych, default), 'IM', or 'Psych'.
+// Categorical residents hide the other specialty completely: its board-exam
+// pages (ITE/MKSAP are IM; PRITE is Psych), its content areas, its exam date,
+// its analytics tab, and the now-pointless subject pickers.
+// ═══════════════════════════════════════════════════════════
+function currentSpecialty(){ return (DB.settings&&DB.settings.specialty)||'both'; }
+function specialtyLabel(sp){ return sp==='IM'?'Internal Medicine':sp==='Psych'?'Psychiatry':'Med-Psych (both)'; }
+// Pages that belong to one specialty only.
+const SPECIALTY_PAGES={ite:'IM',mksap:'IM',prite:'Psych'};
+function pageAllowed(page){
+  const need=SPECIALTY_PAGES[page]; if(!need) return true;
+  const sp=currentSpecialty();
+  return sp==='both'||sp===need;
+}
+// The subject a new/imported card should get in single-specialty mode.
+function defaultSubject(){ const sp=currentSpecialty(); return sp==='both'?'IM':sp; }
+function applySpecialty(){
+  const sp=currentSpecialty();
+  document.body.setAttribute('data-specialty',sp);
+  if(sp!=='both'){
+    // Lock every subject picker to the resident's specialty and hide it —
+    // there is no meaningful choice left to make.
+    [['card-subject',sp],['batch-subject',sp],['edit-subject',sp],['bulk-subject',sp],['extra-subject',sp],['apkg-subject',sp]].forEach(([id,val])=>{
+      const el=document.getElementById(id); if(!el) return;
+      if([...el.options].some(o=>o.value===val)) el.value=val;
+      const wrap=el.closest('.form-group')||el.parentElement;
+      if(wrap&&wrap.id!=='bulk-bar') wrap.style.display='none';
+    });
+    studyState.filter=sp;
+  } else {
+    ['card-subject','batch-subject','edit-subject','bulk-subject','extra-subject','apkg-subject'].forEach(id=>{
+      const el=document.getElementById(id); if(!el) return;
+      const wrap=el.closest('.form-group')||el.parentElement;
+      if(wrap&&wrap.id!=='bulk-bar') wrap.style.display='';
+    });
+  }
+  // Refresh content-area dropdowns so they only offer the right taxonomy.
+  try{ updateContentAreaOptions(); updateBatchContentArea(); }catch(e){}
+  // If we're sitting on a page this specialty doesn't use, step back.
+  const active=document.querySelector('.page.active');
+  if(active){
+    const id=active.id.replace('page-','');
+    if(!pageAllowed(id)) navigate('dashboard');
+  }
+}
+function saveSpecialty(val){
+  DB.settings.specialty=val;
+  saveDB();
+  applySpecialty();
+  renderSettings();
+  renderDashboard();
+  toast('Switched to '+specialtyLabel(val));
 }
 // Two modes: 'uncat' (assign cards with no area) and 'review' (re-run the
 // classifier over every card and show only the ones it would change, so
@@ -3442,7 +3526,13 @@ function getContentAreaStats(){
   });
 }
 
-function renderAnalytics(){renderAnalyticsTab('abim');}
+function renderAnalytics(){
+  // Psych-only residents open straight to the ABPN tab (ABIM is hidden).
+  const sp=currentSpecialty(), tab=sp==='Psych'?'abpn':'abim';
+  const btn=document.getElementById(sp==='Psych'?'tab-abpn':'tab-abim');
+  if(btn){ document.querySelectorAll('#page-analytics .tab-btn').forEach(b=>b.classList.remove('active')); btn.classList.add('active'); }
+  renderAnalyticsTab(tab);
+}
 
 function renderAnalyticsTab(tab){
   if(tab==='abim') renderCategoryGrid('abim-grid', ABIM_CATEGORIES, 'IM');
@@ -3622,7 +3712,9 @@ function readinessColor(pct){ return pct>=75?'#16a34a':pct>=50?'#2d6a9f':pct>=30
 function renderReadiness(){
   const t=today();
   ['IM','Psych'].forEach(s=>{ const el=document.getElementById('exam-date-'+s); if(el) el.value=(DB.settings.examDates&&DB.settings.examDates[s])||''; });
-  const subjects=[{key:'IM',label:'Internal Medicine (ABIM)'},{key:'Psych',label:'Psychiatry (ABPN)'}];
+  const sp=currentSpecialty();
+  const subjects=[{key:'IM',label:'Internal Medicine (ABIM)'},{key:'Psych',label:'Psychiatry (ABPN)'}]
+    .filter(s=>sp==='both'||s.key===sp);
   const body=document.getElementById('readiness-body');
   const blocks=subjects.map(sub=>{
     const r=computeReadiness(sub.key);
@@ -3768,6 +3860,7 @@ function renderSettings(){
   document.getElementById('set-scheduler').value=DB.settings.scheduler||'fsrs';
   document.getElementById('set-retention').value=DB.settings.targetRetention||90;
   document.getElementById('row-retention').style.display=(DB.settings.scheduler||'fsrs')==='fsrs'?'':'none';
+  const spSel=document.getElementById('set-specialty'); if(spSel) spSel.value=currentSpecialty();
 }
 function saveScheduler(v){
   DB.settings.scheduler=(v==='sm2')?'sm2':'fsrs';
@@ -4332,7 +4425,8 @@ function computeStudyPriorities(){
     rows.push({area,subject,examPct,command,ite,mk,overlaps:ov,priority,reasons,objN:objectivesForABIM(area).length});
   });
   rows.sort((a,b)=> b.priority-a.priority || b.examPct-a.examPct);
-  return rows;
+  const sp=currentSpecialty();
+  return sp==='both'?rows:rows.filter(r=>r.subject===sp);
 }
 function sendAreaToPractice(area,subject){
   navigate('practice');
@@ -5295,7 +5389,14 @@ function renderPRITEWeakList(an){
 const TUTORIAL_STEPS=[
   {icon:'👋',title:'Welcome to MedBoard Prep',body:`
     <p>A board-prep dashboard built for IM &amp; Psychiatry residents. Flashcards with modern spaced repetition, plus analytics that connect <em>your actual score reports</em> to what you study next.</p>
-    <p style="margin-top:10px">Everything runs and stays <strong>on this device</strong> — nothing is uploaded anywhere. This tour takes about a minute, and you can replay it anytime from <strong>Settings → Help</strong>.</p>`},
+    <p style="margin-top:12px;font-weight:600;color:var(--navy)">Which describes your program?</p>
+    <div style="display:flex;flex-direction:column;gap:8px;margin-top:8px">
+      <label style="display:flex;align-items:center;gap:9px;padding:9px 12px;border:2px solid #e5e7eb;border-radius:9px;cursor:pointer"><input type="radio" name="tut-specialty" value="IM" onchange="tutorialPickSpecialty(this.value)" style="width:auto"><span><strong>Internal Medicine</strong> — categorical IM</span></label>
+      <label style="display:flex;align-items:center;gap:9px;padding:9px 12px;border:2px solid #e5e7eb;border-radius:9px;cursor:pointer"><input type="radio" name="tut-specialty" value="Psych" onchange="tutorialPickSpecialty(this.value)" style="width:auto"><span><strong>Psychiatry</strong> — categorical psych</span></label>
+      <label style="display:flex;align-items:center;gap:9px;padding:9px 12px;border:2px solid #e5e7eb;border-radius:9px;cursor:pointer"><input type="radio" name="tut-specialty" value="both" onchange="tutorialPickSpecialty(this.value)" style="width:auto"><span><strong>Both</strong> — Med-Psych, or I want everything</span></label>
+    </div>
+    <p style="margin-top:10px;font-size:12.5px;color:var(--muted)">Picking one specialty hides the other's board-exam pages and content areas. You can change this anytime in <strong>Settings → Specialty</strong>.</p>
+    <p style="margin-top:10px">Everything runs and stays <strong>on this device</strong> — nothing is uploaded anywhere. Replay this tour anytime from <strong>Settings → Help</strong>.</p>`},
   {icon:'🃏',title:'Study — the daily core',body:`
     <p>Tap a card to flip it, then rate how it went: <strong style="color:#dc2626">Again</strong>, <strong style="color:#d97706">Hard</strong>, <strong style="color:#1d4ed8">Good</strong>, or <strong style="color:#16a34a">Easy</strong>.</p>
     <ul>
@@ -5312,8 +5413,13 @@ const TUTORIAL_STEPS=[
       <li><strong>AI generate:</strong> copy the built-in prompt into Claude, paste the results back.</li>
     </ul>
     <p style="margin-top:8px">Every card is auto-sorted into official ABIM/ABPN exam content areas.</p>`},
-  {icon:'📄',title:'Your score reports work here',body:`
-    <p>Drop your <strong>ITE</strong>, <strong>MKSAP</strong>, and <strong>PRITE</strong> PDF score reports into their pages. They're parsed on-device into a weakness map: which content areas are below the national mean, trending down, or missed in both sources at once.</p>`},
+  {icon:'📄',title:'Your score reports work here',body:()=>{
+    const sp=currentSpecialty();
+    const which = sp==='Psych' ? '<strong>PRITE</strong>'
+                : sp==='IM'    ? '<strong>ITE</strong> and <strong>MKSAP</strong>'
+                :                '<strong>ITE</strong>, <strong>MKSAP</strong>, and <strong>PRITE</strong>';
+    return `<p>Drop your ${which} PDF score report${sp==='Psych'?'':'s'} into their pages. They're parsed on-device into a weakness map: which content areas are below the national mean, trending down, or missed repeatedly.</p>`;
+  }},
   {icon:'🎯',title:'Weak Areas — study what matters',body:`
     <p>The app blends four signals — exam blueprint weight, your flashcard command, ITE percentile, and MKSAP % — into one ranked <strong>"study next"</strong> list.</p>
     <p style="margin-top:8px">Each weak area generates a Claude prompt for cited, board-style practice questions; paste the output back and it becomes cards auto-tagged to that area.</p>`},
@@ -5330,6 +5436,14 @@ const TUTORIAL_STEPS=[
     <p style="margin-top:10px">That's the tour — good luck with your boards!</p>`}
 ];
 let tutStep=0;
+// First-run specialty choice — applies immediately so the rest of the tour
+// (and the app behind it) already reflects the resident's program.
+function tutorialPickSpecialty(val){
+  DB.settings.specialty=val;
+  saveDB();
+  applySpecialty();
+  renderDashboard();
+}
 function startTutorial(){
   tutStep=0;
   document.getElementById('tutorial-overlay').style.display='flex';
@@ -5339,7 +5453,7 @@ function renderTutorialStep(){
   const s=TUTORIAL_STEPS[tutStep], last=tutStep===TUTORIAL_STEPS.length-1;
   document.getElementById('tutorial-icon').textContent=s.icon;
   document.getElementById('tutorial-title').innerHTML=s.title;
-  document.getElementById('tutorial-body').innerHTML=s.body;
+  document.getElementById('tutorial-body').innerHTML=(typeof s.body==='function')?s.body():s.body;
   document.getElementById('tutorial-dots').innerHTML=TUTORIAL_STEPS.map((_,i)=>`<div class="tut-dot${i===tutStep?' active':''}"></div>`).join('');
   document.getElementById('tutorial-back').style.visibility=tutStep===0?'hidden':'visible';
   document.getElementById('tutorial-next').textContent=last?'Start studying':'Next';
@@ -5349,6 +5463,9 @@ function renderTutorialStep(){
 function tutorialNext(){
   if(tutStep>=TUTORIAL_STEPS.length-1) return endTutorial();
   tutStep++; renderTutorialStep();
+  // Skip specialty pages the resident's program doesn't use.
+  const s=TUTORIAL_STEPS[tutStep];
+  if(s && s.needs && !pageAllowed(s.needs)) return tutorialNext();
 }
 function tutorialBack(){
   if(tutStep>0){ tutStep--; renderTutorialStep(); }
@@ -5371,6 +5488,7 @@ async function init(){
   setupITEDrop();
   setupMKSAPDrop();
   setupPRITEDrop();
+  applySpecialty();
 
   seedSampleCards();
 
