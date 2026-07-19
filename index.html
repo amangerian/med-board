@@ -1146,6 +1146,41 @@ A: [answer]. Citation: Harrison's Principles of Internal Medicine, 21e, Ch. 245.
 
 </div><!-- end #main -->
 
+<!-- TESTED-TOPIC COVERAGE → CARD GENERATOR -->
+<div id="coverage-modal" style="display:none;position:fixed;inset:0;background:rgba(0,0,0,.5);z-index:200;align-items:center;justify-content:center;padding:18px">
+  <div style="background:#fff;border-radius:14px;padding:24px;width:100%;max-width:760px;max-height:90vh;display:flex;flex-direction:column">
+    <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:6px">
+      <div style="font-size:17px;font-weight:700;color:var(--navy)" id="coverage-modal-title">Make cards for tested topics</div>
+      <button onclick="closeCoveragePrompt()" style="background:none;border:none;font-size:22px;cursor:pointer;color:var(--muted)">×</button>
+    </div>
+    <p style="font-size:12.5px;color:var(--muted);margin-bottom:12px" id="coverage-modal-sub"></p>
+    <div style="display:flex;gap:8px;flex-wrap:wrap;align-items:center;margin-bottom:10px">
+      <button class="btn-primary" style="padding:7px 14px;font-size:12px" onclick="copyCoveragePrompt()">📋 Copy prompt</button>
+      <span id="coverage-batch-controls" style="display:none;align-items:center;gap:6px;font-size:12px;color:var(--muted)">
+        <label>Topics per prompt
+          <select id="coverage-batch-size" onchange="renderCoveragePrompt(0)" style="padding:4px 6px;border:1px solid #e5e7eb;border-radius:6px;font-size:12px;margin-left:4px">
+            <option value="15">15</option><option value="25" selected>25</option><option value="40">40</option><option value="9999">all</option>
+          </select>
+        </label>
+        <button class="btn-secondary" style="padding:4px 9px;font-size:12px" onclick="stepCoverageBatch(-1)">◀</button>
+        <span id="coverage-batch-label" style="min-width:96px;text-align:center"></span>
+        <button class="btn-secondary" style="padding:4px 9px;font-size:12px" onclick="stepCoverageBatch(1)">▶</button>
+      </span>
+      <span style="font-size:12px;color:var(--muted)">Paste into Claude, then paste its reply below.</span>
+    </div>
+    <pre id="coverage-prompt-box" style="flex:0 0 auto;max-height:34vh;overflow:auto;background:#f8faff;border:1px solid #e5e7eb;border-radius:8px;padding:12px;font-size:11.5px;line-height:1.5;white-space:pre-wrap;font-family:ui-monospace,Menlo,monospace;color:#28374d"></pre>
+    <div style="margin-top:12px;display:flex;flex-direction:column;flex:1;min-height:120px">
+      <label style="font-size:13px;font-weight:600;color:var(--navy);margin-bottom:5px">Paste Claude's cards here</label>
+      <textarea id="coverage-paste" placeholder="AREA: Cardiovascular Disease&#10;Q: ...&#10;A: ...&#10;&#10;Q: ...&#10;A: ..." style="flex:1;min-height:110px;padding:10px;border:2px solid #e5e7eb;border-radius:8px;font-size:13px;font-family:inherit;resize:vertical"></textarea>
+      <div id="coverage-import-result" style="margin-top:10px"></div>
+    </div>
+    <div style="display:flex;gap:10px;margin-top:12px;flex-wrap:wrap">
+      <button class="btn-primary" onclick="importCoverageCards()">Import cards</button>
+      <button class="btn-secondary" onclick="closeCoveragePrompt()">Close</button>
+    </div>
+  </div>
+</div>
+
 <!-- KEEP STUDYING (extra session) -->
 <div id="extra-modal" style="display:none;position:fixed;inset:0;background:rgba(0,0,0,.5);z-index:200;align-items:center;justify-content:center;padding:18px">
   <div style="background:#fff;border-radius:14px;padding:24px;width:100%;max-width:520px;max-height:88vh;overflow-y:auto">
@@ -3843,13 +3878,17 @@ function renderCoverage(){
   const col=readinessColor(pct);
   let html=`<div style="display:flex;align-items:center;gap:18px;flex-wrap:wrap;margin-bottom:14px">
     <div style="text-align:center;min-width:120px"><div style="font-size:40px;font-weight:800;color:${col};line-height:1">${pct}%</div><div style="font-size:12px;color:var(--muted)">of tested topics covered</div></div>
-    <div style="font-size:13px;color:#42506a"><strong>${cov.coveredObjs}</strong> of <strong>${cov.totalObjs}</strong> topics you were tested on and missed have at least one card. <strong style="color:${cov.gaps?'#b91c1c':'#16a34a'}">${cov.gaps} gap${cov.gaps===1?'':'s'}</strong> with no card yet.</div>
+    <div style="flex:1;min-width:220px">
+      <div style="font-size:13px;color:#42506a"><strong>${cov.coveredObjs}</strong> of <strong>${cov.totalObjs}</strong> topics you were tested on and missed have at least one card. <strong style="color:${cov.gaps?'#b91c1c':'#16a34a'}">${cov.gaps} gap${cov.gaps===1?'':'s'}</strong> with no card yet.</div>
+      ${cov.gaps?`<button class="btn-primary" style="margin-top:10px;padding:7px 15px;font-size:13px" onclick="openCoveragePrompt(null)">✨ One prompt to cover all ${cov.gaps} gap${cov.gaps===1?'':'s'} →</button>
+      <div style="font-size:11.5px;color:var(--muted);margin-top:5px">Builds a single Claude prompt for every gap across all areas, with self-verification built in.</div>`:''}
+    </div>
   </div>`;
   html+=cov.areaRows.map((r,i)=>{
     const gapId='cov-'+i;
     const gapObjs=r.objectives.filter(o=>!o.covered);
     const barCol=readinessColor(r.pct);
-    const btn=r.gaps&&ITE_TO_ABIM_HAS(r.area)?`<button class="btn-primary" style="padding:4px 11px;font-size:12px" onclick="sendGapsToPractice('${r.area.replace(/'/g,"\\'")}')">Make cards for ${r.gaps} gap${r.gaps===1?'':'s'} →</button>`:'';
+    const btn=r.gaps?`<button class="btn-primary" style="padding:4px 11px;font-size:12px" onclick="openCoveragePrompt('${r.area.replace(/'/g,"\\'")}')">Make cards for ${r.gaps} gap${r.gaps===1?'':'s'} →</button>`:'';
     const list=gapObjs.length?`<ul class="mk-obj-list" id="${gapId}" style="display:none;margin-top:8px">`+gapObjs.map(o=>`<li>${o.text.replace(/</g,'&lt;')} <span style="color:var(--muted);font-size:11px">(${[...o.sources].join(', ')})</span></li>`).join('')+`</ul>`:'';
     const toggle=gapObjs.length?`<button class="btn-secondary" style="padding:4px 11px;font-size:12px" onclick="var o=document.getElementById('${gapId}');o.style.display=o.style.display==='none'?'':'none'">Show ${r.gaps} gap${r.gaps===1?'':'s'}</button>`:'<span style="font-size:12px;color:#16a34a;font-weight:700">fully covered ✓</span>';
     return `<div style="padding:12px 0;border-bottom:1px solid #eef2f7">
@@ -3864,6 +3903,160 @@ function renderCoverage(){
   }).join('');
   el.innerHTML=html;
 }
+// ═══════════════════════════════════════════════════════════
+// COVERAGE → CARDS
+// Tested topics you missed and have no card for. Rather than routing through
+// the practice-question generator, this builds a prompt that asks Claude for
+// finished flashcards, with an explicit verification pass — a wrong card here
+// gets memorised, so the cost of an error is higher than usual.
+// ═══════════════════════════════════════════════════════════
+let coverageTargets=[];    // [{area, objectives:[text]}] — current batch
+let coverageAllAreas=[];   // every area in the full gap set (for AREA matching)
+function subjectForArea(area){ return ABIM_CATEGORIES.some(c=>c.name===area)?'IM':(ABPN_CATEGORIES.some(c=>c.name===area)?'Psych':defaultSubject()); }
+function buildCoveragePrompt(groups){
+  const multi=groups.length>1;
+  const total=groups.reduce((n,g)=>n+g.objectives.length,0);
+  const body=groups.map(g=>
+    `### ${g.area}\n`+g.objectives.map(o=>`- ${o}`).join('\n')
+  ).join('\n\n');
+  return `You are helping an internal medicine / psychiatry resident build board-prep flashcards.
+
+Below are ${total} educational objective${total===1?'':'s'} from topics they were tested on and got wrong${multi?`, grouped by content area`:` in "${groups[0].area}"`}. They currently have NO flashcard covering ${total===1?'it':'them'}.
+
+Write 1-2 flashcards for EACH objective below.
+
+${body}
+
+CARD REQUIREMENTS
+- One idea per card. Prefer the decision or threshold that gets tested over background trivia.
+- Question side: a short clinical stem or a direct question. Answer side: the key fact plus the one-line "why" that makes it stick.
+- Where a number matters (dose, cutoff, timing, score), put the number on the card.
+- End every answer with a citation: guideline or reference plus year — e.g. "Citation: IDSA 2023" or "Citation: Harrison's 21e Ch. 245".
+
+ACCURACY REQUIREMENTS — read carefully
+These cards get memorised by spaced repetition, so an error becomes a memorised error that is hard to unlearn. Therefore:
+1. Only assert what you are confident is current standard of care. If guidance genuinely changed recently or is contested, say so ON the card instead of silently picking a side.
+2. Do NOT invent citations. If you cannot name a real, specific source, write "Citation: general reference" rather than fabricating a guideline, year, chapter, or PMID.
+3. Do not build cards around a single institution's local protocol or a region-specific formulary.
+4. If an objective is ambiguous or you cannot cover it accurately, write one card stating the concept plainly rather than guessing at specifics.
+5. AFTER drafting everything, do a separate verification pass over your own cards before you answer:
+   - re-check every dose, threshold, timeframe and first-line agent;
+   - correct anything that overstates certainty;
+   - delete duplicates and any card whose answer you cannot stand behind;
+   - confirm each objective above actually has a card.
+   Output ONLY the final corrected set — do not show the draft or the review.
+6. If any card remains one you are less than fully confident in, end its answer with [VERIFY]. It will be flagged for the resident to check.
+
+OUTPUT FORMAT — exactly this, one blank line between cards, no numbering, no extra commentary:
+
+${multi?`AREA: <one of the content-area headings above>\n`:''}Q: <question>
+A: <answer>. Citation: <source>
+
+${multi?'Include the AREA line on every card so each one files into the right content area.\n':''}Begin.`;
+}
+function openCoveragePrompt(area){
+  const cov=objectiveCoverage();
+  const rows=area?cov.areaRows.filter(r=>r.area===area):cov.areaRows;
+  coverageTargets=rows.map(r=>({area:r.area,objectives:r.objectives.filter(o=>!o.covered).map(o=>o.text)}))
+                      .filter(g=>g.objectives.length);
+  if(!coverageTargets.length){ toast('No uncovered topics'); return; }
+  const total=coverageTargets.reduce((n,g)=>n+g.objectives.length,0);
+  // Flatten so long gap lists can be split into prompts of a sane size — a few
+  // hundred objectives in one message would blow past any model's output limit.
+  coverageItems=[]; coverageTargets.forEach(g=>g.objectives.forEach(t=>coverageItems.push({area:g.area,text:t})));
+  coverageAllAreas=coverageTargets.map(g=>g.area);
+  document.getElementById('coverage-modal-title').textContent=area?`Make cards — ${area}`:'Make cards for every gap';
+  document.getElementById('coverage-modal-sub').textContent=
+    `${total} tested topic${total===1?'':'s'} with no card${area?'':`, across ${coverageTargets.length} content area${coverageTargets.length===1?'':'s'}`}. The prompt asks Claude to verify its own cards before answering; anything it's unsure of comes back flagged.`;
+  document.getElementById('coverage-paste').value='';
+  document.getElementById('coverage-import-result').innerHTML='';
+  renderCoveragePrompt(0);
+  document.getElementById('coverage-modal').style.display='flex';
+}
+let coverageItems=[], coverageBatch=0;
+function coverageBatchSize(){ return +(document.getElementById('coverage-batch-size')||{}).value||25; }
+function renderCoveragePrompt(batch){
+  coverageBatch=batch||0;
+  const size=coverageBatchSize();
+  const nBatches=Math.max(1,Math.ceil(coverageItems.length/size));
+  if(coverageBatch>=nBatches) coverageBatch=nBatches-1;
+  if(coverageBatch<0) coverageBatch=0;
+  const slice=coverageItems.slice(coverageBatch*size,(coverageBatch+1)*size);
+  // Regroup this batch by area so the prompt keeps its headings.
+  const byArea={}; slice.forEach(it=>{ (byArea[it.area]=byArea[it.area]||[]).push(it.text); });
+  const groups=Object.keys(byArea).map(a=>({area:a,objectives:byArea[a]}));
+  document.getElementById('coverage-prompt-box').textContent=buildCoveragePrompt(groups);
+  const ctl=document.getElementById('coverage-batch-controls');
+  if(nBatches>1){
+    ctl.style.display='inline-flex';
+    document.getElementById('coverage-batch-label').textContent=`Batch ${coverageBatch+1} of ${nBatches}`;
+  } else ctl.style.display='none';
+  // Keep the parser's area fallback aligned with what's actually in this batch.
+  coverageTargets=groups;
+}
+function stepCoverageBatch(d){ renderCoveragePrompt(coverageBatch+d); }
+function closeCoveragePrompt(){ document.getElementById('coverage-modal').style.display='none'; }
+function copyCoveragePrompt(){
+  const txt=document.getElementById('coverage-prompt-box').textContent;
+  const done=()=>toast('Prompt copied — paste it into Claude');
+  if(navigator.clipboard&&navigator.clipboard.writeText) navigator.clipboard.writeText(txt).then(done).catch(()=>fallbackCopy(txt,done));
+  else fallbackCopy(txt,done);
+}
+function fallbackCopy(txt,done){
+  const ta=document.createElement('textarea'); ta.value=txt; ta.style.position='fixed'; ta.style.opacity='0';
+  document.body.appendChild(ta); ta.select();
+  try{ document.execCommand('copy'); done(); }catch(e){ toast('Select the prompt text and copy manually'); }
+  ta.remove();
+}
+// Parse Claude's reply. Cards may carry an "AREA:" line (multi-area prompts);
+// without one they fall to the single area the prompt was built for.
+function parseCoverageCards(text){
+  const out=[]; let curArea=coverageTargets.length===1?coverageTargets[0].area:null;
+  (text||'').split(/\n\s*\n/).forEach(bl=>{
+    const am=bl.match(/^\s*AREA\s*[:\-]\s*(.+)$/im);
+    if(am){
+      const raw=am[1].trim().replace(/^#+\s*/,'');
+      // Match against every area in the whole gap set, not just this batch, so
+      // cards pasted from an earlier batch still file correctly.
+      const all=coverageAllAreas.length?coverageAllAreas:coverageTargets.map(g=>g.area);
+      const hit=all.find(a=>a.toLowerCase()===raw.toLowerCase())
+             || all.find(a=>raw.toLowerCase().includes(a.toLowerCase()));
+      if(hit) curArea=hit;
+    }
+    const qm=bl.match(/Q\s*[:\.]\s*([\s\S]*?)(?:\n\s*A\s*[:\.]|$)/i);
+    const bm=bl.match(/A\s*[:\.]\s*([\s\S]*)$/i);
+    if(qm&&bm){
+      const q=qm[1].replace(/^\s*AREA\s*[:\-].*$/im,'').trim();
+      let a=bm[1].trim();
+      const verify=/\[VERIFY\]/i.test(a);
+      a=a.replace(/\[VERIFY\]/ig,'').trim();
+      if(q&&a) out.push({q,a,area:curArea,verify});
+    }
+  });
+  return out;
+}
+function importCoverageCards(){
+  const res=document.getElementById('coverage-import-result');
+  const pairs=parseCoverageCards(document.getElementById('coverage-paste').value);
+  if(!pairs.length){ res.innerHTML='<div class="alert alert-warn">No <strong>Q:</strong> / <strong>A:</strong> pairs found. Each card needs a Q: line and an A: line, with a blank line between cards.</div>'; return; }
+  let added=0, flagged=0, unfiled=0;
+  pairs.forEach(p=>{
+    const area=p.area||coverageTargets[0].area;
+    if(!p.area) unfiled++;
+    const c=newCard(p.q,p.a,subjectForArea(area),area,'tested-topic-coverage');
+    if(p.verify){ c.flagged=true; flagged++; }
+    DB.cards.push(c); added++;
+  });
+  saveDB();
+  document.getElementById('coverage-paste').value='';
+  res.innerHTML=`<div class="alert alert-success">Imported <strong>${added}</strong> card${added===1?'':'s'}, tagged <em>tested-topic-coverage</em>.`+
+    (flagged?` <strong>${flagged}</strong> came back marked [VERIFY] and ${flagged===1?'has':'have'} been flagged 🚩 for you to check.`:'')+
+    (unfiled?` ${unfiled} had no AREA line and went to "${coverageTargets[0].area}".`:'')+
+    ` Reopen this panel to see coverage update.</div>`;
+  toast(`Imported ${added} cards`);
+  renderCoverage();
+}
+
 function ITE_TO_ABIM_HAS(area){ return Object.values(ITE_TO_ABIM).includes(area) || [...ABIM_CATEGORIES,...ABPN_CATEGORIES].some(c=>c.name===area); }
 
 // ═══════════════════════════════════════════════════════════
