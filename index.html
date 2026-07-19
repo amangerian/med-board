@@ -1652,6 +1652,10 @@ async function loadDB(){
   DB.dailyLog=DB.dailyLog||{};
   DB.streak=DB.streak||{current:0,longest:0,lastDate:null};
   DB.aviary=DB.aviary||{revealed:0,current:0,earned:[],lastDate:null};
+  // `completed` counts every week ever finished. Older saves de-duplicated the
+  // earned list, so seed it from that list's length — the best record we have.
+  DB.aviary.earned=DB.aviary.earned||[];
+  if(DB.aviary.completed==null) DB.aviary.completed=DB.aviary.earned.length;
   DB.iteReports=DB.iteReports||[];
   DB.mksapReports=DB.mksapReports||[];
   DB.priteReports=DB.priteReports||[];
@@ -1920,11 +1924,22 @@ function advanceAviary(){
   DB.aviary.revealed=(DB.aviary.revealed||0)+1;
   if(DB.aviary.revealed>=7){
     DB.aviary.earned=DB.aviary.earned||[];
-    if(!DB.aviary.earned.includes(DB.aviary.current)) DB.aviary.earned.push(DB.aviary.current);
+    // Every completed week lands on the wire — repeats included. (This used to
+    // de-duplicate, which quietly capped the aviary at 5 creatures forever.)
+    const wonId=currentCreatureId();
+    DB.aviary.earned.push(wonId);
+    DB.aviary.completed=(DB.aviary.completed!=null?DB.aviary.completed:DB.aviary.earned.length-1)+1;
     DB.aviary.revealed=0;
-    DB.aviary.current=(DB.aviary.current+1)%BIRDS.length;
-    toast('🎉 New bird earned for your aviary!');
-    launchConfetti(12000);
+    // `current` is now derived from `completed` (see currentCreatureId), but
+    // keep it in step so older code paths and saved files stay coherent.
+    DB.aviary.current=isElephant(currentCreatureId())?DB.aviary.current:currentCreatureId();
+    if(isElephant(wonId)){
+      toast('🐘 Six months of daily study — an elephant joined your wire!');
+      launchConfetti(20000);
+    } else {
+      toast('🎉 New bird earned for your aviary!');
+      launchConfetti(12000);
+    }
   }
 }
 
@@ -1941,6 +1956,7 @@ function launchConfetti(duration){
   cv.style.cssText='position:fixed;inset:0;width:100vw;height:100vh;pointer-events:none;z-index:9999';
   document.body.appendChild(cv);
   const ctx=cv.getContext('2d');
+  if(!ctx){ cv.remove(); return; }        // no 2d canvas — skip the celebration
   const dpr=Math.min(window.devicePixelRatio||1,2);
   function resize(){ cv.width=innerWidth*dpr; cv.height=innerHeight*dpr; ctx.setTransform(dpr,0,0,dpr,0,0); }
   resize(); window.addEventListener('resize',resize);
@@ -4119,6 +4135,47 @@ const BIRDS = [
   {name:'American Robin', svg:`<svg viewBox="0 0 560 320" preserveAspectRatio="xMidYMid slice" xmlns="http://www.w3.org/2000/svg"><rect width="560" height="320" fill="#eef4f7"/><rect y="255" width="560" height="65" fill="#d5e3d0"/><rect x="40" y="244" width="480" height="12" rx="6" fill="#6f4a2a"/><path d="M330 178 L452 236 L336 208 Z" fill="#5b5b57"/><ellipse cx="268" cy="168" rx="98" ry="60" fill="#6d6a62"/><path d="M186 176 q40 70 150 44 q-6 40 -70 46 q-80 6 -96 -50 q-2 -50 16 -86 Z" fill="#d1622a"/><path d="M280 150 q52 14 88 62 q-70 8 -118 -28 Z" fill="#5c584f"/><circle cx="196" cy="140" r="50" fill="#4a4842"/><circle cx="184" cy="134" r="7" fill="#111"/><circle cx="184" cy="134" r="9.5" fill="none" stroke="#fff" stroke-width="2"/><path d="M150 138 L110 148 L150 160 Z" fill="#f2c23a"/><g stroke="#6a5230" stroke-width="5" stroke-linecap="round"><path d="M250 250 L250 276"/><path d="M290 250 L290 276"/></g></svg>`},
   {name:'Baltimore Oriole', svg:`<svg viewBox="0 0 560 320" preserveAspectRatio="xMidYMid slice" xmlns="http://www.w3.org/2000/svg"><rect width="560" height="320" fill="#eef7ef"/><rect y="255" width="560" height="65" fill="#d7ead0"/><rect x="40" y="242" width="480" height="12" rx="6" fill="#6f4a2a"/><path d="M330 178 L452 236 L336 208 Z" fill="#f0821e"/><ellipse cx="270" cy="182" rx="94" ry="66" fill="#f0821e"/><path d="M280 150 q52 14 88 64 q-72 8 -118 -28 Z" fill="#161616"/><rect x="300" y="196" width="64" height="8" rx="4" fill="#fff" transform="rotate(20 300 196)"/><circle cx="196" cy="128" r="50" fill="#151515"/><path d="M150 150 q46 30 100 0 q-6 26 -50 28 q-44 -2 -50 -28 Z" fill="#151515"/><path d="M150 128 L112 138 L150 150 Z" fill="#9aa0a6"/><circle cx="182" cy="120" r="5.5" fill="#fff"/><circle cx="182" cy="120" r="3" fill="#0b0b0b"/><g stroke="#4a4a4a" stroke-width="5" stroke-linecap="round"><path d="M252 250 L252 276"/><path d="M292 250 L292 276"/></g></svg>`}
 ];
+// ── The 26-week elephant ────────────────────────────────────────────────
+// Half a year of unbroken daily study. Week 26 reveals an elephant instead of
+// a bird — comically oversized on the wire, but the wire holds.
+const ELEPHANT_WEEK=26;
+const ELEPHANT={name:'African Elephant', svg:`<svg viewBox="0 0 560 320" preserveAspectRatio="xMidYMid slice" xmlns="http://www.w3.org/2000/svg"><rect width="560" height="320" fill="#f3f0e7"/><circle cx="470" cy="58" r="26" fill="#ffd66e" opacity=".8"/><ellipse cx="120" cy="52" rx="52" ry="13" fill="#fff" opacity=".75"/><rect y="252" width="560" height="68" fill="#d9d3bf"/><rect x="30" y="240" width="500" height="13" rx="6" fill="#7a5230"/><ellipse cx="286" cy="168" rx="112" ry="80" fill="#9aa3ab"/><path d="M182 176 q-8 46 6 66 h30 q-10 -28 -4 -50 Z" fill="#8b949c"/><path d="M356 176 q10 46 -4 66 h-30 q10 -28 4 -50 Z" fill="#8b949c"/><path d="M222 208 q-6 20 2 34 h26 q-8 -20 -4 -34 Z" fill="#949da5"/><path d="M330 208 q6 20 -2 34 h-26 q8 -20 4 -34 Z" fill="#949da5"/><path d="M392 140 q22 -8 26 10 q4 20 -16 26 q6 -18 -10 -36 Z" fill="#8b949c"/><circle cx="176" cy="136" r="62" fill="#a4adb5"/><path d="M132 96 q-52 -14 -62 34 q-10 48 34 66 q28 10 44 -12 q-30 -34 -16 -88 Z" fill="#8b949c"/><path d="M126 108 q-40 -8 -46 28 q-8 36 26 50 q-18 -38 20 -78 Z" fill="#7f888f" opacity=".55"/><path d="M150 176 q-16 40 -6 66 q10 26 32 20 q18 -6 12 -24 q-6 -18 -18 -22 q-10 -4 -8 -18 q2 -14 10 -22 Z" fill="#a4adb5"/><path d="M158 214 q10 4 12 18" stroke="#8b949c" stroke-width="4" fill="none" stroke-linecap="round"/><path d="M196 186 q22 16 40 6 q-14 22 -42 8 Z" fill="#f2ece0"/><path d="M212 190 q20 12 34 4" stroke="#e8e0d0" stroke-width="7" fill="none" stroke-linecap="round"/><circle cx="182" cy="120" r="7" fill="#2b2b2b"/><circle cx="184" cy="118" r="2.4" fill="#fff"/><path d="M398 168 q28 6 30 34" stroke="#8b949c" stroke-width="7" fill="none" stroke-linecap="round"/></svg>`};
+function isElephant(id){ return String(id)==='elephant'; }
+// Resolve an aviary entry (bird index, or the string 'elephant') to its artwork.
+function creatureById(id){
+  if(isElephant(id)) return ELEPHANT;
+  let n=Number(id); if(!isFinite(n)) n=0;
+  n=((n%SPECIES_COUNT)+SPECIES_COUNT)%SPECIES_COUNT;
+  // The first five species have bespoke portraits; the rest are generated.
+  return { name:BIRD_NAMES[n], svg: n<BIRDS.length ? BIRDS[n].svg : generatedBirdPortrait(n) };
+}
+// Which creature is currently being revealed. Award order is derived from the
+// number of weeks completed rather than a rotating pointer, which guarantees
+// species 0…24 each appear exactly once before any can come round again.
+function currentCreatureId(){
+  const av=DB.aviary||{};
+  const done=av.completed!=null?av.completed:(av.earned||[]).length;
+  if((done+1)===ELEPHANT_WEEK) return 'elephant';
+  const birdWeeks = done - (done>=ELEPHANT_WEEK?1:0);   // discount the elephant week
+  return birdWeeks % SPECIES_COUNT;
+}
+// Standing elephant for the wire: same anchor as the birds (feet at the local
+// origin) but noticeably bigger — the joke only works if it dwarfs them.
+function perchedElephantInner(flip){
+  return `<title>${escHtml(ELEPHANT.name)} — 26 weeks</title>
+    <g class="pb-face" transform="scale(${flip?-1:1},1)">
+      <path d="M-9 0 L-9 -9 M-1 0 L-1 -9 M7 0 L7 -9 M15 0 L15 -9" stroke="#7f888f" stroke-width="6" stroke-linecap="round" fill="none"/>
+      <ellipse cx="2" cy="-22" rx="20" ry="15" fill="#9aa3ab"/>
+      <path d="M20 -30 q9 -3 10 5 q1 8 -7 10 q3 -8 -3 -15 Z" fill="#8b949c"/>
+      <circle cx="-15" cy="-30" r="11" fill="#a4adb5"/>
+      <path d="M-22 -38 q-11 -3 -13 7 q-2 10 7 14 q6 2 9 -3 q-6 -7 -3 -18 Z" fill="#8b949c"/>
+      <path d="M-24 -25 q-4 9 -1 15 q3 6 8 4 q4 -2 2 -6 q-2 -4 -5 -5 q-2 -1 -1 -4 Z" fill="#a4adb5"/>
+      <path d="M-19 -22 q5 4 8 1" stroke="#f2ece0" stroke-width="3" fill="none" stroke-linecap="round"/>
+      <circle cx="-13" cy="-33" r="1.9" fill="#2b2b2b"/>
+      <path d="M22 -20 q6 2 6 8" stroke="#8b949c" stroke-width="2.6" fill="none" stroke-linecap="round"/>
+    </g>`;
+}
+
 // Order in which the 14 puzzle tiles are revealed (scrambled for visual interest).
 const REVEAL_ORDER=[6,0,9,3,12,1,7,10,4,13,2,8,5,11];
 
@@ -4151,7 +4208,7 @@ function birdNameRevealHtml(name, revealed){
 // Render the current bird as a 7×2 tile grid. `revealed` = study-days (0-7);
 // two of the 14 tiles uncover per day so the bird completes in 7 days.
 function birdRevealHtml(idx, revealed){
-  const bird=BIRDS[((idx%BIRDS.length)+BIRDS.length)%BIRDS.length];
+  const bird=creatureById(idx);
   const shown=new Set(REVEAL_ORDER.slice(0, Math.min(14, Math.max(0, revealed*2))));
   let tiles='';
   for(let i=0;i<14;i++){
@@ -4172,28 +4229,79 @@ function birdRevealHtml(idx, revealed){
 // portraits are whole scenes, so each species gets a compact side-profile
 // "perched" rendition in its own colors; tapping a bird opens its portrait.
 // Styles are indexed to BIRDS: Cardinal, Goldfinch, Blue Jay, Robin, Oriole.
+// 25 distinct North American species — one per week for the first 25 weeks,
+// then the elephant at week 26, so nothing repeats across half a year.
+// The first five keep their hand-drawn portraits (BIRDS above); the rest get a
+// portrait generated from these same colours, so every species stays on-model.
 const PERCH_STYLES=[
   {body:'#e53935',head:'#e53935',belly:'#c62828',wing:'#c62828',beak:'#f4a63a',face:'#161616',crest:true},
   {body:'#f6c915',head:'#f6c915',belly:'#f6c915',wing:'#151515',beak:'#e8a0b0',cap:'#151515'},
   {body:'#4b8ad6',head:'#4b8ad6',belly:'#dfeaf5',wing:'#12305e',beak:'#161616',crest:true},
   {body:'#6d6a62',head:'#4a4842',belly:'#d1622a',wing:'#5c584f',beak:'#f2c23a'},
-  {body:'#f0821e',head:'#151515',belly:'#f0821e',wing:'#151515',beak:'#9aa0a6'}
+  {body:'#f0821e',head:'#151515',belly:'#f0821e',wing:'#151515',beak:'#9aa0a6'},
+  {body:'#4a7fc1',head:'#4a7fc1',belly:'#f2ede3',wing:'#35619b',beak:'#2b2b2b',throat:'#c96a3a'},          // Eastern Bluebird
+  {body:'#3f51b5',head:'#3949ab',belly:'#5c6bc0',wing:'#283593',beak:'#4a4a4a'},                            // Indigo Bunting
+  {body:'#4caf50',head:'#3f51b5',belly:'#e53935',wing:'#2e7d32',beak:'#5a5a5a'},                            // Painted Bunting
+  {body:'#e53935',head:'#e53935',belly:'#e53935',wing:'#161616',beak:'#c9b47a'},                            // Scarlet Tanager
+  {body:'#c9a882',head:'#c9a882',belly:'#e0d3b8',wing:'#8d7f6a',beak:'#2b2b2b',crest:true,face:'#161616'},  // Cedar Waxwing
+  {body:'#b9bec4',head:'#1c1c1c',belly:'#f4f2ee',wing:'#8f959b',beak:'#2b2b2b',cheek:'#ffffff'},            // Black-capped Chickadee
+  {body:'#a8adb4',head:'#a8adb4',belly:'#eceae5',wing:'#8b9197',beak:'#2b2b2b',crest:true},                 // Tufted Titmouse
+  {body:'#8fa3bd',head:'#1f2a3a',belly:'#f6f5f1',wing:'#6c819c',beak:'#333'},                               // White-breasted Nuthatch
+  {body:'#efefef',head:'#1c1c1c',belly:'#f7f7f7',wing:'#1c1c1c',beak:'#3a3a3a',nape:'#d32f2f'},             // Downy Woodpecker
+  {body:'#d8d3c6',head:'#d32f2f',belly:'#e8e2d4',wing:'#4a4a4a',beak:'#333'},                               // Red-bellied Woodpecker
+  {body:'#2e9b6e',head:'#2e9b6e',belly:'#e6efe6',wing:'#1f7a53',beak:'#2b2b2b',throat:'#c62828'},           // Ruby-throated Hummingbird
+  {body:'#1c1c1c',head:'#1c1c1c',belly:'#b5551f',wing:'#141414',beak:'#3a3a3a'},                            // Eastern Towhee
+  {body:'#9c4a72',head:'#a8446f',belly:'#e7d3dc',wing:'#7d3a5b',beak:'#b9a07a'},                            // Purple Finch
+  {body:'#8d7a68',head:'#d0483c',belly:'#e2d8c9',wing:'#6f5f50',beak:'#a2937c'},                            // House Finch
+  {body:'#a3866a',head:'#8b6f56',belly:'#ece3d4',wing:'#6d5844',beak:'#5a4a38'},                            // Song Sparrow
+  {body:'#5c6270',head:'#4a5058',belly:'#f4f3f0',wing:'#484d56',beak:'#f0c0c8'},                            // Dark-eyed Junco
+  {body:'#c2b0a0',head:'#bda992',belly:'#e6dcd0',wing:'#9c8a78',beak:'#3a3a3a',tail:'long'},                // Mourning Dove
+  {body:'#5d8ba8',head:'#5d8ba8',belly:'#f2f4f5',wing:'#436a83',beak:'#2b2b2b',crest:true,collar:'#ffffff'},// Belted Kingfisher
+  {body:'#a5673f',head:'#94592f',belly:'#e8d5bd',wing:'#7d4a26',beak:'#4a3a2a',eyebrow:'#f5ead8'},          // Carolina Wren
+  {body:'#1c1c1c',head:'#1c1c1c',belly:'#f4f2ee',wing:'#141414',beak:'#e8e0cf',throat:'#d32f2f'}            // Rose-breasted Grosbeak
 ];
+const BIRD_NAMES=['Northern Cardinal','American Goldfinch','Blue Jay','American Robin','Baltimore Oriole',
+  'Eastern Bluebird','Indigo Bunting','Painted Bunting','Scarlet Tanager','Cedar Waxwing',
+  'Black-capped Chickadee','Tufted Titmouse','White-breasted Nuthatch','Downy Woodpecker','Red-bellied Woodpecker',
+  'Ruby-throated Hummingbird','Eastern Towhee','Purple Finch','House Finch','Song Sparrow',
+  'Dark-eyed Junco','Mourning Dove','Belted Kingfisher','Carolina Wren','Rose-breasted Grosbeak'];
+const SPECIES_COUNT=BIRD_NAMES.length;
+// Portrait scene generated from a species' palette — same framing as the five
+// hand-drawn ones (sky, ground, perch branch) with the bird scaled up on it.
+function generatedBirdPortrait(i){
+  const s=PERCH_STYLES[i%PERCH_STYLES.length];
+  return `<svg viewBox="0 0 560 320" preserveAspectRatio="xMidYMid slice" xmlns="http://www.w3.org/2000/svg">
+    <defs><linearGradient id="bp${i}" x1="0" y1="0" x2="0" y2="1"><stop offset="0" stop-color="#dceafa"/><stop offset="1" stop-color="#f2f8ff"/></linearGradient></defs>
+    <rect width="560" height="320" fill="url(#bp${i})"/>
+    <circle cx="470" cy="56" r="22" fill="#ffd66e" opacity=".8"/>
+    <ellipse cx="130" cy="46" rx="48" ry="12" fill="#fff" opacity=".75"/>
+    <ellipse cx="176" cy="54" rx="34" ry="9" fill="#fff" opacity=".5"/>
+    <rect y="256" width="560" height="64" fill="#cfe6c8"/>
+    <rect x="40" y="244" width="480" height="12" rx="6" fill="#7a5230"/>
+    <g transform="translate(268,244) scale(3.1)">${perchedBirdInner(i,false)}</g>
+  </svg>`;
+}
 // Inner artwork of one perched bird (feet at local origin). `flip` mirrors it
 // so it faces right instead of left. Shared by the Aviary wire and the
 // animated dashboard-header wire.
 function perchedBirdInner(bi,flip){
-  const s=PERCH_STYLES[bi%PERCH_STYLES.length];
-  const b=BIRDS[bi%BIRDS.length];
-  return `<title>${escHtml(b.name)}</title>
+  if(isElephant(bi)) return perchedElephantInner(flip);
+  const n=((Number(bi)%SPECIES_COUNT)+SPECIES_COUNT)%SPECIES_COUNT;
+  const s=PERCH_STYLES[n];
+  return `<title>${escHtml(BIRD_NAMES[n])}</title>
     <g class="pb-face" transform="scale(${flip?-1:1},1)">
       <path d="M-3 0 L-3 -5 M3 0 L3 -5" stroke="#3a3a3a" stroke-width="1.6" stroke-linecap="round" fill="none"/>
-      <path d="M7 -16 L21 -7 L10 -19 Z" fill="${s.wing}"/>
+      <path d="${s.tail==='long'?'M7 -16 L30 -4 L10 -19 Z':'M7 -16 L21 -7 L10 -19 Z'}" fill="${s.wing}"/>
       <ellipse cx="0" cy="-15" rx="11" ry="9" fill="${s.body}"/>
       <path d="M-8 -12 q8 9 16 0 q-3 7 -8 7 q-5 0 -8 -7 Z" fill="${s.belly}"/>
       <ellipse cx="3" cy="-16" rx="6.5" ry="4.5" fill="${s.wing}" transform="rotate(-18 3 -16)" opacity=".9"/>
       <circle cx="-7" cy="-26" r="6.5" fill="${s.head}"/>
+      ${s.throat?`<path d="M-12 -22 q6 6 11 3 q-4 7 -11 5 Z" fill="${s.throat}"/>`:''}
+      ${s.collar?`<path d="M-6 -22 q7 5 13 1 q-2 6 -6 7 q-6 0 -7 -8 Z" fill="${s.collar}"/>`:''}
       ${s.cap?`<path d="M-13.5 -26 a6.5 6.5 0 0 1 12 -4 q-7 -3 -12 4 Z" fill="${s.cap}"/>`:''}
+      ${s.cheek?`<ellipse cx="-6" cy="-25" rx="4.5" ry="3.2" fill="${s.cheek}"/>`:''}
+      ${s.nape?`<path d="M-2 -30 q4 -2 5 2 q-3 2 -5 -2 Z" fill="${s.nape}"/>`:''}
+      ${s.eyebrow?`<path d="M-14 -30 q5 -2 8 0" stroke="${s.eyebrow}" stroke-width="2" fill="none" stroke-linecap="round"/>`:''}
       ${s.crest?`<path d="M-8 -31 L-4.5 -40 L-1.5 -30 Z" fill="${s.head}"/>`:''}
       ${s.face?`<path d="M-13 -26 q3.5 4 7.5 3 l-.5 -5.5 Z" fill="${s.face}"/>`:''}
       <path d="M-13 -27.5 L-19.5 -25.5 L-13 -23.5 Z" fill="${s.beak}"/>
@@ -4202,7 +4310,7 @@ function perchedBirdInner(bi,flip){
 }
 // One perched bird positioned with feet at (x,y) on a wire, tappable.
 function perchedBirdSvg(bi,x,y,flip){
-  return `<g transform="translate(${x},${y})" onclick="showAviaryBird(${bi})" style="cursor:pointer">${perchedBirdInner(bi,flip)}</g>`;
+  return `<g transform="translate(${x},${y})" onclick="showAviaryBird('${bi}')" style="cursor:pointer">${perchedBirdInner(bi,flip)}</g>`;
 }
 // The wire scene: sky, sun, poles with crossarms, and one sagging wire per
 // 6 birds. Birds are spaced along the wire and sit on its actual curve.
@@ -4245,12 +4353,12 @@ function showAviaryBird(bi){
   const el=document.getElementById('aviary-portrait'); if(!el) return;
   if(aviaryOpenBird===bi){ el.innerHTML=''; aviaryOpenBird=null; return; }
   aviaryOpenBird=bi;
-  const b=BIRDS[bi%BIRDS.length];
+  const b=creatureById(bi);
   el.innerHTML=`<div style="max-width:420px;margin:14px auto 0;border:1px solid #e5e7eb;border-radius:12px;overflow:hidden;box-shadow:var(--card-shadow)">
     <div style="width:100%;padding-top:57.14%;position:relative"><div style="position:absolute;inset:0">${b.svg}</div></div>
     <div style="display:flex;justify-content:space-between;align-items:center;padding:10px 14px">
       <div style="font-weight:700;color:var(--navy);font-size:14px">${b.name}</div>
-      <button class="btn-secondary" style="padding:4px 10px;font-size:12px" onclick="showAviaryBird(${bi})">Close</button>
+      <button class="btn-secondary" style="padding:4px 10px;font-size:12px" onclick="showAviaryBird('${bi}')">Close</button>
     </div>
   </div>`;
 }
@@ -4338,6 +4446,17 @@ function moveDashBird(){
   raf(frame);
 }
 
+// Tease the week-26 elephant once it's within sight — and never spoil it early.
+function milestoneHint(){
+  const av=DB.aviary||{};
+  const done=av.completed!=null?av.completed:(av.earned||[]).length;
+  const left=ELEPHANT_WEEK-done;
+  if(left<=0) return '';
+  if(left===1) return ' · <strong style="color:var(--navy)">something bigger is next week</strong>';
+  if(left<=6) return ` · ${left} weeks to a surprise`;
+  return '';
+}
+
 function renderStreak(){
   const st=currentStreak(), lg=DB.streak.longest||0;
   const av=DB.aviary||{revealed:0,current:0,earned:[]};
@@ -4345,9 +4464,10 @@ function renderStreak(){
   document.getElementById('streak-longest').textContent=lg;
   document.getElementById('streak-birds').textContent=(av.earned||[]).length;
   document.getElementById('streak-flames').innerHTML=renderFlames(st);
-  document.getElementById('streak-bird-name').innerHTML=birdNameRevealHtml(BIRDS[av.current%BIRDS.length].name, av.revealed||0);
+  const curId=currentCreatureId();
+  document.getElementById('streak-bird-name').innerHTML=birdNameRevealHtml(creatureById(curId).name, av.revealed||0);
   document.getElementById('streak-reveal-count').textContent=av.revealed||0;
-  document.getElementById('streak-reveal').innerHTML=birdRevealHtml(av.current, av.revealed||0);
+  document.getElementById('streak-reveal').innerHTML=birdRevealHtml(curId, av.revealed||0);
   document.getElementById('streak-reveal-bar').style.width=Math.round((av.revealed||0)/7*100)+'%';
   const g=document.getElementById('streak-gallery');
   const earned=av.earned||[];
@@ -4356,7 +4476,7 @@ function renderStreak(){
     g.innerHTML=aviaryWireHtml([])+'<p style="color:var(--muted);font-size:14px;margin-top:10px;text-align:center">An empty wire, for now. Study every day — after 7 days your first bird lands here and appears on your dashboard forever.</p>';
   } else {
     g.innerHTML=aviaryWireHtml(earned)
-      +'<p style="text-align:center;color:var(--muted);font-size:12px;margin-top:8px">Tap a bird to see its portrait · '+earned.length+' on the wire</p>'
+      +'<p style="text-align:center;color:var(--muted);font-size:12px;margin-top:8px">Tap one to see its portrait · '+earned.length+' on the wire'+milestoneHint()+'</p>'
       +'<div id="aviary-portrait"></div>';
   }
 }
@@ -4368,7 +4488,7 @@ function renderDashboardBirds(){
   if(!earned.length){ el.innerHTML=''; return; }
   const positions=[{top:'1%',left:'63%',w:'240px',r:'6deg'},{top:'42%',left:'2%',w:'200px',r:'-8deg'},{top:'58%',left:'70%',w:'260px',r:'9deg'},{top:'20%',left:'36%',w:'180px',r:'-4deg'},{top:'74%',left:'30%',w:'210px',r:'5deg'}];
   el.innerHTML=earned.map((bi,i)=>{
-    const b=BIRDS[bi%BIRDS.length]; const p=positions[i%positions.length];
+    const b=creatureById(bi); const p=positions[i%positions.length];
     return `<div style="position:absolute;top:${p.top};left:${p.left};width:${p.w};opacity:.10;transform:rotate(${p.r})">${b.svg}</div>`;
   }).join('');
 }
