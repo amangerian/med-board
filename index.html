@@ -1145,6 +1145,12 @@ A: [answer]. Citation: Harrison's Principles of Internal Medicine, 21e, Ch. 245.
     <div style="font-size:12px;color:var(--muted);margin-bottom:12px">Whether your current cards cover the specific topics you were tested on and missed, pulled from your ITE &amp; MKSAP educational objectives. A topic counts as covered if any card in your deck addresses it. Gaps are real tested content you have no card for.</div>
     <div id="coverage-body"></div>
   </div>
+
+  <div class="panel only-psych" id="blueprint-panel" style="margin-top:20px">
+    <div style="font-weight:700;color:var(--navy);margin-bottom:4px">📘 ABPN Blueprint Coverage</div>
+    <div style="font-size:12px;color:var(--muted);margin-bottom:12px">Your cards checked against the <strong>official ABPN psychiatry certification content specification</strong> — all 284 Dimension 1 topics and Dimension 2 competencies. Unlike tested-topic coverage above, this doesn't wait for you to miss something on an exam: it shows syllabus content you've never made a card for at all.</div>
+    <div id="blueprint-body"></div>
+  </div>
 </div>
 
 <!-- STREAK & AVIARY -->
@@ -4167,6 +4173,7 @@ function renderReadiness(){
   }).join('');
   body.innerHTML=blocks;
   renderCoverage();
+  renderBlueprintCoverage();
 }
 
 // ═══════════════════════════════════════════════════════════
@@ -4261,6 +4268,158 @@ function renderCoverage(){
   }).join('');
   el.innerHTML=html;
 }
+// ═══════════════════════════════════════════════════════════
+// ABPN BLUEPRINT COVERAGE (v3)
+// The official ABPN psychiatry certification content specification, parsed
+// from the published outline. Unlike tested-topic coverage (which reacts to
+// what you got wrong on an exam you already sat), this checks your collection
+// against the whole syllabus — including topics you have never been tested on.
+// ═══════════════════════════════════════════════════════════
+const ABPN_BLUEPRINT=[{area:"Developmental Processes & Life Cycle",topics:["Infancy through adolescence", "Infancy through adolescence — Personality and other developmental processes", "Child development theory (e.g., cognitive theory, moral development, learning theory, psychodynamics)", "Development of gender identity and sexual orientation", "Development of gender identity and sexual orientation — Psychosocial influences", "Development of gender identity and sexual orientation — Other", "Adulthood", "Adulthood — Personality adaptation and other developmental processes", "Adulthood — Psychosocial influences", "Adulthood — Acquisition and loss of specific capacities", "Adulthood — Other", "Late life", "Late life — Personality adaptation and other developmental processes", "Late life — Psychosocial influences", "Life course – developmental and transitional events (retirement, death of a spouse)", "Life course – developmental and transitional events (retirement, death of a spouse) — Acquisition and loss of specific capacities", "Systemic, anatomic, and physiologic changes", "Psychological changes"]},
+{area:"Neurodevelopmental Disorders",topics:["Intellectual developmental disorder (intellectual disability)", "Language disorder", "Speech sound disorder", "Childhood-onset fluency disorder (stuttering)", "Social (pragmatic) communication disorder", "Autistic spectrum disorder", "Attention deficit/hyperactivity disorder", "Specific learning disorder", "Specific learning disorder — Developmental coordination disorder", "Stereotypic movement disorder", "Tourette disorder", "Persistent (chronic) motor or vocal tic disorder", "Provisional tic disorder"]},
+{area:"Substance-Related & Addictive Disorders",topics:["Alcohol-related disorders", "Caffeine-related disorders", "Cannabis-related disorders", "Phencyclidine disorder", "Inhalant-related disorders", "Opioid-related disorders", "Sedative-, hypnotic-, or anxiolytic-related disorders", "Sedative-, hypnotic-, or anxiolytic-related disorders — Stimulant-related disorders", "Tobacco-related disorders", "Gambling disorder"]},
+{area:"Schizophrenia Spectrum & Psychotic Disorders",topics:["Delusional disorder", "Brief psychotic disorder", "Schizophreniform disorder", "Schizophrenia", "Schizoaffective disorder", "Substance/medication-induced psychotic disorder", "Psychotic disorder due to another medical condition", "Catatonia", "Catatonia — Catatonic disorder due to another medical condition"]},
+{area:"Depressive Disorders",topics:["Disruptive mood dysregulation disorder", "Major depressive disorder", "Persistent depressive disorder (dysthymia)", "Premenstrual dysphoric disorder", "Substance/medication-induced depressive disorder", "Depressive disorder due to another medical condition"]},
+{area:"Bipolar & Related Disorders",topics:["Bipolar I disorder", "Bipolar II disorder", "Cyclothymic disorder", "Substance/medication-induced bipolar and related disorders", "Bipolar and related disorder due to another medical condition"]},
+{area:"Anxiety Disorders",topics:["Separation anxiety disorder", "Selective mutism", "Specific phobia", "Social anxiety disorder", "Panic disorder", "Agoraphobia", "Generalized anxiety disorder", "Substance/medication-induced anxiety disorder", "Substance/medication-induced anxiety disorder — Anxiety disorder due to another medical condition"]},
+{area:"OCD & Related Disorders",topics:["Obsessive-compulsive disorder", "Body dysmorphic disorder", "Hoarding disorder", "Trichotillomania (hair-pulling disorder)", "Excoriation (skin-picking) disorder", "Substance/medication-induced obsessive-compulsive and related disorder", "Obsessive-compulsive and related disorder due to another medical condition"]},
+{area:"Trauma & Stressor-Related Disorders",topics:["Reactive attachment disorder", "Disinhibited social engagement disorder", "Posttraumatic stress disorder", "Acute stress disorder", "Adjustment disorders", "Prolonged grief disorder"]},
+{area:"Dissociative Disorders",topics:["Dissociative identity disorder", "Dissociative amnesia", "Depersonalization/derealization disorder"]},
+{area:"Somatic Symptom & Related Disorders",topics:["Somatic symptom disorder", "Illness anxiety disorder", "Functional neurological symptom disorder (conversion disorder)", "Psychological factors affecting other medical conditions", "Factitious disorder"]},
+{area:"Feeding & Eating Disorders",topics:["Pica", "Rumination disorder", "Avoidant/restrictive food intake disorder", "Anorexia nervosa", "Bulimia nervosa", "Binge-eating disorder"]},
+{area:"Elimination Disorders",topics:["Enuresis", "Encopresis"]},
+{area:"Sleep-Wake Disorders",topics:["Insomnia disorder", "Hypersomnolence disorder", "Narcolepsy", "Obstructive sleep apnea hypopnea", "Central sleep apnea", "Sleep-related hypoventilation", "Circadian rhythm sleep-wake disorders", "Non-REM sleep arousal disorders", "Non-REM sleep arousal disorders — Nightmare disorder", "REM sleep behavior disorder", "Restless legs syndrome", "Substance/medication-induced sleep disorder"]},
+{area:"Sexual Dysfunctions",topics:["Delayed ejaculation", "Erectile disorder", "Female orgasmic disorder", "Female sexual interest/arousal disorder", "Genito-pelvic pain/penetration disorder", "Male hypoactive sexual desire disorder", "Premature (early) ejaculation", "Substance/medication-induced sexual dysfunction", "Substance/medication-induced sexual dysfunction — Other specified sexual dysfunction"]},
+{area:"Disruptive, Impulse-Control & Conduct Disorders",topics:["Oppositional defiant disorder", "Intermittent explosive disorder", "Conduct disorder", "Pyromania", "Kleptomania"]},
+{area:"Personality Disorders",topics:["Paranoid personality disorder", "Schizoid personality disorder", "Schizotypal personality disorder", "Antisocial personality disorder", "Borderline personality disorder", "Histrionic personality disorder", "Narcissistic personality disorder", "Avoidant personality disorder", "Avoidant personality disorder — Dependent personality disorder", "Obsessive-compulsive personality disorder", "Personality change due to another medical condition", "General personality disorder"]},
+{area:"Paraphilic Disorders",topics:["Voyeuristic disorder", "Exhibitionistic disorder", "Frotteuristic disorder", "Sexual masochism disorder", "Sexual sadism disorder", "Pedophilic disorder", "Fetishistic disorder", "Transvestic disorder", "Transvestic disorder — Other specified paraphilic disorder"]},
+{area:"Neurocognitive Disorders",topics:["Delirium", "Major or mild neurocognitive disorder due to Alzheimer disease", "Major or mild frontotemporal neurocognitive disorder", "Major or mild neurocognitive disorder with Lewy bodies", "Major or mild vascular neurocognitive disorder", "Major or mild neurocognitive disorder due to traumatic brain injury", "Major or mild neurocognitive disorder due to traumatic brain injury — Substance/medication-induced major or mild neurocognitive disorder", "Major or mild neurocognitive disorder due to HIV infection", "Major or mild neurocognitive disorder due to prion disease", "Major or mild neurocognitive disorder due to Parkinson disease", "Major or mild neurocognitive disorder due to Huntington disease", "Major or mild neurocognitive disorder due to another medical condition", "Major or mild neurocognitive disorder due to multiple etiologies"]},
+{area:"Neurologic Disorders (Psych)",topics:["Infections of the nervous system", "Vascular diseases", "Disorders of cerebrospinal and brain fluids", "Neuro-oncology", "Trauma", "Birth injuries and developmental abnormalities", "Genetic diseases of recognized biochemical abnormality", "Cerebral degenerations of childhood", "Cerebral degenerations of childhood — Cranial nerve disorders", "Peripheral neuropathies", "Ataxias", "Headache", "Movement disorders", "Spinal cord diseases", "Neuromuscular junction disorders", "Myopathies", "Demyelinating diseases", "Epilepsy and episodic disorders", "Neurologic complications of systemic diseases", "Neurotoxicology", "Pain syndromes", "Pain syndromes — Other"]},
+{area:"Forensic Psychiatry",topics:["Legal regulation of psychiatry", "Civil", "Criminal", "Death penalty", "Correction/correctional healthcare", "Legal system/basic law", "Children/families", "Special issues in forensic psychiatry"]},
+{area:"Dimension 2 Topics (Psych)",topics:["Neuroscience and mechanisms of disease", "Neuroscience and mechanisms of disease — Neuroanatomy", "Neuroscience and mechanisms of disease — Cellular and molecular neurobiology", "Neuroscience and mechanisms of disease — Neuropathology", "Neuroscience and mechanisms of disease — Genetics", "Neuroscience and mechanisms of disease — Neurochemistry", "Neuroscience and mechanisms of disease — Neurophysiology", "Neuroscience and mechanisms of disease — Chronobiology (e.g., biological rhythms, sleep)", "Neuroscience and mechanisms of disease — Neuroendocrinology and neuroimmunology", "Neuroscience and mechanisms of disease — Other", "Behavioral/social sciences and psychosocial mechanisms of diseases", "Behavioral/social sciences and psychosocial mechanisms of diseases — Psychology", "Behavioral/social sciences and psychosocial mechanisms of diseases — Experimental and behavioral psychology", "Behavioral/social sciences and psychosocial mechanisms of diseases — Neuropsychology, cognitive psychology", "Behavioral/social sciences and psychosocial mechanisms of diseases — Social psychology", "Behavioral/social sciences and psychosocial mechanisms of diseases — Psychoanalytic and psychodynamic psychology", "Behavioral/social sciences and psychosocial mechanisms of diseases — Other", "Behavioral/social sciences and psychosocial mechanisms of diseases — Sociology", "Behavioral/social sciences and psychosocial mechanisms of diseases — Anthropology, culture, ethnicity, race, and spirituality", "Behavioral/social sciences and psychosocial mechanisms of diseases — Biostatistics", "Behavioral/social sciences and psychosocial mechanisms of diseases — Research design", "Behavioral/social sciences and psychosocial mechanisms of diseases — Normal development", "Clinical aspects of psychiatric and neuropsychiatric disorders", "Clinical aspects of psychiatric and neuropsychiatric disorders — Epidemiology", "Clinical aspects of psychiatric and neuropsychiatric disorders — Factors affecting psychiatric and neuropsychiatric disorders (predisposing, protective, and perpetuating factors, precipitants)", "Clinical aspects of psychiatric and neuropsychiatric disorders — Clinical presentation, symptoms, and signs", "Clinical aspects of psychiatric and neuropsychiatric disorders — Comorbidity", "Clinical aspects of psychiatric and neuropsychiatric disorders — Differential diagnosis", "Clinical aspects of psychiatric and neuropsychiatric disorders — Prognosis and course of illness", "Diagnostic procedures", "Diagnostic procedures — General physical and neurological examination", "Diagnostic procedures — Psychiatric interview and mental status examination", "Diagnostic procedures — Psychological testing", "Diagnostic procedures — Neuropsychological testing", "Diagnostic procedures — Diagnostic assessments and rating scales", "Diagnostic procedures — Laboratory testing", "Diagnostic procedures — Neuroimaging", "Diagnostic procedures — EEG", "Diagnostic procedures — Sleep Studies", "Diagnostic procedures — Neurophysiologic testing", "Diagnostic procedures — Other", "Treatment", "Treatment — General treatment planning and decision making", "Treatment — General principles of psychopharmacology and neuropharmacology", "Treatment — Pharmacokinetics/pharmacodynamics", "Treatment — Drug interactions", "Treatment — Age, gender, and ethnicity issues", "Treatment — Genomics", "Treatment — Specific pharmacologic agents", "Treatment — Tricyclics and heterocyclics", "Treatment — Monoamine oxidase inhibitors", "Treatment — Selective serotonin reuptake inhibitors (SSRI)", "Treatment — Selective norepinephrine reuptake inhibitors (NRI)", "Treatment — Selective serotonin-norepinephrine reuptake inhibitors (SNRI)", "Treatment — Other antidepressants", "Treatment — Lithium", "Treatment — Anticonvulsants", "Treatment — Benzodiazepines", "Treatment — Beta blockers", "Treatment — Alpha agonists", "Treatment — Typical antipsychotics", "Treatment — Atypical antipsychotics", "Treatment — Psychostimulants", "Treatment — Hypnotics and sedatives", "Treatment — Cognitive enhancers", "Treatment — Calcium channel blockers", "Treatment — Dopamine agonists (including L-DOPA)", "Treatment — Anticholinergics", "Treatment — Opioid agonists/antagonists", "Treatment — Other agents used in the management of psychiatric disorders", "Treatment — Other agents used in the management of neurologic disorders", "Treatment — Other agents used in the management of other medical disorders", "Treatment — Treatment of substance-related and addictive disorders", "Treatment — Pharmacologic a. Management of use (disorder), intoxication, and withdrawal b. Relapse prevention c. Management of co-occurring conditions", "Treatment — Nonpharmacologic a. Management of use (disorder), intoxication, and withdrawal b. Relapse prevention c. Management of co-occurring conditions", "Treatment — Treatment of aggression/self-injury", "Treatment — Pharmacologic", "Treatment — Nonpharmacologic", "Treatment — Treatment of sleep-wake disorders", "Treatment — Treatment of pain", "Treatment — Treatment of neuroleptic malignant syndrome, TDEPS, and serotonin syndrome", "Treatment — Pharmacotherapy in special situations", "Treatment — Renal disease", "Treatment — Hepatic disease", "Treatment — Pregnancy", "Treatment — Breast-feeding", "Treatment — Tardive dyskinesia and extrapyramidal symptoms", "Treatment — Augmentation strategies", "Treatment — Nonpharmacologic somatic treatment", "Treatment — Biofeedback", "Treatment — Electroconvulsive therapy", "Treatment — Phototherapy", "Treatment — Chronotherapy", "Treatment — Vagal nerve stimulation", "Treatment — rTMS (repetitive transcranial magnetic stimulation)", "Treatment — Neurosurgical approaches", "Treatment — Other", "Treatment — Psychotherapy", "Treatment — Supportive", "Treatment — Cognitive and/or behavioral", "Treatment — Interpersonal", "Treatment — Psychodynamic and psychoanalytic", "Treatment — Couples and family", "Treatment — Group", "Treatment — Crisis intervention (e.g. critical incident debriefing, psychological debriefing/early intervention)", "Treatment — Motivational interviewing", "Treatment — Other (e.g., hypnotherapy, sex therapy, mindfulness, meditation)", "Treatment — Psychosocial interventions", "Treatment — Psychoeducation", "Treatment — Vocational and occupational rehabilitation", "Treatment — Self-help groups (e.g., AA, NA)", "Treatment — Community-based treatment programs (e.g., halfway houses, day hospitals, multimodal treatment programs, therapeutic communities, opioid agonist treatment programs)", "Interpersonal and communication skills", "Interpersonal and communication skills — Communication with patients", "Interpersonal and communication skills — Communication with other professionals", "Interpersonal and communication skills — Communication with the public", "Interpersonal and communication skills — Communication with patients' families", "Interpersonal and communication skills — Communication with the healthcare team", "Professionalism, ethics, and the law", "Professionalism, ethics, and the law — Sensitivity to diversity", "Professionalism, ethics, and the law — Adherence to ethical principles (e.g., informed consent, research issues, clinical care)", "Professionalism, ethics, and the law — Fatigue management, work-life balance, and physician well-being", "Professionalism, ethics, and the law — Professional behavior", "Professionalism, ethics, and the law — Participation in the professional community", "Professionalism, ethics, and the law — Legal issues in psychiatry", "Professionalism, ethics, and the law — End of life issues", "Practice-based learning and improvement", "Practice-based learning and improvement — Development and execution of lifelong learning", "Practice-based learning and improvement — Self-assessment and self-improvement", "Practice-based learning and improvement — Use of evidence in the clinical workflow", "Practice-based learning and improvement — Formal practice-based quality improvement", "Systems-based practice", "Systems-based practice — Patient safety and the healthcare team", "Systems-based practice — Medical errors, patient safety, quality improvement, and improvement activities", "Systems-based practice — Regulatory and educational activities related to patient safety", "Systems-based practice — Resource management", "Systems-based practice — Parity", "Systems-based practice — Access to care", "Systems-based practice — Telepsychiatry", "Systems-based practice — Community-based care", "Systems-based practice — Community based programs a. Other (e.g. nursing homes, skilled nursing facilities, assisted living)", "Systems-based practice — Prevention", "Systems-based practice — Recovery and rehabilitation", "Systems-based practice — Integrated care (collaborative care)", "Systems-based practice — Consultation to nonpsychiatric medical providers and nonmedical systems (e.g., military, schools, businesses, forensic)", "Systems-based practice — Public health and prevention, and public policy", "Systems-based practice — Documentation of practice, management of records, insurance, and reimbursement"]}];
+// Match blueprint topics using looser rules than the ITE/MKSAP matcher: these
+// are short canonical disorder names, and many are a single word, which the
+// bigram-only matcher could never match.
+const BP_STOP=new Set(['and','the','of','to','due','with','other','another','or','in','for','from','a','an','disorder','disorders','related','specified','medical','condition','conditions']);
+function bpTokens(topic){
+  const tail=String(topic).split('—').pop();           // "Group — Topic" → match the topic
+  const words=tail.toLowerCase().replace(/[^a-z0-9 ]/g,' ').split(/\s+/).filter(Boolean);
+  const sig=words.filter(w=>w.length>=4 && !BP_STOP.has(w));
+  const bigrams=[];
+  for(let i=0;i<words.length-1;i++){
+    if(BP_STOP.has(words[i])&&BP_STOP.has(words[i+1])) continue;
+    if(words[i].length<3||words[i+1].length<3) continue;
+    bigrams.push(words[i]+' '+words[i+1]);
+  }
+  return {sig,bigrams};
+}
+function buildCardWordIndex(){
+  const words=new Set(), bigrams=new Set();
+  (DB.cards||[]).forEach(c=>{
+    if(c.suspended) return;
+    const t=(stripHtml(c.front||'')+' '+stripHtml(c.back||'')+' '+(c.tags||[]).join(' '))
+      .toLowerCase().replace(/[^a-z0-9 ]/g,' ').split(/\s+/).filter(Boolean);
+    for(let i=0;i<t.length;i++){
+      if(t[i].length>=4) words.add(t[i]);
+      if(i<t.length-1 && t[i].length>=3 && t[i+1].length>=3) bigrams.add(t[i]+' '+t[i+1]);
+    }
+  });
+  return {words,bigrams};
+}
+function bpCovered(topic, idx){
+  const {sig,bigrams}=bpTokens(topic);
+  if(!sig.length) return true;                          // nothing matchable — don't call it a gap
+  for(const b of bigrams) if(idx.bigrams.has(b)) return true;
+  // A long, rare word carries the topic on its own — a card saying
+  // "trichotillomania" covers "Trichotillomania (hair-pulling disorder)"
+  // even though it never says "hair" or "pulling".
+  if(sig.some(w=>w.length>=11 && idx.words.has(w))) return true;
+  return sig.every(w=>idx.words.has(w));                // otherwise every significant word must appear
+}
+function blueprintCoverage(){
+  const idx=buildCardWordIndex();
+  const rows=ABPN_BLUEPRINT.map(g=>{
+    const missing=g.topics.filter(t=>!bpCovered(t,idx));
+    const cat=ABPN_CATEGORIES.find(c=>c.name===g.area);
+    return {area:g.area, weight:cat?cat.pct:2, total:g.topics.length,
+            covered:g.topics.length-missing.length, gaps:missing.length,
+            pct:g.topics.length?Math.round((g.topics.length-missing.length)/g.topics.length*100):100,
+            missing};
+  });
+  const total=rows.reduce((n,r)=>n+r.total,0), covered=rows.reduce((n,r)=>n+r.covered,0);
+  rows.sort((a,b)=> (b.gaps*b.weight)-(a.gaps*a.weight) || a.pct-b.pct);
+  return {rows,total,covered,gaps:total-covered,pct:total?Math.round(covered/total*100):0};
+}
+let lastBlueprintSnapshot=null;
+function renderBlueprintCoverage(){
+  const el=document.getElementById('blueprint-body'); if(!el) return;
+  const host=document.getElementById('blueprint-panel');
+  // Irrelevant to a categorical IM resident.
+  if(host) host.style.display=(currentSpecialty()==='IM')?'none':'';
+  if(currentSpecialty()==='IM') return;
+  const cov=blueprintCoverage();
+  const col=readinessColor(cov.pct);
+  let html=`<div style="display:flex;align-items:center;gap:18px;flex-wrap:wrap;margin-bottom:12px">
+    <div style="text-align:center;min-width:120px"><div style="font-size:40px;font-weight:800;color:${col};line-height:1">${cov.pct}%</div><div style="font-size:12px;color:var(--muted)">of the ABPN blueprint covered</div></div>
+    <div style="flex:1;min-width:220px">
+      <div style="font-size:13px;color:#42506a">Your cards touch <strong>${cov.covered}</strong> of the <strong>${cov.total}</strong> topics in the official ABPN psychiatry content specification. <strong style="color:${cov.gaps?'#b91c1c':'#16a34a'}">${cov.gaps} topic${cov.gaps===1?'':'s'}</strong> have no card at all.</div>
+      <div style="display:flex;gap:8px;align-items:center;flex-wrap:wrap;margin-top:8px">
+        <button class="btn-secondary" style="padding:6px 13px;font-size:12.5px" onclick="recheckBlueprint()">🔄 Re-check blueprint</button>
+        <span id="blueprint-recheck-msg" style="font-size:12px;color:var(--muted)"></span>
+      </div>
+      <div style="font-size:11.5px;color:var(--muted);margin-top:6px">Ordered by exam weight × gaps, so the areas worth fixing first come first.</div>
+    </div>
+  </div>`;
+  html+=cov.rows.map((r,i)=>{
+    const id='bp-'+i;
+    const barCol=readinessColor(r.pct);
+    const btn=r.gaps?`<button class="btn-primary" style="padding:4px 11px;font-size:12px" onclick="openBlueprintPrompt('${r.area.replace(/'/g,"\\'")}')">🃏 Build Anki deck for ${r.gaps} gap${r.gaps===1?'':'s'} →</button>`:'';
+    const list=r.missing.length?`<ul class="mk-obj-list" id="${id}" style="display:none;margin-top:8px">`+r.missing.map(t=>`<li>${escHtml(t)}</li>`).join('')+`</ul>`:'';
+    const toggle=r.missing.length?`<button class="btn-secondary" style="padding:4px 11px;font-size:12px" onclick="var o=document.getElementById('${id}');o.style.display=o.style.display==='none'?'':'none'">Show ${r.gaps} missing</button>`:'<span style="font-size:12px;color:#16a34a;font-weight:700">fully covered ✓</span>';
+    return `<div style="padding:12px 0;border-bottom:1px solid #eef2f7">
+      <div style="display:flex;align-items:center;gap:12px;flex-wrap:wrap">
+        <div style="flex:1;min-width:180px;font-weight:700;color:var(--navy);font-size:13px">${escHtml(r.area)} <span style="color:var(--muted);font-weight:500;font-size:11px">· ${r.weight}% of exam</span></div>
+        <div style="width:130px;background:#eef2f7;border-radius:20px;height:8px;overflow:hidden"><div style="width:${r.pct}%;height:100%;background:${barCol}"></div></div>
+        <div style="width:64px;text-align:right;font-size:12px;color:var(--muted)">${r.covered}/${r.total}</div>
+      </div>
+      <div style="display:flex;gap:8px;margin-top:8px;flex-wrap:wrap">${toggle}${btn}</div>
+      ${list}
+    </div>`;
+  }).join('');
+  el.innerHTML=html;
+}
+function recheckBlueprint(){
+  const before=lastBlueprintSnapshot;
+  const cov=blueprintCoverage();
+  lastBlueprintSnapshot={covered:cov.covered,total:cov.total};
+  renderBlueprintCoverage();
+  const msg=document.getElementById('blueprint-recheck-msg'); if(!msg) return;
+  if(before){
+    const d=cov.covered-before.covered;
+    msg.innerHTML = d>0 ? `<strong style="color:#16a34a">+${d} blueprint topic${d===1?'':'s'} now covered</strong>`
+      : d<0 ? `<span style="color:#b91c1c">${d} no longer covered</span>`
+      : 'No change since the last check.';
+  } else msg.textContent=`Checked all ${cov.total} blueprint topics against your collection.`;
+  toast('Blueprint re-checked');
+}
+// Reuse the deck-building prompt machinery, sourced from blueprint gaps.
+function openBlueprintPrompt(area){
+  const cov=blueprintCoverage();
+  const row=cov.rows.find(r=>r.area===area);
+  if(!row||!row.missing.length){ toast('No gaps in that area'); return; }
+  coverageMode='blueprint';
+  coverageTargets=[{area:row.area,objectives:row.missing.slice()}];
+  coverageItems=row.missing.map(t=>({area:row.area,text:t}));
+  coverageAllAreas=[row.area];
+  document.getElementById('coverage-modal-title').textContent=`Build an Anki deck — ${area}`;
+  document.getElementById('coverage-modal-sub').textContent=
+    `${row.missing.length} ABPN blueprint topic${row.missing.length===1?'':'s'} in this area with no card yet. The prompt asks Claude to build a ready-to-import deck and verify its own cards before packaging them.`;
+  document.getElementById('coverage-paste').value='';
+  document.getElementById('coverage-import-result').innerHTML='';
+  renderCoveragePrompt(0);
+  document.getElementById('coverage-modal').style.display='flex';
+}
+
 // Re-run the coverage match against the current deck and report what changed
 // since the last check — the payoff after importing a generated deck.
 let lastCoverageSnapshot=null;
@@ -4291,6 +4450,7 @@ function recheckCoverage(){
 // finished flashcards, with an explicit verification pass — a wrong card here
 // gets memorised, so the cost of an error is higher than usual.
 // ═══════════════════════════════════════════════════════════
+let coverageMode='tested'; // 'tested' (ITE/MKSAP misses) or 'blueprint' (ABPN spec)
 let coverageTargets=[];    // [{area, objectives:[text]}] — current batch
 let coverageAllAreas=[];   // every area in the full gap set (for AREA matching)
 function subjectForArea(area){ return ABIM_CATEGORIES.some(c=>c.name===area)?'IM':(ABPN_CATEGORIES.some(c=>c.name===area)?'Psych':defaultSubject()); }
@@ -4300,9 +4460,12 @@ function buildCoveragePrompt(groups){
   const subjName=subject==='Psych'?'psychiatry':'internal medicine';
   const objectives=groups.reduce((a,g)=>a.concat(g.objectives),[]);
   const safeFile=area.replace(/[^A-Za-z0-9]+/g,'_').replace(/^_|_$/g,'');
+  const intro = coverageMode==='blueprint'
+    ? `Below are ${objectives.length} topic${objectives.length===1?'':'s'} from the official ABPN psychiatry certification content specification (Dimension 1) that their collection has NO flashcard covering.`
+    : `Below are ${objectives.length} educational objective${objectives.length===1?'':'s'} they were tested on, answered incorrectly, and currently have NO flashcard covering.`;
   return `You are helping a ${subjName} resident build board-prep flashcards for the content area "${area}".
 
-Below are ${objectives.length} educational objective${objectives.length===1?'':'s'} they were tested on, answered incorrectly, and currently have NO flashcard covering.
+${intro}
 
 ${objectives.map(o=>`- ${o}`).join('\n')}
 
@@ -4340,6 +4503,7 @@ These cards get memorised by spaced repetition, so an error becomes a memorised 
 Begin.`;
 }
 function openCoveragePrompt(area){
+  coverageMode='tested';
   const cov=objectiveCoverage();
   const rows=area?cov.areaRows.filter(r=>r.area===area):cov.areaRows;
   coverageTargets=rows.map(r=>({area:r.area,objectives:r.objectives.filter(o=>!o.covered).map(o=>o.text)}))
