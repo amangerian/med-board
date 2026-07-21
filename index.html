@@ -5824,6 +5824,16 @@ function priteMeta(items){
   return meta;
 }
 // Turn a category name + its trailing numeric tokens into a score row.
+// A row's own name is a more reliable section marker than the header above it —
+// OCR frequently drops the "MILESTONES" heading, which would otherwise file
+// every milestone under subscores.
+function priteSectionFor(name, fallback){
+  const n=String(name||'').toLowerCase().trim();
+  const hit=PRITE_CATALOG.find(([,c])=>c.toLowerCase()===n);
+  if(hit) return hit[0];
+  if(/^(mk\d|pc|prof|ics|sbp|pbl)\s*[:.]/i.test(n)) return 'milestones';
+  return fallback;
+}
 function priteParseNums(name,nums,section){
   const clean=nums.map(n=>n.replace(/\*/g,''));
   const star=/\*/.test(nums[2]||'');
@@ -5832,7 +5842,7 @@ function priteParseNums(name,nums,section){
   const allMean=decimals.length?+decimals[decimals.length-1]:null;
   const ints=clean.filter(n=>!/\./.test(n)).map(Number);
   if(ints.length<3) return null;
-  return {section,name,items:ints[0],raw:ints[1],standard:ints[2],normPct:ints[3],peerMean,allMean,star};
+  return {section:priteSectionFor(name,section),name,items:ints[0],raw:ints[1],standard:ints[2],normPct:ints[3],peerMean,allMean,star};
 }
 // Normal layout: categories are rows (reconstructed lines). Handles the common
 // PRITE report where "Name  items raw standard ranks... peerMean allMean".
@@ -5890,23 +5900,112 @@ async function ingestPRITEFiles(files){
   const status=document.getElementById('pr-status');
   status.innerHTML=`<div class="alert alert-info">Reading ${files.length} file${files.length>1?'s':''}…</div>`;
   let ok=0; const bad=[], scanned=[];
+  pendingScannedPRITE=[];
   for(const f of files){
     try{ const rep=await parsePRITEFile(f);
       if(rep.rows.length){
         if(!rep.examDate) rep.examDate=guessYearFromName(f.name)?('EXAM '+guessYearFromName(f.name)):('Report '+(DB.priteReports.length+1));
         upsertPRITEReport(rep); ok++;
-      } else if(rep._noText){ scanned.push(f.name); }
+      } else if(rep._noText){ scanned.push(f.name); pendingScannedPRITE.push(f); }
       else bad.push(f.name);
     }catch(e){ bad.push(f.name); }
   }
   saveDB();
   let msg='';
   if(ok) msg+=`<div class="alert alert-success">Added / updated ${ok} report${ok>1?'s':''}.</div>`;
-  if(scanned.length) msg+=`<div class="alert alert-warn"><strong>${scanned.map(b=>b.replace(/</g,'&lt;')).join(', ')}</strong> ${scanned.length>1?'are':'is'} a scanned image with no text layer, so ${scanned.length>1?'they':'it'} can't be read automatically. Either re-download a text-based PDF from the PRITE portal, or <a href="#" onclick="togglePRITEManual(true);return false" style="color:var(--blue);font-weight:700">enter the scores manually ↓</a>.</div>`;
+  if(scanned.length) msg+=`<div class="alert alert-warn"><strong>${scanned.map(b=>b.replace(/</g,'&lt;')).join(', ')}</strong> ${scanned.length>1?'are':'is'} a scanned image — there's no text inside the file to read (the 2025 PRITE export is images only). Let the app read the picture instead:
+      <div style="margin-top:8px;display:flex;gap:8px;flex-wrap:wrap;align-items:center">
+        <button class="btn-primary" style="padding:6px 14px;font-size:12px" onclick="runPRITEOCR()">🔍 Read it with OCR</button>
+        <a href="#" onclick="togglePRITEManual(true);return false" style="color:var(--blue);font-weight:700;font-size:12px">or enter the scores manually ↓</a>
+      </div>
+      <div style="font-size:11.5px;color:#92400e;margin-top:6px">OCR downloads a text-recognition engine the first time (~2 MB) and takes 10–30 seconds. You'll get a chance to check every number before it's saved.</div>
+    </div>`;
   if(bad.length) msg+=`<div class="alert alert-warn">Couldn't read as a PRITE report: ${bad.map(b=>b.replace(/</g,'&lt;')).join(', ')}. Use the official PRITE score-report PDF.</div>`;
   status.innerHTML=msg;
   renderPRITE();
 }
+// ── OCR fallback for scanned PRITE reports ─────────────────────────────────
+// Some PRITE exports (2025's among them) are pure images — no font, no text
+// layer, nothing for a parser to read. Rather than force retyping, render the
+// pages and run text recognition over them, then hand the result to the same
+// parser and let the resident verify the numbers before anything is saved.
+let pendingScannedPRITE=[];
+// Repair OCR digit confusions, but only inside tokens that are clearly meant to
+// be numbers — so a category name like "Issues in Practice" is never touched.
+function ocrNormalizeNumbers(line){
+  return String(line||'').split(' ').map(tok=>{
+    if(!tok) return tok;
+    if(!/^[\d$SsOolI|.,*]+$/.test(tok)) return tok;          // has other letters → a word
+    if(!/[\d$SsOolI|]/.test(tok)) return tok;
+    const fixed=tok.replace(/[$Ss]/g,'5').replace(/[Oo]/g,'0').replace(/[lI|]/g,'1').replace(/,/g,'');
+    return /^\*?\d+(\.\d+)?\*?$/.test(fixed) ? fixed : tok;   // only if it becomes a real number
+  }).join(' ');
+}
+function loadTesseract(){
+  return new Promise((resolve,reject)=>{
+    if(window.Tesseract) return resolve(window.Tesseract);
+    const s=document.createElement('script');
+    s.src='https://cdnjs.cloudflare.com/ajax/libs/tesseract.js/5.1.1/tesseract.min.js';
+    s.onload=()=>window.Tesseract?resolve(window.Tesseract):reject(new Error('Tesseract failed to initialise'));
+    s.onerror=()=>reject(new Error('Could not download the text-recognition engine (needs internet)'));
+    document.head.appendChild(s);
+  });
+}
+// Render one PDF page to a canvas big enough for small table digits to survive.
+async function pdfPageToCanvas(page, scale){
+  const viewport=page.getViewport({scale:scale||2.6});
+  const canvas=document.createElement('canvas');
+  canvas.width=Math.floor(viewport.width); canvas.height=Math.floor(viewport.height);
+  const ctx=canvas.getContext('2d');
+  if(!ctx) throw new Error('Canvas unavailable');
+  await page.render({canvasContext:ctx, viewport}).promise;
+  return canvas;
+}
+async function runPRITEOCR(){
+  const status=document.getElementById('pr-status');
+  if(!pendingScannedPRITE.length){ toast('Re-select the scanned PDF first'); return; }
+  const file=pendingScannedPRITE[0];
+  try{
+    status.innerHTML='<div class="alert alert-info">Downloading the text-recognition engine…</div>';
+    const T=await loadTesseract();
+    status.innerHTML='<div class="alert alert-info">Rendering the report…</div>';
+    const buf=await file.arrayBuffer();
+    const pdf=await pdfjsLib.getDocument({data:new Uint8Array(buf)}).promise;
+    let text='';
+    for(let i=1;i<=pdf.numPages;i++){
+      status.innerHTML=`<div class="alert alert-info">Reading page ${i} of ${pdf.numPages} — this takes a few seconds…</div>`;
+      const canvas=await pdfPageToCanvas(await pdf.getPage(i));
+      const res=await T.recognize(canvas,'eng');
+      text+='\n'+((res&&res.data&&res.data.text)||'');
+    }
+    // Feed OCR output through the normal line parser, after repairing the
+    // character confusions this font provokes ($ and S for 5, O for 0, l for 1).
+    const lines=text.split('\n').map(l=>ocrNormalizeNumbers(l.replace(/\s+/g,' ').trim())).filter(Boolean);
+    const rows=parsePRITELines(lines);
+    const dm=text.match(new RegExp('('+PRITE_MONTHS+')\\s+(\\d{4})','i'));
+    const label=dm?(dm[1].toUpperCase()+' '+dm[2]):(guessYearFromName(file.name)?('EXAM '+guessYearFromName(file.name)):'');
+    if(!rows.length){
+      status.innerHTML='<div class="alert alert-warn">OCR ran but couldn\'t line up any score rows — the scan may be low resolution. The category template below is ready for manual entry instead.</div>';
+      togglePRITEManual(true); fillPRITETemplate();
+      if(label) document.getElementById('pr-manual-label').value=label;
+      return;
+    }
+    // Prefill the manual box so every number is visible and editable BEFORE
+    // saving — OCR misreads digits often enough that silent import is unsafe
+    // for scores that drive study priorities.
+    const catName=n=>{ const hit=PRITE_CATALOG.find(([,c])=>c.toLowerCase()===String(n).toLowerCase()); return hit?hit[1]:n; };
+    document.getElementById('pr-manual-text').value=
+      rows.map(r=>`${catName(r.name)}: ${r.standard}${r.allMean?', '+r.allMean:''}`).join('\n');
+    if(label) document.getElementById('pr-manual-label').value=label;
+    togglePRITEManual(true);
+    status.innerHTML=`<div class="alert alert-success"><strong>OCR read ${rows.length} score row${rows.length===1?'':'s'}.</strong> They're filled in below — <strong>check the numbers against your PDF</strong> (recognition can confuse digits like 5/6 and 8/3), fix anything wrong, then press <em>Save report</em>.</div>`;
+    document.getElementById('pr-manual').scrollIntoView({behavior:'smooth',block:'center'});
+  }catch(err){
+    status.innerHTML='<div class="alert alert-warn">OCR failed: '+escHtml(err.message||'unknown error')+'. You can still enter the scores manually below.</div>';
+    togglePRITEManual(true); fillPRITETemplate();
+  }
+}
+
 // Canonical PRITE categories (for the manual-entry template & section lookup).
 const PRITE_CATALOG=[
   ['global','Neurosciences'],['global','Clinical Neurology'],['global','Clinical Psychiatry'],['global','Total Score'],
