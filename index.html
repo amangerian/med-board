@@ -213,6 +213,9 @@ body[data-specialty="IM"]    .only-psych{display:none!important}
 body[data-specialty="Psych"] .only-im{display:none!important}
 body[data-specialty="IM"]    #study-filter,
 body[data-specialty="Psych"] #study-filter{display:none}
+/* Settings/controls that only make sense when BOTH subjects are in play. */
+body[data-specialty="IM"]    .only-both,
+body[data-specialty="Psych"] .only-both{display:none!important}
 /* ── TUTORIAL / FIRST-RUN TOUR (v3) ─────────────────────────────────── */
 #tutorial-overlay{position:fixed;inset:0;background:rgba(15,23,42,.62);z-index:300;display:none;align-items:center;justify-content:center;padding:18px;backdrop-filter:blur(2px)}
 #tutorial-card{background:#fff;border-radius:16px;max-width:480px;width:100%;max-height:86vh;overflow-y:auto;box-shadow:0 20px 60px rgba(0,0,0,.35);display:flex;flex-direction:column}
@@ -1023,6 +1026,14 @@ front,back,subject,content_area,tags<br>
       <div class="setting-row">
         <div><div class="setting-label">Daily review goal</div><div class="setting-desc">Target total reviews per day</div></div>
         <input type="number" id="set-daily-goal" min="1" max="500" onchange="saveSetting('dailyGoal',this.value)">
+      </div>
+      <div class="setting-row only-both" id="row-newmix">
+        <div><div class="setting-label">New-card mix (IM &amp; Psych)</div><div class="setting-desc">How new cards are chosen when both subjects have cards waiting. <strong>Balanced</strong> alternates IM and Psych so one specialty can't dominate; <strong>By deck proportion</strong> matches each subject's share of your deck; <strong>Creation order</strong> introduces oldest-made cards first.</div></div>
+        <select id="set-newmix" onchange="saveSetting('newCardMix',this.value)" style="padding:6px 10px;border:2px solid #e5e7eb;border-radius:6px;font-size:14px">
+          <option value="balanced">Balanced (alternate)</option>
+          <option value="proportional">By deck proportion</option>
+          <option value="sequential">Creation order</option>
+        </select>
       </div>
       <div class="setting-row">
         <div><div class="setting-label">Scheduling algorithm</div><div class="setting-desc">FSRS (modern, ~20-30% fewer reviews at equal retention) or classic SM-2</div></div>
@@ -2250,11 +2261,47 @@ function getDueCards(filter='all'){
   const reviewDue = DB.cards.filter(c=>match(c) && (c.totalReviews||0)>0 && c.dueDate<=t);
   const introducedToday = DB.cards.filter(c=>c.introducedDate===t).length;
   const remainingNew = Math.max(0, (DB.settings.newPerDay||10) - introducedToday);
-  const newCards = DB.cards
+  const newPool = DB.cards
     .filter(c=>match(c) && (c.totalReviews||0)===0 && c.dueDate<=t)
-    .sort((a,b)=>String(a.createdDate||'').localeCompare(String(b.createdDate||'')))
-    .slice(0, remainingNew);
+    .sort((a,b)=>String(a.createdDate||'').localeCompare(String(b.createdDate||'')));
+  const newCards = pickNewCards(newPool, remainingNew);
   return [...reviewDue, ...newCards];
+}
+
+// Choose which new cards to introduce today. The default interleaves IM and
+// Psych so a deck that happens to be built one-subject-first (as many are)
+// doesn't feed you weeks of a single specialty before the other appears.
+//   'balanced'     — round-robin across subjects (equal footing)
+//   'proportional' — mix matching each subject's share of the new-card pool
+//   'sequential'   — oldest-created first, regardless of subject (old behaviour)
+function pickNewCards(pool, limit){
+  if(limit<=0 || !pool.length) return [];
+  const mix=DB.settings.newCardMix||'balanced';
+  if(mix==='sequential') return pool.slice(0,limit);
+  const groups={IM:[],Psych:[],Both:[]};
+  pool.forEach(c=>{ (groups[c.subject]||groups.IM).push(c); });
+  const order=['IM','Psych','Both'].filter(k=>groups[k].length);
+  if(order.length<=1) return pool.slice(0,limit);   // single subject → nothing to balance
+  const out=[];
+  if(mix==='proportional'){
+    // Fill by largest remaining share (Largest Remainder–style), so a 70/30
+    // pool yields roughly 70/30 among today's new cards.
+    const quota={}; order.forEach(k=>quota[k]=limit*groups[k].length/pool.length);
+    const idx={}; order.forEach(k=>idx[k]=0);
+    while(out.length<limit && order.some(k=>idx[k]<groups[k].length)){
+      let pick=null,best=-1;
+      for(const k of order){ if(idx[k]>=groups[k].length) continue; const rem=quota[k]-(idx[k]); if(rem>best){best=rem;pick=k;} }
+      if(pick===null) break;
+      out.push(groups[pick][idx[pick]++]);
+    }
+  } else {
+    // 'balanced' — plain round-robin, oldest-first within each subject.
+    const idx={}; order.forEach(k=>idx[k]=0);
+    while(out.length<limit && order.some(k=>idx[k]<groups[k].length)){
+      for(const k of order){ if(out.length>=limit) break; if(idx[k]<groups[k].length) out.push(groups[k][idx[k]++]); }
+    }
+  }
+  return out;
 }
 
 // Total NEW cards still waiting (ignores the daily cap) — for informational UI.
@@ -2340,9 +2387,9 @@ function renderDashboard(){
   const totR=logs.reduce((a,[,v])=>a+v.reviews,0);
   const totC=logs.reduce((a,[,v])=>a+v.correct,0);
   document.getElementById('stat-retention').textContent=totR>0?Math.round(totC/totR*100)+'%':'—';
-  // one flame per streak day (compact on the dashboard; full set on the Streak tab)
+  // one visible flame per streak day — the stat card wraps, so show them all
   const st=currentStreak();
-  document.getElementById('stat-streak').innerHTML = st>0 ? renderFlames(st,14) : '0 🔥';
+  document.getElementById('stat-streak').innerHTML = st>0 ? renderFlames(st) : '0 🔥';
   document.getElementById('stat-streak-days').textContent = st;
   renderDashboardBirds();
 
@@ -4653,6 +4700,7 @@ function renderSettings(){
   document.getElementById('set-retention').value=DB.settings.targetRetention||90;
   document.getElementById('row-retention').style.display=(DB.settings.scheduler||'fsrs')==='fsrs'?'':'none';
   const spSel=document.getElementById('set-specialty'); if(spSel) spSel.value=currentSpecialty();
+  const mixSel=document.getElementById('set-newmix'); if(mixSel) mixSel.value=DB.settings.newCardMix||'balanced';
 }
 function saveScheduler(v){
   DB.settings.scheduler=(v==='sm2')?'sm2':'fsrs';
