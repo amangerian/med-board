@@ -256,7 +256,7 @@ body[data-specialty="Psych"] .only-both{display:none!important}
     <div class="nav-item" onclick="navigate('settings')"><span class="nav-icon">⚙️</span><span>Settings</span></div>
   </nav>
   <div id="sidebar-footer">
-    <div style="color:rgba(255,255,255,.4);font-size:11px" title="Blueprint coverage (ABIM + ABPN), balanced new-card mix, full streak flames">v3.1 · ABIM &amp; ABPN 2026</div>
+    <div style="color:rgba(255,255,255,.4);font-size:11px" title="Per-review log, true-retention analytics, backup reminders">v3.2 · ABIM &amp; ABPN 2026</div>
   </div>
 </div>
 
@@ -267,6 +267,11 @@ body[data-specialty="Psych"] .only-both{display:none!important}
 <div id="page-dashboard" class="page active" style="position:relative">
   <div id="dashboard-aviary-bg" style="position:absolute;inset:0;pointer-events:none;z-index:0;overflow:hidden"></div>
   <div style="position:relative;z-index:1">
+  <div id="backup-nudge" style="display:none;align-items:center;gap:12px;flex-wrap:wrap;background:#fff7ed;border:1px solid #fed7aa;border-radius:8px;padding:11px 15px;margin-bottom:14px">
+    <span style="font-size:13px;color:#9a3412"><strong>💾 <span id="backup-nudge-text">Time to back up.</span></strong> <span id="backup-nudge-sub" style="font-weight:400"></span></span>
+    <button class="btn-primary" style="padding:6px 14px;font-size:12px" onclick="exportBackup()">Download backup</button>
+    <button class="btn-secondary" style="padding:6px 12px;font-size:12px" onclick="snoozeBackupNudge()">Remind me later</button>
+  </div>
   <div class="page-header" style="display:flex;align-items:flex-end;gap:20px;flex-wrap:wrap">
     <div style="flex:0 1 auto">
       <h2 id="greeting">Good morning</h2>
@@ -727,6 +732,11 @@ front,back,subject,content_area,tags<br>
     <div class="category-grid" id="abpn-grid"></div>
   </div>
   <div id="analytics-tab-trends" class="tab-content">
+    <div class="panel" id="retention-panel" style="margin-bottom:16px">
+      <div style="font-weight:700;color:var(--navy);margin-bottom:4px">🎯 True Retention</div>
+      <div style="font-size:12px;color:var(--muted);margin-bottom:12px">Before every review, FSRS predicts how likely you are to recall that card. This compares those predictions against what actually happened — the honest measure of whether your target retention is real.</div>
+      <div id="retention-body"></div>
+    </div>
     <div class="stat-grid" style="grid-template-columns:repeat(4,1fr)">
       <div class="stat-card"><div class="label">Reviews (14 days)</div><div class="value" id="tr-reviews">0</div><div class="sub" id="tr-reviews-sub">—</div></div>
       <div class="stat-card"><div class="label">Accuracy (14 days)</div><div class="value" id="tr-accuracy">—</div><div class="sub">correct rate</div></div>
@@ -1843,6 +1853,7 @@ async function loadDB(){
   // earned list, so seed it from that list's length — the best record we have.
   DB.aviary.earned=DB.aviary.earned||[];
   if(DB.aviary.completed==null) DB.aviary.completed=DB.aviary.earned.length;
+  DB.reviewLog=DB.reviewLog||[];
   DB.iteReports=DB.iteReports||[];
   DB.mksapReports=DB.mksapReports||[];
   DB.priteReports=DB.priteReports||[];
@@ -2076,9 +2087,31 @@ function reviewCard(card, grade){
   const t=today();
   const wasNew=(card.totalReviews||0)===0;
 
+  // ── Per-review log (v3.2) ────────────────────────────────────────────────
+  // Capture the state BEFORE scheduling changes it. `r` is FSRS's predicted
+  // recall probability at the moment of review — storing it next to what
+  // actually happened is what makes true-retention analysis possible later,
+  // and it's the raw material for fitting FSRS parameters to this user.
+  const elapsed=card.lastReview?Math.max(0,diffDays(t,card.lastReview)):0;
+  const preState=fsrsStateOf(card);
+  const predicted=(preState&&elapsed>0)?+fsrsRetrievability(elapsed,preState.s).toFixed(4):null;
+  const logEntry={
+    d:t,                                   // date reviewed
+    g:grade,                               // 0-3
+    e:elapsed,                             // days since previous review
+    i:card.interval||0,                    // interval it had coming in
+    s:preState?+preState.s.toFixed(2):null,// stability before
+    r:predicted,                           // predicted recall (null on first sight)
+    n:wasNew?1:0,                          // was this its first ever review
+    sub:card.subject||'',
+    a:card.contentArea||''
+  };
+
   // Schedule FIRST — both schedulers read pre-review state (lastReview, fsrs, interval).
   if((DB.settings.scheduler||'fsrs')==='fsrs') fsrsSchedule(card,grade);
   else sm2Schedule(card,grade);
+  logEntry.ni=card.interval;               // interval assigned by the scheduler
+  pushReviewLog(card.id, logEntry);
 
   card.totalReviews=(card.totalReviews||0)+1;
   if(grade>0) card.correctReviews=(card.correctReviews||0)+1;
@@ -2099,6 +2132,67 @@ function reviewCard(card, grade){
   updateStreak();
   advanceAviary();
   return card;
+}
+
+// ── Backup nudge (v3.2) ───────────────────────────────────────────────────
+// Everything lives in this browser's storage. Clearing site data, a dead
+// laptop or a new phone loses the lot, so remind people once a week — but
+// only once they have work worth losing, and never on the day they backed up.
+const BACKUP_NUDGE_DAYS=7;
+function renderBackupNudge(){
+  const el=document.getElementById('backup-nudge'); if(!el) return;
+  const t=today();
+  const cards=(DB.cards||[]).length;
+  const reviews=Object.values(DB.dailyLog||{}).reduce((n,v)=>n+(v.reviews||0),0);
+  // Nothing to protect yet — don't nag a brand-new user.
+  if(cards<25 && reviews<20){ el.style.display='none'; return; }
+  if(DB.settings.backupSnoozeUntil && t<DB.settings.backupSnoozeUntil){ el.style.display='none'; return; }
+  const last=DB.settings.lastBackup;
+  const since=last?diffDays(t,last):null;
+  if(last && since<BACKUP_NUDGE_DAYS){ el.style.display='none'; return; }
+  const added=last?Math.max(0,cards-(DB.settings.lastBackupCards||0)):cards;
+  document.getElementById('backup-nudge-text').textContent =
+    last ? `It's been ${since} days since your last backup.` : `You haven't backed up yet.`;
+  document.getElementById('backup-nudge-sub').textContent =
+    `Your ${cards.toLocaleString()} cards and all your progress live only in this browser${added?` — ${added.toLocaleString()} card${added===1?'':'s'} added since then`:''}. A backup file restores everything, anywhere.`;
+  el.style.display='flex';
+}
+function snoozeBackupNudge(){
+  DB.settings.backupSnoozeUntil=addDays(today(),3);
+  saveDB();
+  const el=document.getElementById('backup-nudge'); if(el) el.style.display='none';
+  toast('Reminder snoozed for 3 days');
+}
+
+// ── Review log store (v3.2) ───────────────────────────────────────────────
+// One record per rating, kept in a flat array. Deliberately terse keys: at
+// ~60 bytes each, a hard-working resident logs roughly 2 MB a year, which
+// IndexedDB handles comfortably. Capped so it can never grow without bound.
+const REVIEW_LOG_MAX=60000;
+function pushReviewLog(cardId, entry){
+  DB.reviewLog=DB.reviewLog||[];
+  entry.c=cardId;
+  DB.reviewLog.push(entry);
+  if(DB.reviewLog.length>REVIEW_LOG_MAX) DB.reviewLog.splice(0, DB.reviewLog.length-REVIEW_LOG_MAX);
+}
+// True retention: FSRS predicts a recall probability before each review; this
+// compares those predictions against what actually happened. Only reviews with
+// a prediction (i.e. not first sightings) count.
+function retentionStats(days){
+  const log=(DB.reviewLog||[]).filter(x=>x.r!=null);
+  const cutoff=days?addDays(today(),-days):null;
+  const rows=cutoff?log.filter(x=>x.d>=cutoff):log;
+  if(!rows.length) return null;
+  const actual=rows.filter(x=>x.g>0).length/rows.length;
+  const predicted=rows.reduce((s,x)=>s+x.r,0)/rows.length;
+  // Bucket by predicted probability to show calibration across the range.
+  const buckets=[];
+  for(let lo=0.5; lo<1.0; lo+=0.1){
+    const hi=lo+0.1;
+    const b=rows.filter(x=>x.r>=lo && x.r<hi);
+    if(b.length>=5) buckets.push({lo,hi,n:b.length,predicted:b.reduce((s,x)=>s+x.r,0)/b.length,actual:b.filter(x=>x.g>0).length/b.length});
+  }
+  return {n:rows.length, actual, predicted, buckets, target:(DB.settings.targetRetention||90)/100};
 }
 
 // Advance the 7-day bird reveal once per study day. Every 7 study-days the
@@ -2367,6 +2461,7 @@ function renderDashboard(){
   const nm=(DB.settings.name||'').trim();
   document.getElementById('greeting').textContent=greet+(nm?', '+nm:'');
   renderDashWire();
+  renderBackupNudge();
 
   const dueAll=getDueCards('all');
   const dueIM=getDueCards('IM');
@@ -4027,7 +4122,45 @@ function renderCategoryGrid(elId, cats, subject){
   }).join('');
 }
 
+function renderRetention(){
+  const el=document.getElementById('retention-body'); if(!el) return;
+  const st=retentionStats(null);
+  const logged=(DB.reviewLog||[]).length;
+  if(!st || st.n<20){
+    const note=logged?'':' Reviews from before this version were never recorded, so the history starts now.';
+    el.innerHTML=`<div class="alert alert-info" style="margin:0">Building your history — <strong>${logged}</strong> review${logged===1?'':'s'} recorded so far. Once about 20 repeat reviews are logged, this will show your measured recall rate against what FSRS predicted.${note}</div>`;
+    return;
+  }
+  const a=Math.round(st.actual*100), p=Math.round(st.predicted*100), tgt=Math.round(st.target*100);
+  const delta=a-p;
+  const col=Math.abs(delta)<=3?'#16a34a':Math.abs(delta)<=7?'#d97706':'#dc2626';
+  const verdict = Math.abs(delta)<=3
+    ? 'Well calibrated — the scheduler is predicting your recall accurately.'
+    : delta>0 ? `You're recalling <strong>better</strong> than predicted. Intervals may be shorter than they need to be; consider lowering target retention to cut review load.`
+              : `You're recalling <strong>worse</strong> than predicted. Intervals may be too long — consider raising target retention, or check whether these cards need rewriting.`;
+  el.innerHTML=`
+    <div style="display:flex;gap:22px;flex-wrap:wrap;align-items:center">
+      <div style="text-align:center;min-width:110px"><div style="font-size:38px;font-weight:800;color:${col};line-height:1">${a}%</div><div style="font-size:12px;color:var(--muted)">measured recall</div></div>
+      <div style="text-align:center;min-width:110px"><div style="font-size:26px;font-weight:700;color:var(--muted);line-height:1.3">${p}%</div><div style="font-size:12px;color:var(--muted)">FSRS predicted</div></div>
+      <div style="text-align:center;min-width:110px"><div style="font-size:26px;font-weight:700;color:var(--navy);line-height:1.3">${tgt}%</div><div style="font-size:12px;color:var(--muted)">your target</div></div>
+      <div style="flex:1;min-width:230px;font-size:13px;color:#42506a">${verdict}<div style="color:var(--muted);font-size:11.5px;margin-top:4px">Based on ${st.n.toLocaleString()} repeat review${st.n===1?'':'s'} (first sightings excluded — nothing to predict from).</div></div>
+    </div>`;
+  if(st.buckets.length>=2){
+    el.innerHTML+=`<div style="margin-top:14px"><div style="font-size:12px;font-weight:700;color:var(--navy);margin-bottom:6px">Calibration by predicted difficulty</div>`+
+      st.buckets.map(b=>{
+        const ba=Math.round(b.actual*100), bp=Math.round(b.predicted*100);
+        const bc=Math.abs(ba-bp)<=5?'#16a34a':Math.abs(ba-bp)<=12?'#d97706':'#dc2626';
+        return `<div style="display:flex;align-items:center;gap:10px;padding:4px 0;font-size:12px">
+          <div style="width:112px;color:var(--muted)">predicted ${bp}%</div>
+          <div style="flex:1;max-width:200px;background:#eef2f7;border-radius:20px;height:7px;overflow:hidden"><div style="width:${ba}%;height:100%;background:${bc}"></div></div>
+          <div style="width:76px;font-weight:700;color:${bc}">actual ${ba}%</div>
+          <div style="color:var(--muted)">n=${b.n}</div>
+        </div>`;
+      }).join('')+`</div>`;
+  }
+}
 function renderTrends(){
+  renderRetention();
   const t=today();
   const newPerDay=DB.settings.newPerDay||10;
 
@@ -4737,6 +4870,7 @@ function exportBackup(){
     version:2,
     exportedAt:new Date().toISOString(),
     cardCount:DB.cards.length,
+    reviewLogCount:(DB.reviewLog||[]).length,
     reportCounts:{
       ite:(DB.iteReports||[]).length,
       mksap:(DB.mksapReports||[]).length,
@@ -4751,6 +4885,11 @@ function exportBackup(){
   a.download='medboard_backup_'+today()+'.json';
   a.click();
   setTimeout(()=>URL.revokeObjectURL(url),1000);
+  // Remember when this happened so the app can nudge if it's been a while.
+  DB.settings.lastBackup=today();
+  DB.settings.lastBackupCards=DB.cards.length;
+  saveDB();
+  const nb=document.getElementById('backup-nudge'); if(nb) nb.style.display='none';
   const nRep=payload.reportCounts.ite+payload.reportCounts.mksap+payload.reportCounts.prite;
   toast(`Backed up ${DB.cards.length} cards${nRep?` + ${nRep} score report${nRep===1?'':'s'}`:''}`);
 }
@@ -4785,6 +4924,7 @@ function restoreBackup(incoming, mode){
     DB.aviary=incoming.aviary||{revealed:0,current:0,earned:[],lastDate:null};
     // Score reports travel with the backup too (v3 fix — these were silently
     // dropped before, so moving to a new device lost every ITE/MKSAP/PRITE report).
+    DB.reviewLog=incoming.reviewLog||[];
     DB.iteReports=incoming.iteReports||[];
     DB.mksapReports=incoming.mksapReports||[];
     DB.priteReports=incoming.priteReports||[];
@@ -4811,6 +4951,17 @@ function restoreBackup(incoming, mode){
       DB.aviary.earned=DB.aviary.earned||[];
       incoming.aviary.earned.forEach(b=>{ if(!DB.aviary.earned.includes(b)) DB.aviary.earned.push(b); });
     }
+    // Review log: union both sides, de-duplicated on card+date+grade+elapsed so
+    // restoring the same backup twice can't inflate retention statistics.
+    if((incoming.reviewLog||[]).length){
+      DB.reviewLog=DB.reviewLog||[];
+      const key=x=>[x.c,x.d,x.g,x.e].join('|');
+      const have=new Set(DB.reviewLog.map(key));
+      incoming.reviewLog.forEach(x=>{ const k=key(x); if(!have.has(k)){ DB.reviewLog.push(x); have.add(k); } });
+      DB.reviewLog.sort((a,b)=>String(a.d).localeCompare(String(b.d)));
+      if(DB.reviewLog.length>REVIEW_LOG_MAX) DB.reviewLog.splice(0, DB.reviewLog.length-REVIEW_LOG_MAX);
+    }
+
     // Score reports UPSERT on merge (incoming wins for the same exam), matching
     // what happens when you re-upload a PDF for a year you already have. Cards
     // deliberately behave differently — they're never overwritten, because local
@@ -4887,7 +5038,7 @@ function downloadSampleCSV(){
 function confirmReset(){
   if(confirm('This will permanently delete ALL cards and progress. Are you sure?')){
     if(confirm('Really? This cannot be undone.')){
-      DB={cards:[],settings:{newPerDay:10,dailyGoal:50},dailyLog:{},streak:{current:0,longest:0,lastDate:null},aviary:{revealed:0,current:0,earned:[],lastDate:null}};
+      DB={cards:[],settings:{newPerDay:10,dailyGoal:50},dailyLog:{},streak:{current:0,longest:0,lastDate:null},aviary:{revealed:0,current:0,earned:[],lastDate:null},reviewLog:[]};
       // Also clear the v2 localStorage snapshot so a reset can't be silently
       // undone by the one-time migration re-importing stale data later.
       try{ localStorage.removeItem('medboard_v1'); }catch(e){}
