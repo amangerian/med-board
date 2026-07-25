@@ -77,7 +77,7 @@ nav{padding:12px 0;flex:1}
 .fc-content{font-size:18px;font-weight:500;line-height:1.5;color:var(--navy)}
 .fc-content img,.card-img{max-width:100%;max-height:320px;height:auto;border-radius:6px;margin:8px auto;display:block}
 @media(max-width:640px){.fc-content img,.card-img{max-height:210px}}
-.img-missing{display:inline-block;background:#fff7ed;border:1px dashed #fed7aa;color:#9a3412;border-radius:6px;padding:4px 9px;font-size:12px;margin:4px 0}
+.img-missing{display:block;background:#fff7ed;border:1px dashed #fed7aa;color:#9a3412;border-radius:6px;padding:5px 10px;font-size:11.5px;margin:10px auto 0;max-width:340px;text-align:center;font-weight:500}
 .fc-meta{position:absolute;top:16px;right:16px;display:flex;gap:6px}
 .fc-hint{text-align:center;color:var(--muted);font-size:13px;margin-bottom:16px}
 kbd{display:inline-block;background:#eef2f7;border:1px solid #cbd5e1;border-bottom-width:2px;border-radius:4px;padding:1px 6px;font-family:ui-monospace,Menlo,monospace;font-size:11px;color:var(--navy);font-weight:700;line-height:1.4}
@@ -256,7 +256,7 @@ body[data-specialty="Psych"] .only-both{display:none!important}
     <div class="nav-item" onclick="navigate('settings')"><span class="nav-icon">⚙️</span><span>Settings</span></div>
   </nav>
   <div id="sidebar-footer">
-    <div style="color:rgba(255,255,255,.4);font-size:11px" title="Per-review log, true-retention analytics, backup reminders">v3.2 · ABIM &amp; ABPN 2026</div>
+    <div style="color:rgba(255,255,255,.4);font-size:11px" title="Card Health check, single missing-image notice">v3.3 · ABIM &amp; ABPN 2026</div>
   </div>
 </div>
 
@@ -535,6 +535,10 @@ NOTES:
       <option value="suspended">⏸ Suspended only</option>
     </select>
     <button class="btn-secondary" style="padding:9px 14px;font-size:13px" onclick="openCleanup('review')" title="Re-run the classifier across your whole collection">🔁 Re-evaluate categories</button>
+  </div>
+  <div id="health-banner" style="display:none;align-items:center;gap:12px;flex-wrap:wrap;background:#fef2f2;border:1px solid #fecaca;border-radius:8px;padding:10px 14px;margin-bottom:12px">
+    <span style="font-size:13px;color:#991b1b"><strong id="health-count">0</strong> cards keep tripping you up — you've seen them repeatedly and still miss them.</span>
+    <button class="btn-primary" style="padding:6px 14px;font-size:12px" onclick="openCardHealth()">Take a look →</button>
   </div>
   <div id="missing-img-banner" style="display:none;align-items:center;gap:12px;flex-wrap:wrap;background:#fff7ed;border:1px solid #fed7aa;border-radius:8px;padding:10px 14px;margin-bottom:12px">
     <span style="font-size:13px;color:#9a3412"><strong id="missing-img-count">0</strong> images referenced by your cards aren't loaded, so they show as placeholders.</span>
@@ -1211,6 +1215,28 @@ A: [answer]. Citation: Harrison's Principles of Internal Medicine, 21e, Ch. 245.
 
 </div><!-- end #main -->
 
+<!-- CARD HEALTH -->
+<div id="health-modal" style="display:none;position:fixed;inset:0;background:rgba(0,0,0,.5);z-index:200;align-items:center;justify-content:center;padding:18px">
+  <div style="background:#fff;border-radius:14px;padding:24px;width:100%;max-width:680px;max-height:88vh;display:flex;flex-direction:column">
+    <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:6px">
+      <div style="font-size:17px;font-weight:700;color:var(--navy)">Cards that keep tripping you up</div>
+      <button onclick="closeCardHealth()" style="background:none;border:none;font-size:22px;cursor:pointer;color:var(--muted)">×</button>
+    </div>
+    <p style="font-size:12.5px;color:var(--muted);margin-bottom:12px">You've reviewed each of these at least six times and still miss them more often than not. Usually that means the card is asking for too much at once — the fix is to split it, not to keep grinding.</p>
+    <div id="health-list" style="overflow:auto;flex:1;border:1px solid #eef2f7;border-radius:8px;padding:4px 12px"></div>
+    <div id="health-prompt-wrap" style="display:none;margin-top:12px">
+      <pre id="health-prompt" style="max-height:22vh;overflow:auto;background:#f8faff;border:1px solid #e5e7eb;border-radius:8px;padding:12px;font-size:11.5px;line-height:1.5;white-space:pre-wrap;font-family:ui-monospace,Menlo,monospace;color:#28374d"></pre>
+      <textarea id="health-paste" placeholder="Paste Claude's rewritten cards here" style="width:100%;min-height:90px;margin-top:8px;padding:10px;border:2px solid #e5e7eb;border-radius:8px;font-size:13px;font-family:inherit;resize:vertical"></textarea>
+      <div id="health-result" style="margin-top:8px"></div>
+    </div>
+    <div style="display:flex;gap:10px;margin-top:14px;flex-wrap:wrap">
+      <button class="btn-primary" id="health-rewrite-btn" onclick="buildHealthPrompt()">✂️ Ask Claude to split them</button>
+      <button class="btn-secondary" id="health-import-btn" style="display:none" onclick="importHealthCards()">Import rewritten cards</button>
+      <button class="btn-secondary" onclick="closeCardHealth()">Close</button>
+    </div>
+  </div>
+</div>
+
 <!-- TESTED-TOPIC COVERAGE → CARD GENERATOR -->
 <div id="coverage-modal" style="display:none;position:fixed;inset:0;background:rgba(0,0,0,.5);z-index:200;align-items:center;justify-content:center;padding:18px">
   <div style="background:#fff;border-radius:14px;padding:24px;width:100%;max-width:760px;max-height:90vh;display:flex;flex-direction:column">
@@ -1803,7 +1829,11 @@ function referencedImageNames(){
 // becomes a labelled placeholder instead of a broken-image icon.
 function hydrateMedia(html){
   if(!html || html.indexOf('<img')<0) return html||'';
-  return String(html).replace(/<img\b[^>]*>/gi, tag=>{
+  // Unresolved images are dropped silently and summarised in ONE note at the
+  // end — a card referencing six pictures used to stack six identical warnings
+  // through the middle of the text, which was worse than the missing images.
+  let missing=0;
+  const out=String(html).replace(/<img\b[^>]*>/gi, tag=>{
     const m=tag.match(/src\s*=\s*["']?([^"'>\s]+)["']?/i);
     if(!m) return tag;
     const raw=m[1];
@@ -1811,8 +1841,11 @@ function hydrateMedia(html){
     let fn=raw; try{ fn=decodeURIComponent(fn); }catch(_){}
     const url=mediaUrls.get(fn)||mediaUrls.get(raw);
     if(url) return '<img src="'+url+'" class="card-img" alt="'+escHtml(fn)+'">';
-    return '<span class="img-missing" title="'+escHtml(fn)+'">🖼️ image not loaded — add it under Cards → Import → Card images</span>';
+    missing++;
+    return '';
   });
+  if(!missing) return out;
+  return out+`<div class="img-missing">🖼️ ${missing===1?'1 image':missing+' images'} not loaded — add ${missing===1?'it':'them'} under Cards → Import → Card images</div>`;
 }
 // Build object URLs for every stored image so rendering stays synchronous.
 async function primeMediaCache(){
@@ -2132,6 +2165,122 @@ function reviewCard(card, grade){
   updateStreak();
   advanceAviary();
   return card;
+}
+
+// ── CARD HEALTH (v3.3) ────────────────────────────────────────────────────
+// Anki calls a repeatedly-failed card a "leech" and suspends it after 8 lapses,
+// on the reasoning that it's eating time out of proportion to its value. The
+// accepted fix isn't to grind harder — it's to rewrite the card, because the
+// usual cause is that it asks for too much at once (Wozniak's minimum
+// information principle). The bar here is deliberately high: a card must have
+// been seen enough times for the pattern to be real before it's surfaced, so
+// this stays silent unless something genuinely needs attention.
+const HEALTH_MIN_REVIEWS=6, HEALTH_MIN_LAPSES=4, HEALTH_MIN_RATE=0.40;
+function cardLapses(c){ const g=c.gradeCounts; return g?(g.again||0):Math.max(0,(c.totalReviews||0)-(c.correctReviews||0)); }
+// Why is this card hard? Returns the structural problems worth naming.
+function cardComplexity(c){
+  const front=stripHtml(c.front||''), back=stripHtml(c.back||'');
+  const issues=[];
+  const blanks=(front.match(/\[[^\]]*\]/g)||[]).length;
+  const words=back.split(/\s+/).filter(Boolean).length;
+  const bullets=(back.match(/(^|\s)(?:[•▪–-]|\d[.)])\s/g)||[]).length;
+  if(blanks>=2) issues.push({k:'blanks',t:`asks for ${blanks} answers at once`});
+  if(words>60)  issues.push({k:'long',t:`${words}-word answer`});
+  if(bullets>=4)issues.push({k:'list',t:`answer is a list of ${bullets}+ items`});
+  return issues;
+}
+function strugglingCards(){
+  return (DB.cards||[]).filter(c=>{
+    if(c.suspended) return false;
+    const tr=c.totalReviews||0, lp=cardLapses(c);
+    return tr>=HEALTH_MIN_REVIEWS && lp>=HEALTH_MIN_LAPSES && (lp/tr)>=HEALTH_MIN_RATE;
+  }).sort((a,b)=>(cardLapses(b)/b.totalReviews)-(cardLapses(a)/a.totalReviews));
+}
+function renderHealthBanner(){
+  const el=document.getElementById('health-banner'); if(!el) return;
+  const n=strugglingCards().length;
+  el.style.display=n?'flex':'none';
+  const c=document.getElementById('health-count'); if(c) c.textContent=n;
+}
+let healthTargets=[];
+function openCardHealth(){
+  healthTargets=strugglingCards();
+  const list=document.getElementById('health-list');
+  list.innerHTML=healthTargets.map(c=>{
+    const tr=c.totalReviews||0, lp=cardLapses(c);
+    const issues=cardComplexity(c);
+    const diag=issues.length
+      ? `<span style="color:#b45309">Looks overloaded — ${issues.map(i=>i.t).join(', ')}.</span>`
+      : `<span style="color:var(--muted)">Structurally fine — this one may just need a mnemonic or a clearer answer.</span>`;
+    return `<div style="padding:10px 0;border-bottom:1px solid #f3f4f6">
+      <div style="font-size:13px;color:var(--navy);line-height:1.45">${escHtml(stripHtml(c.front).slice(0,160))}</div>
+      <div style="font-size:11.5px;margin-top:4px"><strong style="color:#b91c1c">missed ${lp} of ${tr}</strong> · ${diag}</div>
+    </div>`;
+  }).join('')||'<p style="color:var(--muted);font-size:13px;padding:12px 0">Nothing is tripping you up right now.</p>';
+  document.getElementById('health-prompt-wrap').style.display='none';
+  document.getElementById('health-import-btn').style.display='none';
+  document.getElementById('health-paste').value='';
+  document.getElementById('health-result').innerHTML='';
+  document.getElementById('health-modal').style.display='flex';
+}
+function closeCardHealth(){ document.getElementById('health-modal').style.display='none'; renderBrowser(); }
+function buildHealthPrompt(){
+  if(!healthTargets.length){ toast('Nothing to rewrite'); return; }
+  const body=healthTargets.map((c,i)=>{
+    const issues=cardComplexity(c).map(x=>x.t).join('; ');
+    return `--- CARD ${i+1} (${c.contentArea||'uncategorised'}${issues?' — '+issues:''})\nFRONT: ${stripHtml(c.front).slice(0,700)}\nBACK: ${stripHtml(c.back).slice(0,900)}`;
+  }).join('\n\n');
+  const prompt=`I'm a resident studying for boards with spaced repetition. The ${healthTargets.length} card${healthTargets.length===1?'':'s'} below ${healthTargets.length===1?'is one I keep':'are ones I keep'} failing — I've reviewed each at least six times and still miss ${healthTargets.length===1?'it':'them'} more often than not.
+
+The usual reason a card won't stick is that it asks for too much at once. Rewrite ${healthTargets.length===1?'it':'them'} following the minimum information principle: each card should test ONE fact, so it can be recalled cleanly rather than half-remembered.
+
+${body}
+
+REWRITE RULES
+- Split any card that asks for several answers into one card per answer. Two to five replacements for one overloaded card is normal and good.
+- Keep every fact from the original — nothing should be lost, just separated.
+- If the original is a list, make one card per item, or use a card that asks for the list's organising principle rather than the whole list.
+- Keep the clinical framing. Prefer the version that would be tested: the threshold, the next step, the distinguishing feature.
+- Where the original card is already simple and just hard, don't split it — instead rewrite it to be more concrete, or add a mnemonic or discriminating clue to the answer.
+- Preserve any citation already present; do not invent new ones.
+
+ACCURACY
+These get memorised, so an error becomes a memorised error. Only assert current standard of care, don't invent citations, and re-check every dose, threshold and first-line agent before you answer. If you're unsure about a card, end its answer with [VERIFY].
+
+OUTPUT — exactly this, one blank line between cards, no numbering, no commentary:
+
+Q: <question>
+A: <answer>
+
+Begin.`;
+  document.getElementById('health-prompt').textContent=prompt;
+  document.getElementById('health-prompt-wrap').style.display='';
+  document.getElementById('health-import-btn').style.display='';
+  const done=()=>toast('Prompt copied — paste it into Claude');
+  if(navigator.clipboard&&navigator.clipboard.writeText) navigator.clipboard.writeText(prompt).then(done).catch(()=>fallbackCopy(prompt,done));
+  else fallbackCopy(prompt,done);
+}
+function importHealthCards(){
+  const res=document.getElementById('health-result');
+  const pairs=parseCoverageCards(document.getElementById('health-paste').value);
+  if(!pairs.length){ res.innerHTML='<div class="alert alert-warn" style="margin:0">No <strong>Q:</strong> / <strong>A:</strong> pairs found.</div>'; return; }
+  // Inherit subject/area from the originals, then suspend them rather than
+  // delete — the replacements are unproven, and nothing should be lost.
+  const src=healthTargets[0]||{};
+  let added=0, flagged=0;
+  pairs.forEach(p=>{
+    const c=newCard(p.q,p.a,src.subject||defaultSubject(),src.contentArea||'Uncategorized','rewritten');
+    if(p.verify){ c.flagged=true; flagged++; }
+    DB.cards.push(c); added++;
+  });
+  const ids=new Set(healthTargets.map(c=>c.id));
+  let susp=0;
+  DB.cards.forEach(c=>{ if(ids.has(c.id)){ c.suspended=true; susp++; } });
+  saveDB();
+  res.innerHTML=`<div class="alert alert-success" style="margin:0">Added <strong>${added}</strong> rewritten card${added===1?'':'s'} and suspended the ${susp} original${susp===1?'':'s'} (nothing deleted — unsuspend from the browser if you want them back).${flagged?` ${flagged} marked [VERIFY] and flagged 🚩.`:''}</div>`;
+  toast(`Imported ${added} rewritten cards`);
+  healthTargets=[];
+  renderHealthBanner();
 }
 
 // ── Backup nudge (v3.2) ───────────────────────────────────────────────────
@@ -2911,6 +3060,8 @@ function renderBrowser(){
     areaSelect.innerHTML=areas.map(a=>`<option value="${a}">${a==='all'?'All Areas':a}</option>`).join('');
     if(areas.includes(cur)) areaSelect.value=cur;
   }
+
+  renderHealthBanner();
 
   // Missing-image banner — images referenced by cards but not stored here.
   const mb=document.getElementById('missing-img-banner');
