@@ -256,7 +256,7 @@ body[data-specialty="Psych"] .only-both{display:none!important}
     <div class="nav-item" onclick="navigate('settings')"><span class="nav-icon">⚙️</span><span>Settings</span></div>
   </nav>
   <div id="sidebar-footer">
-    <div style="color:rgba(255,255,255,.4);font-size:11px" title="Card Health check, single missing-image notice">v3.3 · ABIM &amp; ABPN 2026</div>
+    <div style="color:rgba(255,255,255,.4);font-size:11px" title="Weak-area priority in new-card selection">v3.4 · ABIM &amp; ABPN 2026</div>
   </div>
 </div>
 
@@ -1042,7 +1042,7 @@ front,back,subject,content_area,tags<br>
         <input type="number" id="set-daily-goal" min="1" max="500" onchange="saveSetting('dailyGoal',this.value)">
       </div>
       <div class="setting-row only-both" id="row-newmix">
-        <div><div class="setting-label">New-card mix (IM &amp; Psych)</div><div class="setting-desc">How new cards are chosen when both subjects have cards waiting. <strong>Balanced</strong> alternates IM and Psych so one specialty can't dominate; <strong>By deck proportion</strong> matches each subject's share of your deck; <strong>Creation order</strong> introduces oldest-made cards first.</div></div>
+        <div><div class="setting-label">New-card mix (IM &amp; Psych)</div><div class="setting-desc">How new cards are chosen when both subjects have cards waiting. <strong>Balanced</strong> alternates IM and Psych so one specialty can't dominate, and within each subject it introduces your weakest, most heavily-tested areas first (the same ranking as "Study next"); <strong>By deck proportion</strong> matches each subject's share of your deck; <strong>Creation order</strong> introduces oldest-made cards first.</div></div>
         <select id="set-newmix" onchange="saveSetting('newCardMix',this.value)" style="padding:6px 10px;border:2px solid #e5e7eb;border-radius:6px;font-size:14px">
           <option value="balanced">Balanced (alternate)</option>
           <option value="proportional">By deck proportion</option>
@@ -2164,6 +2164,7 @@ function reviewCard(card, grade){
 
   updateStreak();
   advanceAviary();
+  invalidatePriorityCache();   // this review may have shifted the area rankings
   return card;
 }
 
@@ -2538,11 +2539,59 @@ function pickNewCards(pool, limit){
       out.push(groups[pick][idx[pick]++]);
     }
   } else {
-    // 'balanced' — plain round-robin, oldest-first within each subject.
+    // 'balanced' — round-robin across subjects, but WITHIN each subject take
+    // the weakest, most heavily-tested areas first (v3.4). Alternation between
+    // IM and Psych is unchanged; this only decides which IM card and which
+    // Psych card gets pulled, which was previously just "oldest created".
+    order.forEach(k=>groups[k]=orderByPriority(groups[k]));
     const idx={}; order.forEach(k=>idx[k]=0);
     while(out.length<limit && order.some(k=>idx[k]<groups[k].length)){
       for(const k of order){ if(out.length>=limit) break; if(idx[k]<groups[k].length) out.push(groups[k][idx[k]++]); }
     }
+  }
+  return out;
+}
+
+// Sort a pool of new cards so higher-priority content areas come first, using
+// the same ranking that drives "Study next" (blueprint weight × your command ×
+// ITE/MKSAP/PRITE gaps). Ties keep creation order, so behaviour is stable and
+// an unranked area still gets its turn rather than being starved.
+let _priorityCache=null, _priorityCacheDay=null;
+function priorityByArea(){
+  const t=today();
+  if(_priorityCache && _priorityCacheDay===t) return _priorityCache;
+  const map={};
+  try{ computeStudyPriorities().forEach(r=>{ map[r.area]=r.priority; }); }catch(e){}
+  _priorityCache=map; _priorityCacheDay=t;
+  return map;
+}
+function invalidatePriorityCache(){ _priorityCache=null; }
+function orderByPriority(list){
+  if(list.length<2) return list;
+  const pri=priorityByArea();
+  // Unranked areas (no cards reviewed there yet, so no signal) sit mid-pack
+  // rather than last — they're unknown, not known-strong.
+  const DEFAULT=55;
+  // Group by content area, keeping creation order inside each group.
+  const byArea=new Map();
+  list.forEach(c=>{ const k=c.contentArea||'Uncategorized'; if(!byArea.has(k)) byArea.set(k,[]); byArea.get(k).push(c); });
+  if(byArea.size<2) return list;
+  const areas=[...byArea.keys()].map(k=>({k, p:(pri[k]!=null?pri[k]:DEFAULT), taken:0, cards:byArea.get(k)}));
+  // Weighted rotation rather than a strict sort: each pick goes to the area
+  // with the best priority-per-card-already-taken. A top area comes up most
+  // often but others still appear, so a day's new cards span several areas
+  // instead of 20 straight from one — blocked introduction would undercut the
+  // interleaving that makes similar diagnoses distinguishable.
+  const out=[];
+  while(out.length<list.length){
+    let best=null, bestScore=-1;
+    for(const a of areas){
+      if(a.taken>=a.cards.length) continue;
+      const score=a.p/(1+a.taken);
+      if(score>bestScore){ bestScore=score; best=a; }
+    }
+    if(!best) break;
+    out.push(best.cards[best.taken++]);
   }
   return out;
 }
