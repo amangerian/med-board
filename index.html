@@ -256,7 +256,7 @@ body[data-specialty="Psych"] .only-both{display:none!important}
     <div class="nav-item" onclick="navigate('settings')"><span class="nav-icon">⚙️</span><span>Settings</span></div>
   </nav>
   <div id="sidebar-footer">
-    <div style="color:rgba(255,255,255,.4);font-size:11px" title="Corrections file now previews before applying">v3.7 · ABIM &amp; ABPN 2026</div>
+    <div style="color:rgba(255,255,255,.4);font-size:11px" title="AI review instructions travel inside the export file">v3.8 · ABIM &amp; ABPN 2026</div>
   </div>
 </div>
 
@@ -3367,6 +3367,43 @@ function setCleanupMode(mode){
 // card actually understands it. This exports the collection for review and
 // takes the answers back as a two-column file, so the smarter categorisation
 // can be applied in bulk without hand-editing thousands of cards.
+// The instructions travel WITH the file. Whoever opens it — and whichever
+// assistant they hand it to — needs the exact permitted area names (the
+// importer rejects anything else) and the exact output shape, without having
+// to be told any of it verbally.
+function aiReviewInstructions(){
+  const sp=currentSpecialty();
+  const im=ABIM_CATEGORIES.map(c=>c.name), ps=ABPN_CATEGORIES.map(c=>c.name);
+  let lists='';
+  if(sp!=='Psych') lists+='\n# INTERNAL MEDICINE (use for rows where subject=IM):\n'+im.map(n=>'#   '+n).join('\n');
+  if(sp!=='IM')    lists+='\n# PSYCHIATRY (use for rows where subject=Psych):\n'+ps.map(n=>'#   '+n).join('\n');
+  return `# MEDBOARD PREP — CARD CATEGORY REVIEW
+#
+# TASK: Below is a flashcard collection. Each row has a card's id, the content
+# area it is CURRENTLY filed under, its subject, and its text. Some are filed
+# incorrectly. Read each card and decide which area it really belongs to.
+#
+# RETURN: a CSV with exactly two columns and this header:
+#   id,content_area
+# Include ONLY cards whose area should change. Do not include cards that are
+# already correct. Do not add other columns, commentary, or code fences.
+#
+# RULES:
+# 1. content_area must be copied EXACTLY from the permitted list below —
+#    any other spelling is rejected on import.
+# 2. Keep cards in their own subject's list: an IM card gets an IM area,
+#    a Psych card gets a Psych area.
+# 3. File by what the card TESTS, not by which words it contains. A card on
+#    febrile neutropenia is Infectious Disease even though it says
+#    "neutropenia"; a card on hemoglobin A1c is Endocrinology, not Hematology.
+# 4. Some cards' text is just "[ ... ]" — these are image-only cards with
+#    nothing to read. Skip them; do not guess.
+# 5. If a card is genuinely ambiguous between two areas, leave it alone.
+#
+# PERMITTED CONTENT AREAS${lists}
+#
+# (Everything below this line is the card data.)`;
+}
 function exportForAIReview(){
   const rows=[['id','current_area','subject','front','back']];
   (DB.cards||[]).forEach(c=>{
@@ -3374,15 +3411,20 @@ function exportForAIReview(){
                stripHtml(c.front||'').replace(/\s+/g,' ').slice(0,300),
                stripHtml(c.back||'').replace(/\s+/g,' ').slice(0,300)]);
   });
-  const csv=rows.map(r=>r.map(csvField).join(',')).join('\n');
+  const csv=aiReviewInstructions()+'\n'+rows.map(r=>r.map(csvField).join(',')).join('\n');
   const blob=new Blob([csv],{type:'text/csv'});
   const url=URL.createObjectURL(blob);
   const a=document.createElement('a');
   a.href=url; a.download='medboard_cards_for_review_'+today()+'.csv'; a.click();
   setTimeout(()=>URL.revokeObjectURL(url),1000);
   toast(`Exported ${(DB.cards||[]).length} cards for review`);
+  const ask='Please review the attached MedBoard card export. The instructions are in the comment block at the top of the file. Return only the corrections CSV.';
+  const done=()=>toast('Message copied — paste it with the file');
+  if(navigator.clipboard&&navigator.clipboard.writeText) navigator.clipboard.writeText(ask).then(done).catch(()=>{});
   document.getElementById('cleanup-status').innerHTML=
-    `Give that file to Claude and ask it to return a CSV of <code>id,content_area</code> for any card that is filed incorrectly — then use <strong>Apply corrections file</strong>.`;
+    `<strong>Exported.</strong> The file has the instructions built into it — upload it to Claude and say:<br>
+     <em style="color:var(--navy)">“${escHtml(ask)}”</em><br>
+     <span style="color:var(--muted)">(that message is already on your clipboard). Then bring the reply back with <strong>Apply corrections file</strong>.</span>`;
 }
 // Accepts id,content_area[,subject] with or without a header row.
 function applyCorrectionsFile(ev){
