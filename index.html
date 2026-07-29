@@ -256,7 +256,7 @@ body[data-specialty="Psych"] .only-both{display:none!important}
     <div class="nav-item" onclick="navigate('settings')"><span class="nav-icon">⚙️</span><span>Settings</span></div>
   </nav>
   <div id="sidebar-footer">
-    <div style="color:rgba(255,255,255,.4);font-size:11px" title="Weak-area priority in new-card selection">v3.4 · ABIM &amp; ABPN 2026</div>
+    <div style="color:rgba(255,255,255,.4);font-size:11px" title="CSV area override, editable suggestions, AI corrections round-trip">v3.6 · ABIM &amp; ABPN 2026</div>
   </div>
 </div>
 
@@ -629,7 +629,10 @@ NOTES:
       <div id="csv-preview" style="display:none;margin-top:16px">
         <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:12px">
           <div style="font-weight:700;color:var(--navy)" id="csv-preview-label"></div>
-          <div style="display:flex;gap:8px">
+          <div style="display:flex;gap:8px;align-items:center;flex-wrap:wrap">
+            <select id="csv-area" title="If this file is all one topic, set it here — it overrides the content_area column and auto-sorting" style="padding:7px 10px;border:2px solid #e5e7eb;border-radius:6px;font-size:13px;max-width:230px">
+              <option value="">Use file / auto-sort</option>
+            </select>
             <button class="btn-secondary" onclick="document.getElementById('csv-preview').style.display='none'">Cancel</button>
             <button class="btn-primary" onclick="importCSV()">Import All</button>
           </div>
@@ -662,6 +665,9 @@ NOTES:
               <option value="IM">Internal Medicine</option>
               <option value="Psych">Psychiatry</option>
               <option value="Both">Both</option>
+            </select>
+            <select id="apkg-area" onchange="showApkgPreview()" title="If this deck is all one topic, set it here — it beats auto-sorting every time" style="padding:7px 10px;border:2px solid #e5e7eb;border-radius:6px;font-size:13px;max-width:230px">
+              <option value="">Sort each card automatically</option>
             </select>
             <label id="apkg-sched-wrap" style="display:none;align-items:center;gap:6px;font-size:12px;color:var(--navy);cursor:pointer" title="Carry over each card's interval, ease and due date from Anki">
               <input type="checkbox" id="apkg-keep-sched" checked style="width:auto"> Keep Anki progress
@@ -1518,7 +1524,15 @@ const CATEGORY_KEYWORDS = {
 const CATEGORY_KEYWORDS_EXTRA = {
   'Rheumatology & Orthopedics':['meniscus','meniscal','rotator cuff','rotator','carpal tunnel','cubital tunnel','sciatica','radiculopathy','herniated disc','disc herniation','spinal stenosis','patellofemoral','iliotibial','it band','anterior cruciate','posterior cruciate','medial collateral','lateral collateral','ligament','tendinopathy','epicondylitis','tennis elbow','golfer elbow','bursitis','plantar fasciitis','rotator cuff tear','labral','labrum','impingement','shoulder pain','knee pain','anterior knee','hip pain','elbow pain','wrist pain','ankle sprain','sprain','dislocation','stress fracture','osteochondritis','de quervain','trigger finger','ganglion cyst','thoracic outlet','ulnar nerve','median nerve','radial nerve','nerve entrapment','lumbar','cervical spine','musculoskeletal','arthralgia','myalgia','range of motion','mcmurray','lachman','anterior drawer','noble test','phalen','tinel','spurling','monoarthritis','polyarthritis','raynaud','hla-b27','spondyloarthritis','spondylitis','sacroiliitis','enthesitis','myositis','myopathy','proximal muscle weakness','azathioprine','thiopurine','anti-synthetase','anti-jo','anti-smith','anti-dsdna','ana titer','antinuclear','inflammatory myopathy','immune-mediated necrotizing','statin-associated myopathy','joint aspiration','synovial fluid','crystal analysis','birefringent','rotator interval','acromioclavicular','supraspinatus','achilles','morton neuroma','frozen shoulder','adhesive capsulitis','osteomalacia','crystal arthropathy','uric acid','allopurinol','colchicine','methotrexate','hydroxychloroquine','biologic therapy','anti-ccp','rheumatoid factor'],
   'Dermatology':['folliculitis','verruca','wart','nevus','melanocytic','halo nevus','dysplastic nevus','ecthyma','impetigo','scabies','lice','pediculosis','permethrin','photoallergic','phototoxic','photosensitivity','tinea','onychomycosis','seborrheic','keratosis','pityriasis','lichen planus','lichen sclerosus','molluscum','cherry angioma','hemangioma','papule','macule','vesicle','pustule','plaque psoriasis','wheal','nodule on skin','hyperpigmentation','hypopigmented','depigmented','hair follicle','fixed drug eruption','drug eruption','drug rash','erythema nodosum','erythema migrans','cutaneous','epidermis','dermis','skin biopsy','topical steroid','emollient','comedones','pilar','intertrigo','hidradenitis','keloid','xerosis','excoriated','crusted','scaly','pruritic','keratoacanthoma','keratin-filled','dome-shaped','hyperkeratotic','exophytic','sebaceous','telangiectasia','induration','ulcerated lesion','rolled border','pearly'],
-  'Infectious Disease':['sporotrichosis','sporothrix','anthrax','botulism','chancroid','ducreyi','cryptococcal','cryptococcus','histoplasmosis','blastomycosis','coccidioidomycosis','herpes','herpes zoster','zoster','shingles','varicella','acyclovir','valacyclovir','cytomegalovirus','epstein-barr','mononucleosis','pneumocystis','toxoplasmosis','opportunistic infection','antiretroviral','fluoroquinolone','doxycycline','azithromycin','metronidazole','nitrofurantoin','fosfomycin','trimethoprim','beta-lactam','aminoglycoside','cystitis','prostatitis','urethritis','bacteriuria','isolation precautions','airborne precautions','contact precautions','prophylaxis','postexposure','endemic','vector-borne','tick','mosquito','zoonotic','eschar','lymphadenopathy','purulent','empiric therapy','culture and sensitivity','blood culture','gram stain','gram-negative','gram-positive','anaerobe','pseudomonas','klebsiella','salmonella','shigella','campylobacter','listeria','bartonella','brucella','leptospirosis','babesiosis','ehrlichiosis','anaplasmosis'],
+  'Infectious Disease':['sporotrichosis','sporothrix','anthrax','botulism','chancroid','ducreyi','cryptococcal','cryptococcus','histoplasmosis','blastomycosis','coccidioidomycosis','herpes','herpes zoster','zoster','shingles','varicella','acyclovir','valacyclovir','cytomegalovirus','epstein-barr','mononucleosis','pneumocystis','toxoplasmosis','opportunistic infection','antiretroviral','fluoroquinolone','doxycycline','azithromycin','metronidazole','nitrofurantoin','fosfomycin','trimethoprim','beta-lactam','aminoglycoside','cystitis','prostatitis','urethritis','bacteriuria',
+    // Infections defined by the HOST rather than the bug. Without these the
+    // host's vocabulary (neutropenia, chemotherapy, CKD) wins the card.
+    'febrile neutropenia','neutropenic fever','neutropenic enterocolitis','typhlitis','neutropenic patient',
+    'immunocompromised','immunosuppressed','transplant recipient','asplenia','asplenic',
+    'empiric antibiotic','empiric antifungal','broad-spectrum','antibiotic prophylaxis','antimicrobial stewardship',
+    'antibiotic toxicity','antibiotic side effect','drug-resistant','resistance pattern','culture-directed',
+    'cefepime','piperacillin','tazobactam','meropenem','carbapenem','linezolid','daptomycin','micafungin',
+    'caspofungin','voriconazole','fluconazole','amphotericin','acyclovir prophylaxis','trimethoprim-sulfamethoxazole','tmp-smx','isolation precautions','airborne precautions','contact precautions','prophylaxis','postexposure','endemic','vector-borne','tick','mosquito','zoonotic','eschar','lymphadenopathy','purulent','empiric therapy','culture and sensitivity','blood culture','gram stain','gram-negative','gram-positive','anaerobe','pseudomonas','klebsiella','salmonella','shigella','campylobacter','listeria','bartonella','brucella','leptospirosis','babesiosis','ehrlichiosis','anaplasmosis'],
   'Gastroenterology':['hemorrhoid','anal fissure','perianal','fistula','phlegmon','skip lesion','stricture','hamartoma','peutz','jeghers','gi tract','lynch syndrome','spontaneous bacterial peritonitis','small intestinal bacterial overgrowth','sibo','adenomatous polyposis','polyposis','polyp','polypectomy','choledocholithiasis','hepatitis b','hepatitis c','hbsag','hbeag','anti-hbs','anti-hbc','hepatocellular','portal hypertension','budd-chiari','hemochromatosis','autoimmune hepatitis','primary biliary','primary sclerosing','octreotide','gastric varices','proctitis','esophageal manometry','achalasia','eosinophilic esophagitis','zollinger','gastrinoma','lactose intolerance','stool antigen','fecal occult','anti-tnf','infliximab','mesalamine','budesonide','endoscopy','egd','abdominal pain','nausea and vomiting','bloating','osmotic gap','osmotic diarrhea','secretory diarrhea','wilson disease','penicillamine','trientine','steatorrhea'],
   'Pulmonary Disease':['wells score','wells criteria','d-dimer','pulmonary embolus','venous thromboembolism','right heart strain','solitary pulmonary nodule','pulmonary nodule','pleuritic','v/q scan','ventilation-perfusion','ct angiography','spirometry','fev1','fvc','diffusing capacity','dlco','peak flow','inhaled corticosteroid','bronchodilator','nebulizer','oxygen therapy','mechanical ventilation','intubation','tracheostomy','pulmonary rehabilitation','smoking history','pack-year','lung nodule','chest tube','thoracentesis','exudative','transudative','light criteria'],
   'Nephrology & Urology':['osmolal gap','anion gap','polycystic kidney','adpkd','tolvaptan','fractional excretion','fena','renal tubular acidosis','albuminuria','nephropathy','membranous','minimal change','focal segmental','goodpasture','contrast nephropathy','urinalysis','urine sediment','casts','urgency','dysuria','frequency','overactive bladder','urinary retention','renal artery stenosis','sglt2','raas','tubulointerstitial','papillary necrosis','hydronephrosis','urothelial','testicular','scrotal','erectile'],
@@ -1656,14 +1670,39 @@ function autoCategorize(front, back, subject, tags){
   if(subject==='IM') cats=ABIM_CATEGORIES;
   else if(subject==='Psych') cats=ABPN_CATEGORIES;
   else cats=[...ABIM_CATEGORIES,...ABPN_CATEGORIES];
-  // Score every category; also track the single most-specific keyword it matched.
-  const scored=[];
+  // ── Pass 1: which keywords does each category match, and how often ────────
+  const matched=[];                 // [{c, hits:Map(kw→count)}]
+  const phraseHits=new Map();       // every matched MULTI-WORD phrase → count
   for(const c of cats){
     const kws=CATEGORY_KEYWORDS[c.name]||[];
-    let s=0, spec=0;
+    const hits=new Map();
     for(const kw of kws){
-      const hits = 2*countMatches(f,kw) + countMatches(b,kw) + 3*countMatches(tagText,kw);
-      if(hits>0){ const w=kwWeight(kw); s += hits*w; if(w>spec) spec=w; }
+      const n = 2*countMatches(f,kw) + countMatches(b,kw) + 3*countMatches(tagText,kw);
+      if(n>0){
+        hits.set(kw,n);
+        if(/[\s-]/.test(kw.trim())) phraseHits.set(kw, Math.max(phraseHits.get(kw)||0, n));
+      }
+    }
+    if(hits.size) matched.push({c,hits});
+  }
+  // ── Pass 2: subsumption ───────────────────────────────────────────────────
+  // A single word shouldn't score for its own category when it only appeared
+  // inside a longer phrase belonging to a different one. "Febrile neutropenia"
+  // is infectious disease; the bare word "neutropenia" inside it shouldn't
+  // hand the card to Hematology. Same reason "hemoglobin A1c" isn't Hematology.
+  const scored=[];
+  for(const {c,hits} of matched){
+    let s=0, spec=0;
+    for(const [kw,n0] of hits){
+      let n=n0;
+      if(!/[\s-]/.test(kw.trim())){
+        for(const [ph,pn] of phraseHits){
+          if(ph===kw) continue;
+          if(hits.has(ph)) continue;            // same category owns the phrase → keep
+          if(ph.indexOf(kw)!==-1) n-=pn;        // absorbed by another area's phrase
+        }
+      }
+      if(n>0){ const w=kwWeight(kw); s += n*w; if(w>spec) spec=w; }
     }
     if(s>0) scored.push({c,score:s,spec});
   }
@@ -3308,7 +3347,11 @@ function setCleanupMode(mode){
     document.getElementById('cleanup-actions').innerHTML=
       `<button class="btn-primary" style="padding:7px 14px;font-size:12px" onclick="runReEvaluate()">Scan my collection</button>
        <button class="btn-secondary" style="padding:7px 14px;font-size:12px" onclick="toggleAllReview(true)">Select all</button>
-       <button class="btn-secondary" style="padding:7px 14px;font-size:12px" onclick="toggleAllReview(false)">Select none</button>`;
+       <button class="btn-secondary" style="padding:7px 14px;font-size:12px" onclick="toggleAllReview(false)">Select none</button>
+       <span style="flex-basis:100%;height:0"></span>
+       <button class="btn-secondary" style="padding:7px 14px;font-size:12px" onclick="exportForAIReview()" title="Download your cards so an AI can categorise them properly, then bring the answers back">⬇︎ Export for AI review</button>
+       <button class="btn-secondary" style="padding:7px 14px;font-size:12px" onclick="document.getElementById('corrections-file').click()">⬆︎ Apply corrections file</button>
+       <input type="file" id="corrections-file" accept=".csv,.txt" style="display:none" onchange="applyCorrectionsFile(event)">`;
     document.getElementById('cleanup-thead').innerHTML=
       `<th style="padding:8px;background:#f8faff;position:sticky;top:0;width:34px"></th>
        <th style="text-align:left;padding:8px;background:#f8faff;position:sticky;top:0">Card</th>
@@ -3319,6 +3362,70 @@ function setCleanupMode(mode){
     document.getElementById('cleanup-page-info').textContent='';
   }
 }
+// ── AI-assisted categorisation round-trip (v3.6) ──────────────────────────
+// The built-in classifier is keyword matching; a language model reading the
+// card actually understands it. This exports the collection for review and
+// takes the answers back as a two-column file, so the smarter categorisation
+// can be applied in bulk without hand-editing thousands of cards.
+function exportForAIReview(){
+  const rows=[['id','current_area','subject','front','back']];
+  (DB.cards||[]).forEach(c=>{
+    rows.push([c.id, c.contentArea||'Uncategorized', c.subject||'',
+               stripHtml(c.front||'').replace(/\s+/g,' ').slice(0,300),
+               stripHtml(c.back||'').replace(/\s+/g,' ').slice(0,300)]);
+  });
+  const csv=rows.map(r=>r.map(csvField).join(',')).join('\n');
+  const blob=new Blob([csv],{type:'text/csv'});
+  const url=URL.createObjectURL(blob);
+  const a=document.createElement('a');
+  a.href=url; a.download='medboard_cards_for_review_'+today()+'.csv'; a.click();
+  setTimeout(()=>URL.revokeObjectURL(url),1000);
+  toast(`Exported ${(DB.cards||[]).length} cards for review`);
+  document.getElementById('cleanup-status').innerHTML=
+    `Give that file to Claude and ask it to return a CSV of <code>id,content_area</code> for any card that is filed incorrectly — then use <strong>Apply corrections file</strong>.`;
+}
+// Accepts id,content_area[,subject] with or without a header row.
+function applyCorrectionsFile(ev){
+  const file=ev.target.files[0]; ev.target.value='';
+  if(!file) return;
+  const reader=new FileReader();
+  reader.onload=e=>{
+    const rows=parseCSVText(String(e.target.result||''));
+    if(!rows.length){ toast('That file looks empty'); return; }
+    let start=0;
+    const h=rows[0].map(x=>String(x).trim().toLowerCase());
+    if(h.includes('id')||h.includes('card_id')) start=1;
+    const byId=new Map((DB.cards||[]).map(c=>[c.id,c]));
+    let applied=0, unknownCard=0, unknownArea=0, unchanged=0;
+    const areaSet=new Set(ALL_CATEGORIES);
+    for(let i=start;i<rows.length;i++){
+      const r=rows[i]; if(!r||r.length<2) continue;
+      const id=String(r[0]||'').trim();
+      const area=String(r[1]||'').trim();
+      if(!id||!area) continue;
+      const c=byId.get(id);
+      if(!c){ unknownCard++; continue; }
+      if(!areaSet.has(area)){ unknownArea++; continue; }
+      if(c.contentArea===area){ unchanged++; continue; }
+      c.contentArea=area;
+      // Keep the subject consistent with the taxonomy the area belongs to.
+      if(c.subject!=='Both') c.subject=ABIM_CATEGORIES.some(k=>k.name===area)?'IM':'Psych';
+      applied++;
+    }
+    saveDB();
+    const bits=[];
+    if(unchanged) bits.push(`${unchanged} already correct`);
+    if(unknownCard) bits.push(`${unknownCard} card id${unknownCard===1?'':'s'} not found`);
+    if(unknownArea) bits.push(`${unknownArea} unrecognised area name${unknownArea===1?'':'s'}`);
+    document.getElementById('cleanup-status').innerHTML=
+      `<strong style="color:#16a34a">Recategorised ${applied} card${applied===1?'':'s'}.</strong>${bits.length?' '+bits.join(' · '):''}`;
+    toast(`Recategorised ${applied} cards`);
+    if(cleanupMode==='review') runReEvaluate();
+    renderBrowser();
+  };
+  reader.readAsText(file);
+}
+
 // Re-run the classifier over every non-suspended card and collect disagreements.
 function runReEvaluate(){
   reviewRows=[];
@@ -3350,9 +3457,8 @@ function renderReviewTable(){
       <td style="padding:8px;border-bottom:1px solid #f3f4f6;vertical-align:top"><input type="checkbox" class="review-check" data-i="${i}" ${r.checked?'checked':''} onchange="reviewRows[${i}].checked=this.checked"></td>
       <td style="padding:8px;border-bottom:1px solid #f3f4f6;vertical-align:top"><div style="max-width:380px;font-size:12.5px;color:var(--navy)">${escHtml(stripHtml(c.front).slice(0,140))}</div></td>
       <td style="padding:8px;border-bottom:1px solid #f3f4f6;vertical-align:top;font-size:12px">
-        <span style="color:${r.cur==='Uncategorized'?'#c2410c':'var(--muted)'}">${escHtml(r.cur)}</span>
-        <span style="color:var(--muted)"> → </span>
-        <strong style="color:#16a34a">${escHtml(r.sug)}</strong>
+        <div style="color:${r.cur==='Uncategorized'?'#c2410c':'var(--muted)'};margin-bottom:4px">${escHtml(r.cur)} <span style="color:var(--muted)">→</span></div>
+        <select onchange="reviewRows[${i}].sug=this.value" style="width:100%;padding:5px 7px;border:1px solid #bbf7d0;background:#f0fdf4;border-radius:6px;font-size:12px;color:#166534;font-weight:600">${cleanupOptionsHtml(r.sug)}</select>
       </td>
     </tr>`;
   }).join('');
@@ -3672,28 +3778,32 @@ function parseCSV(file){
     const tbody=document.getElementById('csv-preview-tbody');
     tbody.innerHTML=pendingCSV.slice(0,10).map((c,i)=>`<tr><td>${i+1}</td><td style="max-width:200px">${escHtml(c.front.slice(0,80))}</td><td style="max-width:200px">${escHtml(c.back.slice(0,80))}</td><td>${escHtml(c.subject)}</td><td>${escHtml(c.contentArea)}</td></tr>`).join('');
     if(pendingCSV.length>10) tbody.innerHTML+=`<tr><td colspan="5" style="color:var(--muted);font-style:italic">...and ${pendingCSV.length-10} more</td></tr>`;
-    document.getElementById('csv-preview').style.display='';
+    populateCsvAreas();
+  document.getElementById('csv-preview').style.display='';
   };
   reader.readAsText(file);
 }
 
 function importCSV(){
   let added=0, autoSorted=0;
+  // An explicit area beats both the file's column and the classifier.
+  const forced=(document.getElementById('csv-area')||{}).value||'';
   pendingCSV.forEach(c=>{
     if(c.front&&c.back){
-      let area=c.contentArea;
+      let area=forced||c.contentArea;
       // If no valid content area was supplied, read the card and auto-assign one.
       if(!area || !ALL_CATEGORIES.includes(area)){
         area=autoCategorize(c.front,c.back,c.subject,c.tags);
         autoSorted++;
       }
-      DB.cards.push(newCard(c.front,c.back,c.subject,area,c.tags));added++;
+      const subj=forced?(ABIM_CATEGORIES.some(k=>k.name===forced)?'IM':'Psych'):c.subject;
+      DB.cards.push(newCard(c.front,c.back,subj,area,c.tags));added++;
     }
   });
   saveDB();
   document.getElementById('csv-preview').style.display='none';
   pendingCSV=[];
-  toast(`Imported ${added} cards${autoSorted?` (${autoSorted} auto-categorized)`:''}`);
+  toast(`Imported ${added} cards${forced?` — all filed under ${forced}`:(autoSorted?` (${autoSorted} auto-categorized)`:'')}`);
 }
 
 // ═══════════════════════════════════════════════════════════
@@ -4186,17 +4296,36 @@ function detectDeckSubject(cards){
 function effectiveApkgSubject(mode){
   return mode==='Auto' ? detectDeckSubject(pendingApkg) : mode;
 }
-function resolveApkgCard(c, effSubject){
+function resolveApkgCard(c, effSubject, forcedArea){
   const front=(c.front||'').trim(), back=(c.back||'').trim();
-  const area=autoCategorize(front,back,effSubject,c.tags);
+  // A deck you know is all one topic beats any classifier — when the area is
+  // set explicitly, don't second-guess it per card.
+  const area=forcedArea||autoCategorize(front,back,effSubject,c.tags);
   return {front,back,subject:effSubject,area};
+}
+// Fill the "force this area" list, respecting specialty mode.
+function populateApkgAreas(){ populateAreaSelect('apkg-area'); }
+function populateCsvAreas(){ populateAreaSelect('csv-area','Use file / auto-sort'); }
+function populateAreaSelect(id, blankLabel){
+  const sel=document.getElementById(id); if(!sel) return;
+  const keep=sel.value;
+  const sp=currentSpecialty();
+  const grp=(label,cats)=>'<optgroup label="'+label+'">'+cats.map(c=>`<option value="${escHtml(c.name)}">${escHtml(c.name)}</option>`).join('')+'</optgroup>';
+  let html='<option value="">'+(blankLabel||'Sort each card automatically')+'</option>';
+  if(sp!=='Psych') html+=grp('ABIM (Internal Medicine)',ABIM_CATEGORIES);
+  if(sp!=='IM')    html+=grp('ABPN (Psychiatry)',ABPN_CATEGORIES);
+  sel.innerHTML=html;
+  if(keep) sel.value=keep;
 }
 
 function showApkgPreview(){
+  populateApkgAreas();
   const mode=document.getElementById('apkg-subject').value;
   const eff=effectiveApkgSubject(mode);
+  const forced=(document.getElementById('apkg-area')||{}).value||'';
   const label={IM:'Internal Medicine',Psych:'Psychiatry',Both:'Both'}[eff]||eff;
   const detNote = mode==='Auto' ? ` · detected subject: <strong>${label}</strong>` : '';
+  const areaNote = forced ? ` · <strong style="color:#16a34a">all filed under ${escHtml(forced)}</strong>` : '';
   // Surface how much scheduling actually came across, so the choice to keep it
   // is informed rather than a leap of faith.
   const withSched=pendingApkg.filter(c=>c.sched).length;
@@ -4205,10 +4334,10 @@ function showApkgPreview(){
   const schedNote = withSched
     ? ` · <strong style="color:#16a34a">${withSched}</strong> carry Anki progress (interval, ease, due date)${withSched<pendingApkg.length?`; ${pendingApkg.length-withSched} are new or mid-learning and will start fresh`:''}`
     : (pendingApkg.length?` · <span style="color:var(--muted)">no saved scheduling found in this deck — all cards start fresh</span>`:'');
-  document.getElementById('apkg-preview-label').innerHTML=`Preview: ${pendingApkg.length} cards${detNote}${schedNote}`;
+  document.getElementById('apkg-preview-label').innerHTML=`Preview: ${pendingApkg.length} cards${detNote}${areaNote}${schedNote}`;
   const tbody=document.getElementById('apkg-preview-tbody');
   tbody.innerHTML=pendingApkg.slice(0,10).map((c,i)=>{
-    const r=resolveApkgCard(c,eff);
+    const r=resolveApkgCard(c,eff,forced);
     return `<tr><td>${i+1}</td><td>${escHtml(stripHtml(c.front).slice(0,80))}</td><td>${escHtml(stripHtml(c.back).slice(0,80))}</td><td style="white-space:nowrap"><span style="font-size:11px;color:${r.area==='Uncategorized'?'#9ca3af':'var(--navy)'}">${escHtml(r.area)}</span></td></tr>`;
   }).join('');
   if(pendingApkg.length>10) tbody.innerHTML+=`<tr><td colspan="4" style="color:var(--muted);font-style:italic">...and ${pendingApkg.length-10} more</td></tr>`;
@@ -4220,11 +4349,12 @@ function importApkg(){
   const mode=document.getElementById('apkg-subject').value;
   const eff=effectiveApkgSubject(mode);
   const keepSched=(document.getElementById('apkg-keep-sched')||{}).checked!==false;
+  const forcedArea=(document.getElementById('apkg-area')||{}).value||'';
   let added=0, uncat=0, kept=0, fresh=0, susp=0;
   pendingApkg.forEach(c=>{
     // parseSQLiteAnki already cleans plain notes and intentionally formats
     // cloze cards (blank on front, highlighted reveal on back) — don't re-strip.
-    const r=resolveApkgCard(c,eff);
+    const r=resolveApkgCard(c,eff,forcedArea);
     if(r.front&&r.back){
       if(r.area==='Uncategorized') uncat++;
       const card=newCard(r.front,r.back,r.subject,r.area,c.tags||'');
@@ -4888,7 +5018,10 @@ Write 1-2 flashcards for EACH objective above, then package them as a ready-to-i
 - Use Python with the \`genanki\` library to generate a real .apkg file named \`${safeFile}.apkg\` and give it to me as a download.
 - Deck name: "MedBoard — ${area}"
 - Use the Basic note type (Front / Back).
-- Tag every note: \`tested-topic-coverage\`
+- Tag every note: \`tested-topic-coverage\` AND \`${safeFile}\`
+
+STAY IN THIS CONTENT AREA
+Every card must belong to "${area}". Several of these topics involve other organ systems — a complication, a host condition, or a drug's side effect. Frame those from the "${area}" angle and keep the ${area.toLowerCase()} subject matter in the question itself, so the card reads as a ${area} card rather than one about the other system. Do not add cards outside this area.
 - If you are not able to produce an .apkg file, instead give me a downloadable CSV file with EXACTLY this header and one row per card:
   front,back,subject,content_area,tags
   …where subject is \`${subject}\` and content_area is \`${area}\` on every row. Quote any field containing a comma.
