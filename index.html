@@ -256,7 +256,7 @@ body[data-specialty="Psych"] .only-both{display:none!important}
     <div class="nav-item" onclick="navigate('settings')"><span class="nav-icon">⚙️</span><span>Settings</span></div>
   </nav>
   <div id="sidebar-footer">
-    <div style="color:rgba(255,255,255,.4);font-size:11px" title="CSV area override, editable suggestions, AI corrections round-trip">v3.6 · ABIM &amp; ABPN 2026</div>
+    <div style="color:rgba(255,255,255,.4);font-size:11px" title="Corrections file now previews before applying">v3.7 · ABIM &amp; ABPN 2026</div>
   </div>
 </div>
 
@@ -3396,8 +3396,12 @@ function applyCorrectionsFile(ev){
     const h=rows[0].map(x=>String(x).trim().toLowerCase());
     if(h.includes('id')||h.includes('card_id')) start=1;
     const byId=new Map((DB.cards||[]).map(c=>[c.id,c]));
-    let applied=0, unknownCard=0, unknownArea=0, unchanged=0;
+    let unknownCard=0, unknownArea=0, unchanged=0;
     const areaSet=new Set(ALL_CATEGORIES);
+    // Build the proposed changes WITHOUT touching anything — a corrections file
+    // can rewrite thousands of cards at once, so it goes through the same
+    // review-then-approve path as every other bulk change in the app.
+    const proposed=[];
     for(let i=start;i<rows.length;i++){
       const r=rows[i]; if(!r||r.length<2) continue;
       const id=String(r[0]||'').trim();
@@ -3407,21 +3411,25 @@ function applyCorrectionsFile(ev){
       if(!c){ unknownCard++; continue; }
       if(!areaSet.has(area)){ unknownArea++; continue; }
       if(c.contentArea===area){ unchanged++; continue; }
-      c.contentArea=area;
-      // Keep the subject consistent with the taxonomy the area belongs to.
-      if(c.subject!=='Both') c.subject=ABIM_CATEGORIES.some(k=>k.name===area)?'IM':'Psych';
-      applied++;
+      proposed.push({id, cur:c.contentArea||'Uncategorized', sug:area, checked:true});
     }
-    saveDB();
+    if(!proposed.length){
+      document.getElementById('cleanup-status').innerHTML=
+        `<span style="color:var(--muted)">Nothing to change — ${unchanged} already correct${unknownCard?`, ${unknownCard} id${unknownCard===1?'':'s'} not found`:''}${unknownArea?`, ${unknownArea} unrecognised area name${unknownArea===1?'':'s'}`:''}.</span>`;
+      return;
+    }
+    // Load them into the normal review table: every row editable, every row
+    // unticked-able, nothing saved until "Apply selected changes".
+    setCleanupMode('review');
+    reviewRows=proposed;
+    renderReviewTable();
     const bits=[];
     if(unchanged) bits.push(`${unchanged} already correct`);
-    if(unknownCard) bits.push(`${unknownCard} card id${unknownCard===1?'':'s'} not found`);
+    if(unknownCard) bits.push(`${unknownCard} id${unknownCard===1?'':'s'} not found`);
     if(unknownArea) bits.push(`${unknownArea} unrecognised area name${unknownArea===1?'':'s'}`);
     document.getElementById('cleanup-status').innerHTML=
-      `<strong style="color:#16a34a">Recategorised ${applied} card${applied===1?'':'s'}.</strong>${bits.length?' '+bits.join(' · '):''}`;
-    toast(`Recategorised ${applied} cards`);
-    if(cleanupMode==='review') runReEvaluate();
-    renderBrowser();
+      `<strong>${proposed.length} change${proposed.length===1?'':'s'} loaded from the file — review below, then press “Apply selected changes”.</strong>${bits.length?' <span style="color:var(--muted)">('+bits.join(' · ')+')</span>':''}`;
+    toast(`${proposed.length} corrections ready to review`);
   };
   reader.readAsText(file);
 }
