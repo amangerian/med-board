@@ -256,7 +256,7 @@ body[data-specialty="Psych"] .only-both{display:none!important}
     <div class="nav-item" onclick="navigate('settings')"><span class="nav-icon">⚙️</span><span>Settings</span></div>
   </nav>
   <div id="sidebar-footer">
-    <div style="color:rgba(255,255,255,.4);font-size:11px" title="Tutorial now covers installing the app on phone and desktop">v3.91 · ABIM &amp; ABPN 2026</div>
+    <div style="color:rgba(255,255,255,.4);font-size:11px" title="Supports the current MKSAP Answered Questions export">v3.92 · ABIM &amp; ABPN 2026</div>
   </div>
 </div>
 
@@ -885,14 +885,30 @@ front,back,subject,content_area,tags<br>
 <div id="page-mksap" class="page">
   <div class="page-header">
     <h2>📚 MKSAP Follow-Up</h2>
-    <p>Upload your MKSAP "Documentation of Learning" PDFs — one per subcategory — for a holistic list of topics to review</p>
+    <p>Upload your MKSAP question-bank exports for a holistic list of topics to review</p>
   </div>
 
   <div id="mk-drop" onclick="document.getElementById('mk-file').click()">
-    <div class="big">Drop MKSAP subcategory PDFs here, or click to choose</div>
-    <div class="sub">In MKSAP, open a question bank → <em>Documentation of Learning</em> → save/print to PDF, then drop each subcategory here. Parsed in your browser; scores &amp; missed objectives are saved locally so all your subcategories build one list.</div>
+    <div class="big">Drop MKSAP PDFs here, or click to choose</div>
+    <div class="sub">Works with the <strong>current question bank</strong> (Answered Questions printouts — drop all the pages at once) and with older <em>Documentation of Learning</em> reports. Parsed in your browser; missed objectives are saved locally and merged into one list.</div>
     <input type="file" id="mk-file" accept="application/pdf,.pdf" multiple style="display:none" onchange="handleMKSAPFiles(event)">
   </div>
+
+  <details style="margin-top:10px;background:#f8faff;border:1px solid #e5e7eb;border-radius:9px;padding:10px 14px">
+    <summary style="cursor:pointer;font-weight:700;color:var(--navy);font-size:13.5px">📖 How to export your missed questions from MKSAP</summary>
+    <div style="font-size:13px;color:#42506a;line-height:1.65;margin-top:10px">
+      <p style="margin-bottom:8px"><strong>Current MKSAP (question bank):</strong></p>
+      <ol style="margin:0 0 12px 18px;padding:0">
+        <li>Open <strong>Question Bank → Answered Questions</strong>.</li>
+        <li>Open <strong>Filters</strong> and filter to the questions you answered <strong>incorrectly</strong>. Add any other filter you want (a single subspecialty, a date range).</li>
+        <li>Print the page — <strong>Ctrl/Cmd&nbsp;+&nbsp;P</strong> → <strong>Save as PDF</strong>.</li>
+        <li>The site shows only <strong>25 questions per page</strong>, so click through to the next page and save each one as its own PDF. A 100-question list is 4 files.</li>
+        <li>Drag <strong>all of those PDFs in at once</strong> here. They're merged, de-duplicated, and split by content area automatically — you don't need to sort them.</li>
+      </ol>
+      <p style="margin-bottom:8px"><strong>Older MKSAP releases:</strong> open a question bank → <em>Documentation of Learning</em> → save as PDF → drop one file per subcategory. Both formats can coexist.</p>
+      <p style="color:var(--muted);font-size:12px;margin:0">Tip: it's the <strong>learning objective</strong> on each row that matters — that text is what drives Weak Areas, Tested-Topic Coverage and the Anki deck builder. Screenshots won't work; it has to be a printed/saved PDF so the text is readable.</p>
+    </div>
+  </details>
   <div id="mk-status" style="margin-top:12px"></div>
 
   <div id="mk-saved-wrap" style="margin-top:16px;display:none">
@@ -6394,6 +6410,14 @@ function mksapAreaMap(activity){
     [/neurolog/,'Neurology','Neurology'],
     [/pulmonary|critical care/,'Pulmonary Disease','Pulmonary and Critical Care Medicine'],
     [/rheumat/,'Rheumatology & Orthopedics','Rheumatology'],
+    // Categories used by the newer MKSAP question bank that have no direct
+    // ABIM blueprint equivalent — they are cross-cutting rather than organ-based.
+    [/interdisciplinary|foundations of clinical|common symptoms|palliative|geriatric/,'Miscellaneous (IM)','General Internal Medicine'],
+    [/allerg|immunolog/,'Allergy & Immunology',null],
+    [/obstetric|gynecolog|women/,'Obstetrics & Gynecology',null],
+    [/psychiatr|behavioral health/,'Psychiatry (ABIM)','Psychiatry'],
+    [/ophthalmol/,'Ophthalmology',null],
+    [/otolaryngol/,'Otolaryngology & Dental Medicine',null],
   ];
   for(const [re,abim,ite] of rules){ if(re.test(a)) return {abim,ite}; }
   return {abim:null,ite:null};
@@ -6423,6 +6447,73 @@ function parseMKSAPLines(lines){
   rep.objectives.forEach(o=>o.text=o.text.replace(/\s+\./g,'.').replace(/\s+/g,' ').trim());
   return rep;
 }
+// ── NEW MKSAP FORMAT (v3.92) ──────────────────────────────────────────────
+// The current question bank has no per-activity score report. Instead you
+// filter Answered Questions to the ones you got wrong and print the list,
+// which the site pages at 25 per printout. Each entry looks like:
+//
+//   April 14th, 2026
+//   Diagnose scabies.
+//   Dermatology            Care type: Ambulatory
+//   Patient: Age ≥65 y                            ← optional
+//
+// The objective text is exactly what the coverage matcher wants, so these
+// prints are actually richer than the old reports.
+const MK_DATE=/^(January|February|March|April|May|June|July|August|September|October|November|December)\s+\d{1,2}(st|nd|rd|th),\s+\d{4}$/;
+const MK_CARE=/^(.*?)\s*Care type:\s*(.+)$/;
+const MK_NAV=new Set(['Home','Question Bank','Answered Questions','Syllabus','Question','Bank','Learning','Plan','CORE','Board','Basics®','Flashcards','CME/MOC/CPD','Help','Question Bank Progress','Question Bank Answered Questions','your filters']);
+function looksLikeNewMKSAP(lines){
+  return lines.some(l=>/Answered Questions/i.test(l)) &&
+         lines.some(l=>MK_CARE.test(l.trim()));
+}
+function parseNewMKSAPLines(lines){
+  const rep={product:'MKSAP',activity:null,examinee:null,created:null,total:null,completed:null,
+             correct:null,incorrect:null,runningPct:null,objectives:[],_new:true,entries:[]};
+  const clean=[];
+  for(const raw of lines){
+    const s=(raw||'').trim();
+    if(!s) continue;
+    if(/ACP MKSAP/i.test(s) && /\d[:/]\d/.test(s)) continue;      // print header w/ timestamp
+    if(/^https?:\/\//i.test(s) || /^Page \d+ of \d+$/i.test(s)) continue;
+    if(MK_NAV.has(s) || /^Filters\b/.test(s)) continue;
+    let m;
+    if((m=s.match(/^(\d+)%\s*correct of\s*([\d,]+)\s*multiple-choice/i))){
+      rep.runningPct=+m[1]; rep.total=+m[2].replace(/,/g,''); continue;
+    }
+    if((m=s.match(/^([\d,]+)\s+answered questions match/i))){ rep.incorrect=+m[1].replace(/,/g,''); continue; }
+    clean.push(s);
+  }
+  let i=0;
+  while(i<clean.length){
+    if(!MK_DATE.test(clean[i])){ i++; continue; }
+    const date=clean[i]; i++;
+    const objParts=[];
+    while(i<clean.length && !MK_CARE.test(clean[i]) && !MK_DATE.test(clean[i])){
+      // Page breaks can repeat a wrapped line verbatim — don't duplicate it.
+      if(objParts[objParts.length-1]!==clean[i]) objParts.push(clean[i]);
+      i++;
+    }
+    if(i<clean.length && MK_CARE.test(clean[i])){
+      const cm=clean[i].match(MK_CARE); i++;
+      const patient=[];
+      while(i<clean.length && /^Patient:/i.test(clean[i])){ patient.push(clean[i].replace(/^Patient:\s*/i,'')); i++; }
+      let text=objParts.join(' ').replace(/\s+/g,' ').trim();
+      // A wrapped objective sometimes reflows as the whole sentence twice.
+      const half=text.slice(0,Math.floor(text.length/2)).trim();
+      if(half.length>12 && text.startsWith(half+' '+half.slice(0,8))) text=half;
+      if(text) rep.entries.push({date,text,area:(cm[1]||'').trim(),care:(cm[2]||'').trim(),patient:patient.join('; ')});
+    }
+  }
+  // Group into one pseudo-"activity" per content area so the rest of the app —
+  // weak-area ranking, coverage, deck building — works unchanged.
+  const byArea={};
+  rep.entries.forEach(e=>{ (byArea[e.area]=byArea[e.area]||[]).push(e); });
+  rep.objectives=rep.entries.map((e,n)=>({q:n+1,text:e.text,area:e.area}));
+  rep._byArea=byArea;
+  rep.activity=Object.keys(byArea).sort((a,b)=>byArea[b].length-byArea[a].length)[0]||'Answered Questions';
+  rep.completed=rep.entries.length;
+  return rep;
+}
 async function parseMKSAPFile(file){
   const buf=await file.arrayBuffer();
   const pdf=await pdfjsLib.getDocument({data:new Uint8Array(buf)}).promise;
@@ -6431,7 +6522,7 @@ async function parseMKSAPFile(file){
     const tc=await (await pdf.getPage(i)).getTextContent();
     lines=lines.concat(reconstructLines(tc.items));
   }
-  return parseMKSAPLines(lines);
+  return looksLikeNewMKSAP(lines) ? parseNewMKSAPLines(lines) : parseMKSAPLines(lines);
 }
 
 // ── Concept overlap (ITE ∩ MKSAP) ──
@@ -6482,20 +6573,49 @@ async function ingestMKSAPFiles(files){
   if(!window.pdfjsLib){ document.getElementById('mk-status').innerHTML='<div class="alert alert-warn">PDF engine did not load — check your internet connection and reload.</div>'; return; }
   const status=document.getElementById('mk-status');
   status.innerHTML=`<div class="alert alert-info">Reading ${files.length} file${files.length>1?'s':''}…</div>`;
-  let ok=0; const bad=[];
+  let ok=0; const bad=[]; const newEntries=[]; let newStats=null;
   for(const f of files){
     try{
       const rep=await parseMKSAPFile(f);
+      if(rep._new){
+        // New-format prints are pages of one long list — pool every file, then
+        // split by content area at the end so each area becomes one report.
+        newEntries.push(...rep.entries);
+        if(rep.runningPct!=null||rep.total!=null) newStats={runningPct:rep.runningPct,total:rep.total};
+        ok++; continue;
+      }
       const valid=rep.activity && (rep.objectives.length>0 || rep.completed!=null || rep.total!=null);
       if(!valid){ bad.push(f.name); continue; }
       upsertMKSAPReport(rep); ok++;
     }catch(e){ bad.push(f.name); }
   }
+  let areasAdded=0;
+  if(newEntries.length){
+    // De-duplicate across overlapping printouts (same objective + same date).
+    const seen=new Set(); const uniq=[];
+    newEntries.forEach(e=>{ const k=(e.date+'|'+e.text).toLowerCase(); if(!seen.has(k)){ seen.add(k); uniq.push(e); } });
+    const byArea={};
+    uniq.forEach(e=>{ const a=e.area||'Unspecified'; (byArea[a]=byArea[a]||[]).push(e); });
+    Object.keys(byArea).forEach(area=>{
+      const list=byArea[area];
+      upsertMKSAPReport({
+        product:'MKSAP', activity:area, examinee:null,
+        created:new Date().toISOString().slice(0,10),
+        total:newStats?newStats.total:null, completed:list.length,
+        correct:null, incorrect:list.length,
+        runningPct:newStats?newStats.runningPct:null,
+        objectives:list.map((e,i)=>({q:i+1,text:e.text})),
+        _new:true
+      });
+      areasAdded++;
+    });
+    ok=areasAdded;
+  }
   if(!DB.settings.name){ const wn=(DB.mksapReports||[]).find(r=>r.examinee); const fn=wn?firstNameFrom(wn.examinee):''; if(fn){ DB.settings.name=fn.slice(0,40); if(typeof renderDashboard==='function') renderDashboard(); } }
   saveDB();
   let msg='';
-  if(ok) msg+=`<div class="alert alert-success">Added / updated ${ok} subcategor${ok>1?'ies':'y'}.</div>`;
-  if(bad.length) msg+=`<div class="alert alert-warn">Couldn't read as an MKSAP report: ${bad.map(b=>b.replace(/</g,'&lt;')).join(', ')}. Use the MKSAP "Documentation of Learning" PDF.</div>`;
+  if(ok) msg+=`<div class="alert alert-success">Added / updated ${ok} content area${ok===1?'':'s'}${newEntries.length?` from ${newEntries.length} missed question${newEntries.length===1?'':'s'}`:''}.</div>`;
+  if(bad.length) msg+=`<div class="alert alert-warn">Couldn't read as an MKSAP report: ${bad.map(b=>b.replace(/</g,'&lt;')).join(', ')}.<br>Use either a printed <strong>Answered Questions</strong> page from the current question bank, or an older <em>Documentation of Learning</em> PDF. A screenshot saved as a PDF will not work — the text has to be selectable.</div>`;
   status.innerHTML=msg;
   renderMKSAP();
 }
