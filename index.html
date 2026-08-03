@@ -256,7 +256,7 @@ body[data-specialty="Psych"] .only-both{display:none!important}
     <div class="nav-item" onclick="navigate('settings')"><span class="nav-icon">⚙️</span><span>Settings</span></div>
   </nav>
   <div id="sidebar-footer">
-    <div style="color:rgba(255,255,255,.4);font-size:11px" title="Blueprint checker no longer counts section headings as gaps">v3.9 · ABIM &amp; ABPN 2026</div>
+    <div style="color:rgba(255,255,255,.4);font-size:11px" title="Tutorial now covers installing the app on phone and desktop">v3.91 · ABIM &amp; ABPN 2026</div>
   </div>
 </div>
 
@@ -7035,11 +7035,32 @@ const TUTORIAL_STEPS=[
     <p>Set your exam dates and get a weighted <strong>readiness %</strong> per exam, a pacing check (are you learning new cards fast enough to finish in time?), and a list of <strong>tested topics you have no card for</strong> — pulled from objectives you actually missed on the ITE and MKSAP.</p>`},
   {icon:'🔥',title:'Streak &amp; Aviary',body:`
     <p>Study every day to keep your streak. Each study day uncovers pieces of a mystery bird — <em>both its portrait and its name</em> reveal gradually over 7 days. Finish the week and the bird joins your aviary (and lives faintly on your dashboard, forever).</p>`},
+  {icon:'📲',title:'Install it as an app',body:()=>{
+    // Highlight whichever platform they're actually on; keep the rest listed so
+    // one person can walk a colleague through it on a different device.
+    const ua=navigator.userAgent||'';
+    const isIOS=/iPad|iPhone|iPod/.test(ua)||(/Macintosh/.test(ua)&&navigator.maxTouchPoints>1);
+    const isAndroid=/Android/.test(ua);
+    const isWin=/Windows/.test(ua);
+    const isMac=/Macintosh/.test(ua)&&!isIOS;
+    const box=(on,title,steps)=>`<div style="border:2px solid ${on?'#2d6a9f':'#e5e7eb'};background:${on?'#eef6ff':'#fff'};border-radius:9px;padding:9px 12px;margin-bottom:7px">
+        <div style="font-weight:700;color:var(--navy);font-size:13px">${on?'▶ ':''}${title}${on?' <span style="color:var(--blue);font-size:11px">— you are on this</span>':''}</div>
+        <div style="font-size:12.5px;color:#42506a;margin-top:3px;line-height:1.5">${steps}</div></div>`;
+    return `<p>Add MedBoard to your home screen or desktop and it opens like a real app — full screen, its own icon, and it <strong>works offline</strong> once loaded.</p>
+    <div style="margin-top:10px">
+    ${box(isIOS,'iPhone / iPad','Open the site in <strong>Safari</strong> → tap <strong>Share</strong> (□↑) → scroll → <strong>Add to Home Screen</strong> → Add.<br><em style="color:var(--muted)">Must be Safari — Chrome on iOS cannot install it.</em>')}
+    ${box(isAndroid,'Android','Open in <strong>Chrome</strong> → tap <strong>⋮</strong> → <strong>Install app</strong> (or "Add to Home screen").')}
+    ${box(isWin,'Windows','In <strong>Chrome</strong> or <strong>Edge</strong>, click the <strong>install icon</strong> (⊞ or a monitor symbol) at the right of the address bar → <strong>Install</strong>.<br>No icon? Chrome: <strong>⋮ → Cast, save and share → Install page as app</strong>. Edge: <strong>… → Apps → Install this site as an app</strong>.')}
+    ${box(isMac,'Mac','<strong>Safari:</strong> File → <strong>Add to Dock</strong>.<br><strong>Chrome/Edge:</strong> install icon in the address bar, or <strong>⋮ → Cast, save and share → Install page as app</strong>.')}
+    </div>
+    <p style="font-size:12px;color:var(--muted);margin-top:8px">This only works on the hosted web address — not on a file opened from your downloads folder.</p>`;
+  }},
   {icon:'💾',title:'Keep your data safe',body:`
-    <p>Your cards and progress live only in this browser. Two habits worth having:</p>
+    <p>Your cards and progress live <strong>only on this device</strong>, in this browser. Nothing is on a server, so nothing syncs on its own.</p>
     <ul>
-      <li><strong>Back up</strong> from Settings → Backup every week or so — the .json file restores everything, anywhere.</li>
-      <li>On a phone, use Share → <strong>Add to Home Screen</strong> for the full app experience (works offline).</li>
+      <li><strong>Back up weekly</strong> from Settings → Backup. The .json file restores everything — cards, scheduling, streak, score reports — anywhere.</li>
+      <li>The app will remind you if it's been more than a week.</li>
+      <li>Moving to a new phone or laptop? Restore that file there and pick up exactly where you left off.</li>
     </ul>
     <p style="margin-top:10px">That's the tour — good luck with your boards!</p>`}
 ];
