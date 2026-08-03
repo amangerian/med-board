@@ -256,7 +256,7 @@ body[data-specialty="Psych"] .only-both{display:none!important}
     <div class="nav-item" onclick="navigate('settings')"><span class="nav-icon">⚙️</span><span>Settings</span></div>
   </nav>
   <div id="sidebar-footer">
-    <div style="color:rgba(255,255,255,.4);font-size:11px" title="AI review instructions travel inside the export file">v3.8 · ABIM &amp; ABPN 2026</div>
+    <div style="color:rgba(255,255,255,.4);font-size:11px" title="Blueprint checker no longer counts section headings as gaps">v3.9 · ABIM &amp; ABPN 2026</div>
   </div>
 </div>
 
@@ -4886,9 +4886,18 @@ const ABIM_BLUEPRINT=[{area:"Allergy & Immunology",topics:["General anaphylaxis"
 // are short canonical disorder names, and many are a single word, which the
 // bigram-only matcher could never match.
 const BP_STOP=new Set(['and','the','of','to','due','with','other','another','or','in','for','from','a','an','disorder','disorders','related','specified','medical','condition','conditions']);
+// Crude singularisation so a blueprint entry written in the plural ("Ataxias",
+// "Myopathies") matches a card written in the singular. Without this, correct
+// coverage was reported as a gap purely on a trailing 's'.
+function bpStem(w){
+  if(w.length>4 && /ies$/.test(w)) return w.slice(0,-3)+'y';
+  if(w.length>4 && /(ses|xes|zes|ches|shes)$/.test(w)) return w.slice(0,-2);
+  if(w.length>3 && /s$/.test(w) && !/ss$/.test(w)) return w.slice(0,-1);
+  return w;
+}
 function bpTokens(topic){
   const tail=String(topic).split('—').pop();           // "Group — Topic" → match the topic
-  const words=tail.toLowerCase().replace(/[^a-z0-9 ]/g,' ').split(/\s+/).filter(Boolean);
+  const words=tail.toLowerCase().replace(/[^a-z0-9 ]/g,' ').split(/\s+/).filter(Boolean).map(bpStem);
   const sig=words.filter(w=>w.length>=4 && !BP_STOP.has(w));
   const bigrams=[];
   for(let i=0;i<words.length-1;i++){
@@ -4903,13 +4912,33 @@ function buildCardWordIndex(){
   (DB.cards||[]).forEach(c=>{
     if(c.suspended) return;
     const t=(stripHtml(c.front||'')+' '+stripHtml(c.back||'')+' '+(c.tags||[]).join(' '))
-      .toLowerCase().replace(/[^a-z0-9 ]/g,' ').split(/\s+/).filter(Boolean);
+      .toLowerCase().replace(/[^a-z0-9 ]/g,' ').split(/\s+/).filter(Boolean).map(bpStem);
     for(let i=0;i<t.length;i++){
       if(t[i].length>=4) words.add(t[i]);
       if(i<t.length-1 && t[i].length>=3 && t[i+1].length>=3) bigrams.add(t[i]+' '+t[i+1]);
     }
   });
   return {words,bigrams};
+}
+// Some blueprint entries are organisational headings rather than testable
+// content — "Neuroscience and mechanisms of disease — Neuroanatomy" names a
+// section, not a fact any flashcard would state in those words. Counting them
+// as gaps understated real coverage (a deck full of hippocampus and amygdala
+// cards was still marked as missing "Neuroanatomy"), so they are excluded from
+// the denominator instead of being permanently unachievable.
+const BP_HEADING=/^(neuroscience and mechanisms of disease|behavioral\/social sciences|clinical aspects of psychiatric|diagnostic procedures|treatment|interpersonal and communication skills|professionalism, ethics|practice-based learning|systems-based practice)\b/i;
+// Pure academic-discipline labels. A deck can cover the hippocampus and the
+// amygdala thoroughly and still never contain the word "neuroanatomy".
+const BP_HEADING_TAIL=/^(neuroanatomy|neurochemistry|neurophysiology|neuropathology|neuroendocrinology and neuroimmunology|cellular and molecular neurobiology|genetics|chronobiology.*|psychology|neuropsychology.*|sociology|anthropology.*|biostatistics|research design|normal development|experimental and behavioral psychology|psychoanalytic and psychodynamic psychology|social psychology|other)$/i;
+function bpIsHeading(topic){
+  const t=String(topic).trim();
+  const parts=t.split('—').map(s=>s.trim());
+  // The Dimension 2 competency headings appear both alone and as the prefix of
+  // "Heading — Subtopic", and their published wording is longer than the stem
+  // we match on, so test by prefix rather than whole-string equality.
+  const isHead=x=>BP_HEADING.test(x);
+  if(parts.length===1) return isHead(t);
+  return isHead(parts[0]) && BP_HEADING_TAIL.test(parts[1]);
 }
 function bpCovered(topic, idx){
   const {sig,bigrams}=bpTokens(topic);
@@ -4928,13 +4957,15 @@ function blueprintCoverage(which){
   which=which||'psych';
   const idx=buildCardWordIndex();
   const rows=blueprintSpec(which).map(g=>{
-    const missing=g.topics.filter(t=>!bpCovered(t,idx));
+    // Section headings are dropped from the count entirely, not marked covered.
+    const topics=g.topics.filter(t=>!bpIsHeading(t));
+    const missing=topics.filter(t=>!bpCovered(t,idx));
     const cat=blueprintCats(which).find(c=>c.name===g.area);
-    return {area:g.area, weight:cat?cat.pct:2, total:g.topics.length,
-            covered:g.topics.length-missing.length, gaps:missing.length,
-            pct:g.topics.length?Math.round((g.topics.length-missing.length)/g.topics.length*100):100,
+    return {area:g.area, weight:cat?cat.pct:2, total:topics.length,
+            covered:topics.length-missing.length, gaps:missing.length,
+            pct:topics.length?Math.round((topics.length-missing.length)/topics.length*100):100,
             missing};
-  });
+  }).filter(r=>r.total>0);
   const total=rows.reduce((n,r)=>n+r.total,0), covered=rows.reduce((n,r)=>n+r.covered,0);
   rows.sort((a,b)=> (b.gaps*b.weight)-(a.gaps*a.weight) || a.pct-b.pct);
   return {rows,total,covered,gaps:total-covered,pct:total?Math.round(covered/total*100):0};
