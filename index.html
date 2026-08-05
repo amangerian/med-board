@@ -256,7 +256,7 @@ body[data-specialty="Psych"] .only-both{display:none!important}
     <div class="nav-item" onclick="navigate('settings')"><span class="nav-icon">⚙️</span><span>Settings</span></div>
   </nav>
   <div id="sidebar-footer">
-    <div style="color:rgba(255,255,255,.4);font-size:11px" title="Readiness-over-time chart on the dashboard">v3.93 · ABIM &amp; ABPN 2026</div>
+    <div style="color:rgba(255,255,255,.4);font-size:11px" title="Compact readiness card on dashboard, full chart on Exam Readiness">v3.94 · ABIM &amp; ABPN 2026</div>
   </div>
 </div>
 
@@ -279,15 +279,6 @@ body[data-specialty="Psych"] .only-both{display:none!important}
     </div>
     <div id="dash-wire" title="Your aviary" style="flex:1 1 180px;min-width:150px;height:74px;align-self:stretch;overflow:visible"></div>
   </div>
-  <div class="panel" id="readiness-trend-panel" style="display:none;margin-bottom:20px">
-    <div style="display:flex;justify-content:space-between;align-items:baseline;flex-wrap:wrap;gap:8px">
-      <div style="font-weight:700;color:var(--navy)">🎓 Readiness over time</div>
-      <div id="readiness-trend-sub" style="font-size:12px;color:var(--muted)"></div>
-    </div>
-    <div class="chart-wrap" style="height:220px"><canvas id="readiness-trend-chart"></canvas></div>
-    <div id="readiness-trend-note" style="font-size:12px;color:var(--muted);margin-top:6px"></div>
-  </div>
-
   <div class="stat-grid">
     <div class="stat-card">
       <div class="label">Due Today</div>
@@ -326,9 +317,19 @@ body[data-specialty="Psych"] .only-both{display:none!important}
       <div id="weak-areas-list"></div>
     </div>
   </div>
-  <div class="panel">
-    <div style="font-weight:700;color:var(--navy);margin-bottom:14px">7-Day Review Activity</div>
-    <div class="chart-wrap" style="height:180px"><canvas id="activity-chart"></canvas></div>
+  <div class="grid-2" id="dash-charts-row">
+    <div class="panel">
+      <div style="font-weight:700;color:var(--navy);margin-bottom:14px">7-Day Review Activity</div>
+      <div class="chart-wrap" style="height:180px"><canvas id="activity-chart"></canvas></div>
+    </div>
+    <div class="panel" id="readiness-trend-panel" style="display:none">
+      <div style="display:flex;justify-content:space-between;align-items:baseline;gap:8px;margin-bottom:14px">
+        <div style="font-weight:700;color:var(--navy)">🎓 Readiness</div>
+        <span onclick="navigate('readiness')" style="font-size:12px;color:var(--blue);cursor:pointer;font-weight:600">Details →</span>
+      </div>
+      <div class="chart-wrap" style="height:180px"><canvas id="readiness-trend-chart"></canvas></div>
+      <div id="readiness-trend-note" style="font-size:11.5px;color:var(--muted);margin-top:6px;line-height:1.5"></div>
+    </div>
   </div>
   </div><!-- end z-index wrapper -->
 </div>
@@ -1194,6 +1195,15 @@ A: [answer]. Citation: Harrison's Principles of Internal Medicine, 21e, Ch. 245.
       <div class="setting-row only-psych"><div><div class="setting-label">ABPN (Psychiatry)</div><div class="setting-desc">Set your Psych board / PRITE date</div></div><input type="date" id="exam-date-Psych" onchange="saveExamDate('Psych',this.value)" style="padding:6px 10px;border:2px solid #e5e7eb;border-radius:6px;font-size:14px"></div>
     </div>
   </div>
+  <div class="panel" id="readiness-trend-panel-big" style="display:none;margin-bottom:16px">
+    <div style="display:flex;justify-content:space-between;align-items:baseline;flex-wrap:wrap;gap:8px">
+      <div style="font-weight:700;color:var(--navy)">🎓 Readiness over time</div>
+      <div id="readiness-trend-sub" style="font-size:12px;color:var(--muted)"></div>
+    </div>
+    <div class="chart-wrap" style="height:300px;margin-top:10px"><canvas id="readiness-trend-chart-big"></canvas></div>
+    <div id="readiness-trend-note-big" style="font-size:12.5px;color:#42506a;margin-top:10px;line-height:1.6"></div>
+  </div>
+
   <div id="readiness-body"></div>
 
   <div class="panel" style="margin-top:20px">
@@ -2378,14 +2388,25 @@ function readinessSlope(pts){
   for(let i=0;i<n;i++){ num+=(xs[i]-mx)*(ys[i]-my); den+=(xs[i]-mx)**2; }
   return den===0?null:num/den;
 }
-let readinessTrendChart=null;
-function renderReadinessTrend(){
-  const panel=document.getElementById('readiness-trend-panel'); if(!panel) return;
+const readinessTrendCharts={sm:null,big:null};
+// Renders both sizes from one calculation: a compact card on the dashboard and
+// a full-height version on the Exam Readiness page.
+function renderReadinessTrend(big){
+  const sfx=big?'-big':'';
+  const panel=document.getElementById('readiness-trend-panel'+sfx); if(!panel) return;
   const ex=(DB.settings&&DB.settings.examDates)||{};
   const sp=currentSpecialty();
   const subs=[{k:'IM',label:'Internal Medicine',col:'#2d6a9f'},{k:'Psych',label:'Psychiatry',col:'#7c3aed'}]
     .filter(s=>ex[s.k] && (sp==='both'||sp===s.k));
-  if(!subs.length){ panel.style.display='none'; return; }   // no exam date → hide entirely
+  if(!subs.length){
+    panel.style.display='none';
+    // With no exam date the dashboard row holds one chart — let it fill the width.
+    const row=document.getElementById('dash-charts-row');
+    if(row && !big) row.style.gridTemplateColumns='1fr';
+    return;
+  }
+  const row=document.getElementById('dash-charts-row');
+  if(row && !big) row.style.gridTemplateColumns='';
   panel.style.display='';
   const log=DB.readinessLog||[];
   const t=today();
@@ -2393,7 +2414,7 @@ function renderReadinessTrend(){
   // Axis covers the recorded history plus the projection window — stretching it
   // to an exam a year out would squash all the real data into a few pixels.
   const dates=[...new Set(log.map(p=>p.d).concat([t]))].sort();
-  const datasets=[]; const notes=[];
+  const datasets=[]; const notes=[]; const shortNotes=[];
   subs.forEach(s=>{
     const pts=log.filter(p=>p[s.k]!=null).map(p=>({d:p.d,v:p[s.k]}));
     const cur=pts.length?pts[pts.length-1].v:(()=>{try{return computeReadiness(s.k).readiness;}catch(e){return 0;}})();
@@ -2419,24 +2440,29 @@ function renderReadinessTrend(){
       const perWeek=(slope*7).toFixed(1);
       notes.push(`<strong style="color:${s.col}">${s.label}</strong>: ${cur}% now, gaining ~<strong>${perWeek}</strong> points/week → about <strong>${proj}%</strong> in ${span} days.`+
         (days>HORIZON?` <span style="color:var(--muted)">${days} days until the exam; pace usually slows as cards mature, so treat this as a short-range estimate.</span>`:''));
+      shortNotes.push(`<strong style="color:${s.col}">${s.k==='IM'?'IM':'Psych'} ${cur}%</strong> <span style="color:var(--muted)">+${perWeek}/wk</span>`);
     } else {
       notes.push(`<strong style="color:${s.col}">${s.label}</strong>: ${cur}% now · ${days>0?days+' days to go':'exam date has passed'}${pts.length<3?' — a trend line appears after a few days of tracking':''}`);
+      shortNotes.push(`<strong style="color:${s.col}">${s.k==='IM'?'IM':'Psych'} ${cur}%</strong> <span style="color:var(--muted)">${days>0?days+'d left':'passed'}</span>`);
     }
   });
-  document.getElementById('readiness-trend-sub').textContent =
-    subs.map(s=>`${s.label} exam ${ex[s.k]}`).join('  ·  ');
-  document.getElementById('readiness-trend-note').innerHTML=notes.join('<br>');
-  if(readinessTrendChart){ readinessTrendChart.destroy(); readinessTrendChart=null; }
-  if(typeof Chart==='undefined'){ chartUnavailable('readiness-trend-chart'); return; }
-  const canvas=document.getElementById('readiness-trend-chart');
+  const subEl=document.getElementById('readiness-trend-sub');
+  if(subEl && big) subEl.textContent=subs.map(s=>`${s.label} exam ${ex[s.k]}`).join('  ·  ');
+  // The dashboard card only has room for the headline number per subject.
+  const noteEl=document.getElementById('readiness-trend-note'+sfx);
+  if(noteEl) noteEl.innerHTML = big ? notes.join('<br>') : shortNotes.join(' · ');
+  const key=big?'big':'sm';
+  if(readinessTrendCharts[key]){ readinessTrendCharts[key].destroy(); readinessTrendCharts[key]=null; }
+  if(typeof Chart==='undefined'){ chartUnavailable('readiness-trend-chart'+sfx); return; }
+  const canvas=document.getElementById('readiness-trend-chart'+sfx);
   canvas.style.display='';
-  readinessTrendChart=new Chart(canvas,{
+  readinessTrendCharts[key]=new Chart(canvas,{
     type:'line',
     data:{labels:dates, datasets},
     options:{responsive:true,maintainAspectRatio:false,
-      scales:{y:{min:0,max:100,title:{display:true,text:'predicted readiness %'}},
-              x:{ticks:{maxRotation:0,autoSkip:true,maxTicksLimit:8}}},
-      plugins:{legend:{position:'bottom',labels:{boxWidth:12,font:{size:11}}},
+      scales:{y:{min:0,max:100,title:{display:big,text:'predicted readiness %'},ticks:{maxTicksLimit:big?6:4}},
+              x:{ticks:{maxRotation:0,autoSkip:true,maxTicksLimit:big?8:4,font:{size:big?12:10}}}},
+      plugins:{legend:{display:big,position:'bottom',labels:{boxWidth:12,font:{size:11}}},
         tooltip:{callbacks:{label:c=>c.parsed.y==null?null:`${c.dataset.label}: ${c.parsed.y}%`}}}}
   });
 }
@@ -2818,7 +2844,7 @@ function renderDashboard(){
   renderDashWire();
   renderBackupNudge();
   recordReadinessSnapshot();
-  renderReadinessTrend();
+  renderReadinessTrend(false);
 
   const dueAll=getDueCards('all');
   const dueIM=getDueCards('IM');
@@ -4860,6 +4886,7 @@ function renderReadiness(){
     </div>`;
   }).join('');
   body.innerHTML=blocks;
+  renderReadinessTrend(true);
   renderCoverage();
   renderBlueprintCoverage('psych');
   renderBlueprintCoverage('im');
