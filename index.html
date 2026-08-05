@@ -256,7 +256,7 @@ body[data-specialty="Psych"] .only-both{display:none!important}
     <div class="nav-item" onclick="navigate('settings')"><span class="nav-icon">⚙️</span><span>Settings</span></div>
   </nav>
   <div id="sidebar-footer">
-    <div style="color:rgba(255,255,255,.4);font-size:11px" title="Supports the current MKSAP Answered Questions export">v3.92 · ABIM &amp; ABPN 2026</div>
+    <div style="color:rgba(255,255,255,.4);font-size:11px" title="Readiness-over-time chart on the dashboard">v3.93 · ABIM &amp; ABPN 2026</div>
   </div>
 </div>
 
@@ -279,6 +279,15 @@ body[data-specialty="Psych"] .only-both{display:none!important}
     </div>
     <div id="dash-wire" title="Your aviary" style="flex:1 1 180px;min-width:150px;height:74px;align-self:stretch;overflow:visible"></div>
   </div>
+  <div class="panel" id="readiness-trend-panel" style="display:none;margin-bottom:20px">
+    <div style="display:flex;justify-content:space-between;align-items:baseline;flex-wrap:wrap;gap:8px">
+      <div style="font-weight:700;color:var(--navy)">🎓 Readiness over time</div>
+      <div id="readiness-trend-sub" style="font-size:12px;color:var(--muted)"></div>
+    </div>
+    <div class="chart-wrap" style="height:220px"><canvas id="readiness-trend-chart"></canvas></div>
+    <div id="readiness-trend-note" style="font-size:12px;color:var(--muted);margin-top:6px"></div>
+  </div>
+
   <div class="stat-grid">
     <div class="stat-card">
       <div class="label">Due Today</div>
@@ -1942,6 +1951,7 @@ async function loadDB(){
   DB.aviary.earned=DB.aviary.earned||[];
   if(DB.aviary.completed==null) DB.aviary.completed=DB.aviary.earned.length;
   DB.reviewLog=DB.reviewLog||[];
+  DB.readinessLog=DB.readinessLog||[];
   DB.iteReports=DB.iteReports||[];
   DB.mksapReports=DB.mksapReports||[];
   DB.priteReports=DB.priteReports||[];
@@ -2339,6 +2349,98 @@ function importHealthCards(){
   renderHealthBanner();
 }
 
+// ── READINESS TREND (v3.93) ───────────────────────────────────────────────
+// Readiness has always been a live snapshot with no history, so a trend line
+// has to start recording it. One small entry per study day; the chart draws
+// what has been recorded and projects the current trajectory out to exam day
+// so it is useful before much history exists.
+function recordReadinessSnapshot(){
+  const ex=(DB.settings&&DB.settings.examDates)||{};
+  if(!ex.IM && !ex.Psych) return;                    // nothing to track against
+  DB.readinessLog=DB.readinessLog||[];
+  const t=today();
+  const last=DB.readinessLog[DB.readinessLog.length-1];
+  if(last && last.d===t) return;                     // once per day is plenty
+  const snap={d:t};
+  ['IM','Psych'].forEach(s=>{ if(ex[s]){ try{ snap[s]=computeReadiness(s).readiness; }catch(e){} } });
+  if(Object.keys(snap).length<2) return;
+  DB.readinessLog.push(snap);
+  if(DB.readinessLog.length>800) DB.readinessLog.splice(0,DB.readinessLog.length-800);
+  saveDB();
+}
+// Least-squares slope in readiness-points per day, over the recorded points.
+function readinessSlope(pts){
+  if(pts.length<3) return null;
+  const x0=parseLocalDate(pts[0].d).getTime();
+  const xs=pts.map(p=>(parseLocalDate(p.d).getTime()-x0)/86400000), ys=pts.map(p=>p.v);
+  const n=xs.length, mx=xs.reduce((a,b)=>a+b,0)/n, my=ys.reduce((a,b)=>a+b,0)/n;
+  let num=0, den=0;
+  for(let i=0;i<n;i++){ num+=(xs[i]-mx)*(ys[i]-my); den+=(xs[i]-mx)**2; }
+  return den===0?null:num/den;
+}
+let readinessTrendChart=null;
+function renderReadinessTrend(){
+  const panel=document.getElementById('readiness-trend-panel'); if(!panel) return;
+  const ex=(DB.settings&&DB.settings.examDates)||{};
+  const sp=currentSpecialty();
+  const subs=[{k:'IM',label:'Internal Medicine',col:'#2d6a9f'},{k:'Psych',label:'Psychiatry',col:'#7c3aed'}]
+    .filter(s=>ex[s.k] && (sp==='both'||sp===s.k));
+  if(!subs.length){ panel.style.display='none'; return; }   // no exam date → hide entirely
+  panel.style.display='';
+  const log=DB.readinessLog||[];
+  const t=today();
+  // Build the x axis: every recorded date, plus each exam date.
+  // Axis covers the recorded history plus the projection window — stretching it
+  // to an exam a year out would squash all the real data into a few pixels.
+  const dates=[...new Set(log.map(p=>p.d).concat([t]))].sort();
+  const datasets=[]; const notes=[];
+  subs.forEach(s=>{
+    const pts=log.filter(p=>p[s.k]!=null).map(p=>({d:p.d,v:p[s.k]}));
+    const cur=pts.length?pts[pts.length-1].v:(()=>{try{return computeReadiness(s.k).readiness;}catch(e){return 0;}})();
+    // Solid line: what has actually been recorded.
+    datasets.push({label:s.label, borderColor:s.col, backgroundColor:s.col+'22',
+      data:dates.map(d=>{ const hit=pts.find(p=>p.d===d); return hit?hit.v:null; }),
+      spanGaps:true, tension:.25, pointRadius:3});
+    // Dashed line: where the current pace leads. Deliberately NOT extrapolated
+    // all the way to a distant exam — early readiness gains are fast (new cards
+    // entering rotation) and flatten later, so projecting a month-one slope
+    // across a year reliably produces a meaningless "100%".
+    const slope=readinessSlope(pts);
+    const days=diffDays(ex[s.k],t);
+    const HORIZON=90;
+    if(slope!=null && days>0){
+      const span=Math.min(days,HORIZON);
+      const endDate=addDays(t,span);
+      const proj=Math.max(0,Math.min(100,Math.round(cur+slope*span)));
+      if(!dates.includes(endDate)){ dates.push(endDate); dates.sort(); }
+      datasets.push({label:s.label+' — at current pace', borderColor:s.col, borderDash:[6,4],
+        pointRadius:0, borderWidth:2, tension:0, spanGaps:true,
+        data:dates.map(d=> d===pts[pts.length-1].d ? cur : (d===endDate ? proj : null))});
+      const perWeek=(slope*7).toFixed(1);
+      notes.push(`<strong style="color:${s.col}">${s.label}</strong>: ${cur}% now, gaining ~<strong>${perWeek}</strong> points/week → about <strong>${proj}%</strong> in ${span} days.`+
+        (days>HORIZON?` <span style="color:var(--muted)">${days} days until the exam; pace usually slows as cards mature, so treat this as a short-range estimate.</span>`:''));
+    } else {
+      notes.push(`<strong style="color:${s.col}">${s.label}</strong>: ${cur}% now · ${days>0?days+' days to go':'exam date has passed'}${pts.length<3?' — a trend line appears after a few days of tracking':''}`);
+    }
+  });
+  document.getElementById('readiness-trend-sub').textContent =
+    subs.map(s=>`${s.label} exam ${ex[s.k]}`).join('  ·  ');
+  document.getElementById('readiness-trend-note').innerHTML=notes.join('<br>');
+  if(readinessTrendChart){ readinessTrendChart.destroy(); readinessTrendChart=null; }
+  if(typeof Chart==='undefined'){ chartUnavailable('readiness-trend-chart'); return; }
+  const canvas=document.getElementById('readiness-trend-chart');
+  canvas.style.display='';
+  readinessTrendChart=new Chart(canvas,{
+    type:'line',
+    data:{labels:dates, datasets},
+    options:{responsive:true,maintainAspectRatio:false,
+      scales:{y:{min:0,max:100,title:{display:true,text:'predicted readiness %'}},
+              x:{ticks:{maxRotation:0,autoSkip:true,maxTicksLimit:8}}},
+      plugins:{legend:{position:'bottom',labels:{boxWidth:12,font:{size:11}}},
+        tooltip:{callbacks:{label:c=>c.parsed.y==null?null:`${c.dataset.label}: ${c.parsed.y}%`}}}}
+  });
+}
+
 // ── Backup nudge (v3.2) ───────────────────────────────────────────────────
 // Everything lives in this browser's storage. Clearing site data, a dead
 // laptop or a new phone loses the lot, so remind people once a week — but
@@ -2715,6 +2817,8 @@ function renderDashboard(){
   document.getElementById('greeting').textContent=greet+(nm?', '+nm:'');
   renderDashWire();
   renderBackupNudge();
+  recordReadinessSnapshot();
+  renderReadinessTrend();
 
   const dueAll=getDueCards('all');
   const dueIM=getDueCards('IM');
@@ -4672,10 +4776,12 @@ function renderTrends(){
 // Areas with no cards count as 0 command (you haven't covered them).
 // ═══════════════════════════════════════════════════════════
 function saveExamDate(subject, val){
+  // a new/changed exam date changes what the trend chart tracks
   DB.settings.examDates=DB.settings.examDates||{};
   DB.settings.examDates[subject]=val||null;
   saveDB();
   renderReadiness();
+  recordReadinessSnapshot();      // start (or stop) tracking immediately
 }
 
 function computeReadiness(subject){
@@ -5355,6 +5461,7 @@ function restoreBackup(incoming, mode){
     // Score reports travel with the backup too (v3 fix — these were silently
     // dropped before, so moving to a new device lost every ITE/MKSAP/PRITE report).
     DB.reviewLog=incoming.reviewLog||[];
+    DB.readinessLog=incoming.readinessLog||[];
     DB.iteReports=incoming.iteReports||[];
     DB.mksapReports=incoming.mksapReports||[];
     DB.priteReports=incoming.priteReports||[];
