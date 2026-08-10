@@ -256,7 +256,7 @@ body[data-specialty="Psych"] .only-both{display:none!important}
     <div class="nav-item" onclick="navigate('settings')"><span class="nav-icon">⚙️</span><span>Settings</span></div>
   </nav>
   <div id="sidebar-footer">
-    <div style="color:rgba(255,255,255,.4);font-size:11px" title="Compact readiness card on dashboard, full chart on Exam Readiness">v3.94 · ABIM &amp; ABPN 2026</div>
+    <div style="color:rgba(255,255,255,.4);font-size:11px" title="Undo the last rating during study">v3.95 · ABIM &amp; ABPN 2026</div>
   </div>
 </div>
 
@@ -365,6 +365,7 @@ body[data-specialty="Psych"] .only-both{display:none!important}
         </div>
       </div>
       <div style="display:flex;justify-content:center;gap:8px;margin-bottom:10px">
+        <button class="btn-secondary" id="study-undo-btn" style="padding:5px 12px;font-size:12px;opacity:.45;cursor:default" onclick="undoLastRating()" title="Nothing to undo yet" disabled>↩︎ Undo</button>
         <button class="btn-secondary" style="padding:5px 12px;font-size:12px" onclick="studyEditCard()">✏️ Edit</button>
         <button class="btn-secondary" style="padding:5px 12px;font-size:12px" id="study-flag-btn" onclick="studyFlagCard()">⚐ Flag</button>
         <button class="btn-danger" style="padding:5px 12px;font-size:12px" onclick="studyDeleteCard()">🗑️ Delete</button>
@@ -384,6 +385,7 @@ body[data-specialty="Psych"] .only-both{display:none!important}
       <div style="display:flex;gap:10px;justify-content:center;flex-wrap:wrap">
         <button class="btn-primary" onclick="navigate('dashboard')">Back to Dashboard</button>
         <button class="btn-secondary" onclick="openExtraStudy()">Keep studying →</button>
+        <button class="btn-secondary" onclick="undoLastRating()">↩︎ Undo last</button>
       </div>
     </div>
     <div id="no-cards-msg">
@@ -2963,6 +2965,7 @@ function initStudy(){
   studyState.flipped=false;
   studyState.revealed=false;
   studyState.extra=false;
+  undoStack=[]; updateUndoBtn();
   document.getElementById('study-count-label').textContent=due.length+' cards due';
   showCurrentCard();
 }
@@ -3118,7 +3121,7 @@ function flipCard(){
     studyState.flipped=true;
     document.getElementById('fc-back-text').innerHTML=hydrateMedia(sanitizeHtml(card.back));
     fc.classList.add('flipped');
-    document.getElementById('fc-hint').innerHTML='How well did you know this? &nbsp;<span style="color:var(--muted)">Press <kbd>A</kbd> <kbd>S</kbd> <kbd>D</kbd> <kbd>F</kbd> · tap card to re-read the question</span>';
+    document.getElementById('fc-hint').innerHTML='How well did you know this? &nbsp;<span style="color:var(--muted)">Press <kbd>A</kbd> <kbd>S</kbd> <kbd>D</kbd> <kbd>F</kbd> · <kbd>Z</kbd> undoes · tap card to re-read</span>';
     document.getElementById('rating-row').style.display='grid';
     return;
   }
@@ -3131,9 +3134,68 @@ function flipCard(){
     : '<span style="color:var(--muted)">Question side — tap card or press <kbd>Space</kbd> to flip back to the answer</span>';
 }
 
+// ── Undo the last rating (v3.95) ──────────────────────────────────────────
+// Rating a card mutates it, the daily log, the review log and the session
+// counters, so undo works by snapshotting all of that BEFORE the change and
+// putting it back verbatim. Streak and aviary are deliberately NOT rewound —
+// they are day-level, and a mis-tap shouldn't be able to cost you a bird.
+const UNDO_MAX=20;
+let undoStack=[];
+function snapshotForUndo(card,grade){
+  const t=today();
+  return {
+    cardId:card.id,
+    card:JSON.parse(JSON.stringify(card)),          // full pre-review card
+    dayKey:t,
+    day:JSON.parse(JSON.stringify(DB.dailyLog[t]||null)),
+    logLen:(DB.reviewLog||[]).length,
+    idx:studyState.idx,
+    queueLen:studyState.queue.length,
+    sessionTotal:studyState.sessionTotal,
+    sessionCorrect:studyState.sessionCorrect,
+    grade
+  };
+}
+function updateUndoBtn(){
+  const b=document.getElementById('study-undo-btn'); if(!b) return;
+  const on=undoStack.length>0;
+  b.disabled=!on;
+  b.style.opacity=on?'1':'.45';
+  b.style.cursor=on?'pointer':'default';
+  b.title=on?'Undo the last rating (Z)':'Nothing to undo yet';
+}
+function undoLastRating(){
+  if(!undoStack.length){ toast('Nothing to undo'); return; }
+  const u=undoStack.pop();
+  // Restore the card exactly as it was.
+  const i=DB.cards.findIndex(c=>c.id===u.cardId);
+  if(i>=0) DB.cards[i]=JSON.parse(JSON.stringify(u.card));
+  // Restore the day's tally.
+  if(u.day) DB.dailyLog[u.dayKey]=u.day; else delete DB.dailyLog[u.dayKey];
+  // Drop the review-log entry this rating added.
+  if(DB.reviewLog && DB.reviewLog.length>u.logLen) DB.reviewLog.length=u.logLen;
+  // Remove the requeue that an "Again" rating appended.
+  if(studyState.queue.length>u.queueLen) studyState.queue.length=u.queueLen;
+  // Put the restored card back in the queue slot and rewind the session.
+  if(i>=0) studyState.queue[u.idx]=DB.cards[i];
+  studyState.idx=u.idx;
+  studyState.sessionTotal=u.sessionTotal;
+  studyState.sessionCorrect=u.sessionCorrect;
+  invalidatePriorityCache();
+  saveDB();
+  // Come back on the question side so the card can be re-answered properly.
+  document.getElementById('session-complete').style.display='none';
+  document.getElementById('no-cards-msg').style.display='none';
+  document.getElementById('study-card-wrap').style.display='';
+  showCurrentCard();
+  updateUndoBtn();
+  toast('Undid last rating — card is back');
+}
 function rateCard(grade){
   const card=studyState.queue[studyState.idx];
   if(!card) return;
+  undoStack.push(snapshotForUndo(card,grade));
+  if(undoStack.length>UNDO_MAX) undoStack.shift();
   reviewCard(card, grade);
   studyState.sessionTotal++;
   if(grade>0) studyState.sessionCorrect++;
@@ -3143,6 +3205,7 @@ function rateCard(grade){
   // "Again" → requeue this card so it comes back before the session ends.
   if(grade===0) studyState.queue.push(card);
   studyState.idx++;
+  updateUndoBtn();
   if(studyState.idx>=studyState.queue.length){endSession();return;}
   showCurrentCard();
 }
@@ -5643,6 +5706,9 @@ function setupKeyboardShortcuts(){
     // only while a card is on screen
     if(document.getElementById('study-card-wrap').style.display==='none') return;
 
+    // Z undoes the previous rating at any point — the whole reason it exists is
+    // that you rated too fast and the next card is already on screen.
+    if((e.key||'').toLowerCase()==='z'){ e.preventDefault(); undoLastRating(); return; }
     if(!studyState.revealed){
       // Answer not seen yet → Space/Enter reveals it
       if(e.code==='Space'||e.code==='Enter'){ e.preventDefault(); flipCard(); }
