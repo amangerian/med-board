@@ -139,6 +139,9 @@ kbd{display:inline-block;background:#eef2f7;border:1px solid #cbd5e1;border-bott
 .table-wrap{overflow-x:auto;margin-top:16px}
 table{width:100%;border-collapse:collapse;font-size:13px}
 th{background:#f8faff;padding:10px 12px;text-align:left;font-weight:600;color:var(--navy);border-bottom:2px solid #e5e7eb}
+th.sortable{cursor:pointer;user-select:none;white-space:nowrap}
+th.sortable:hover{background:#eef4ff;color:var(--blue)}
+.sort-ind{font-size:10px;color:var(--blue)}
 td{padding:9px 12px;border-bottom:1px solid #f3f4f6;vertical-align:top}
 tr:hover td{background:#fafbff}
 /* CARD BROWSER */
@@ -256,7 +259,7 @@ body[data-specialty="Psych"] .only-both{display:none!important}
     <div class="nav-item" onclick="navigate('settings')"><span class="nav-icon">⚙️</span><span>Settings</span></div>
   </nav>
   <div id="sidebar-footer">
-    <div style="color:rgba(255,255,255,.4);font-size:11px" title="Undo the last rating during study">v3.95 · ABIM &amp; ABPN 2026</div>
+    <div style="color:rgba(255,255,255,.4);font-size:11px" title="Sortable columns in the card browser">v3.96 · ABIM &amp; ABPN 2026</div>
   </div>
 </div>
 
@@ -586,7 +589,13 @@ NOTES:
       <table id="browser-table">
         <thead><tr>
           <th style="width:34px"><input type="checkbox" id="browser-select-all" onclick="toggleSelectAll(this)" title="Select all shown"></th>
-          <th>Front (Question)</th><th>Subject</th><th>Content Area</th><th>Due</th><th>Correct%</th><th>Actions</th>
+          <th class="sortable" onclick="setBrowserSort('front')">Front (Question)<span class="sort-ind" id="si-front"></span></th>
+          <th class="sortable" onclick="setBrowserSort('subject')">Subject<span class="sort-ind" id="si-subject"></span></th>
+          <th class="sortable" onclick="setBrowserSort('area')">Content Area<span class="sort-ind" id="si-area"></span></th>
+          <th class="sortable" onclick="setBrowserSort('due')">Due<span class="sort-ind" id="si-due"></span></th>
+          <th class="sortable" onclick="setBrowserSort('acc')">Correct%<span class="sort-ind" id="si-acc"></span></th>
+          <th class="sortable" onclick="setBrowserSort('reviews')">Reviews<span class="sort-ind" id="si-reviews"></span></th>
+          <th>Actions</th>
         </tr></thead>
         <tbody id="browser-tbody"></tbody>
       </table>
@@ -3335,6 +3344,47 @@ function copyAiPrompt(){
 // ═══════════════════════════════════════════════════════════
 // CARD BROWSER
 // ═══════════════════════════════════════════════════════════
+// ── Column sorting (v3.96) ────────────────────────────────────────────────
+// Numeric columns default to high→low (that is what you want when hunting for
+// your worst-performing or most-reviewed cards); text columns default to A→Z.
+// Clicking the same header again flips the direction.
+let browserSort={key:null,dir:-1};
+const BROWSER_SORT_NUMERIC=new Set(['acc','reviews','due']);
+function setBrowserSort(key){
+  if(browserSort.key===key) browserSort.dir=-browserSort.dir;
+  else browserSort={key, dir: BROWSER_SORT_NUMERIC.has(key) ? -1 : 1};
+  renderBrowser();
+}
+function browserSortValue(c,key){
+  switch(key){
+    case 'front':   return stripHtml(c.front||'').trim().toLowerCase();
+    case 'subject': return (c.subject||'').toLowerCase();
+    case 'area':    return (c.contentArea||'Uncategorized').toLowerCase();
+    // Suspended cards have no meaningful due date — park them at the end.
+    case 'due':     return c.suspended ? 9e15 : parseLocalDate(c.dueDate||'2099-01-01').getTime();
+    // Never-reviewed cards have no accuracy; -1 keeps them out of the "worst" end.
+    case 'acc':     return (c.totalReviews||0)>0 ? (c.correctReviews||0)/c.totalReviews : -1;
+    case 'reviews': return c.totalReviews||0;
+  }
+  return '';
+}
+function applyBrowserSort(list){
+  if(!browserSort.key) return list;
+  const k=browserSort.key, dir=browserSort.dir;
+  return list.slice().sort((a,b)=>{
+    const va=browserSortValue(a,k), vb=browserSortValue(b,k);
+    if(va<vb) return -1*dir;
+    if(va>vb) return  1*dir;
+    return 0;
+  });
+}
+function updateSortIndicators(){
+  ['front','subject','area','due','acc','reviews'].forEach(k=>{
+    const el=document.getElementById('si-'+k); if(!el) return;
+    el.textContent = browserSort.key===k ? (browserSort.dir===1?' ▲':' ▼') : '';
+  });
+}
+
 // Debounced wrapper for the search box — a full table render takes >1s at
 // 2000+ cards, so re-rendering per keystroke froze typing. 200ms after the
 // last keystroke is imperceptible and collapses a burst of typing to one render.
@@ -3391,6 +3441,8 @@ function renderBrowser(){
   const tbody=document.getElementById('browser-tbody');
   const empty=document.getElementById('browser-empty');
 
+  filtered=applyBrowserSort(filtered);
+  updateSortIndicators();
   browserShownIds=filtered.map(c=>c.id);
   selectedCards.forEach(id=>{ if(!browserShownIds.includes(id)) selectedCards.delete(id); });
 
@@ -3399,6 +3451,7 @@ function renderBrowser(){
   const t=today();
   tbody.innerHTML=filtered.map(c=>{
     const acc=c.totalReviews>0?Math.round(c.correctReviews/c.totalReviews*100)+'%':'—';
+    const nrev=c.totalReviews||0;
     const due=c.suspended?'<span style="color:#9ca3af;font-weight:600">⏸ suspended</span>':(c.dueDate<=t?'<span style="color:#dc2626;font-weight:600">Due</span>':c.dueDate);
     const checked=selectedCards.has(c.id)?'checked':'';
     const flag=c.flagged?'🚩 ':'';
@@ -3411,6 +3464,7 @@ function renderBrowser(){
       <td style="font-size:12px"><select class="area-inline" onchange="setCardArea('${c.id}',this.value)" title="Change content area" style="max-width:190px;font-size:11.5px;padding:4px 6px;border:1px solid ${areaTxt==='Uncategorized'?'#f59e0b':'#e5e7eb'};border-radius:6px;background:${areaTxt==='Uncategorized'?'#fffbeb':'#fff'};color:${areaTxt==='Uncategorized'?'#c2410c':'var(--muted)'}">${cleanupOptionsHtml(areaTxt==='Uncategorized'?'':areaTxt)}</select></td>
       <td style="font-size:12px">${due}</td>
       <td style="font-size:13px;font-weight:600">${acc}</td>
+      <td style="font-size:12.5px;color:var(--muted)">${nrev||'—'}</td>
       <td>
         <button class="btn-secondary" style="padding:4px 8px;font-size:12px;margin-right:3px" onclick="openEditModal('${c.id}')">Edit</button>
         <button class="btn-secondary" style="padding:4px 8px;font-size:12px;margin-right:3px" title="Flag" onclick="toggleFlag('${c.id}')">${c.flagged?'🚩':'⚐'}</button>
