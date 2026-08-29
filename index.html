@@ -4,15 +4,49 @@
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover">
 <title>MedBoard Prep — IM & Psych Residency Dashboard</title>
-<!-- PWA (v3): installable to a phone home screen when served over https.
-     Harmless no-ops when opened as a local file. -->
+<!-- PWA (v3.97): installable to a phone home screen when served over https.
+     Harmless no-ops when opened as a local file.
+     The manifest and both icons are built below instead of being shipped as
+     separate files, so the entire app is ONE uploadable index.html. -->
 <meta name="theme-color" content="#1e3a5f">
 <meta name="mobile-web-app-capable" content="yes">
 <meta name="apple-mobile-web-app-capable" content="yes">
 <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
 <meta name="apple-mobile-web-app-title" content="MedBoard">
-<link rel="manifest" href="manifest.webmanifest">
-<link rel="apple-touch-icon" href="icon-192.png">
+<link rel="manifest" id="pwa-manifest">
+<link rel="apple-touch-icon" id="pwa-touch-icon">
+<link rel="icon" type="image/png" id="pwa-favicon">
+<script>
+// Home-screen icons, inlined. A blob: manifest is same-origin (a data: one is
+// not), so the app still installs — but relative URLs can't resolve against a
+// blob: base, so start_url and scope are written out absolute.
+(function(){
+  var ICON192='data:image/png;base64,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';
+  var ICON512='data:image/png;base64,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cY4VgQJQiPRzBfZOqKNE2eEDR+e9hxyU6iuegb0W6tC/U6xvAO8I+JMGdiPmMSHoN4B3+CoAwcU89O8UPQC7EgMIIvJBf1cCABBU0HMAAAgAQFACABCUAAAEJQAAQQkAQFACABCUAAAEJQAAQQkAQFACABCUAAAEJQAAQQkAQFACABCUAAAEJQAAQQkAQFACABCUAAAEJQAAQQkAQFACABCUAAAEJQAAQQkAQFACABCUAAAEJQAAQQkAQFACABCUAAAEJQAAQQkAQFACABCUAAAEJQAAQQkAQFACABCUAAAEJQAAQQkAQFACABCUAAAEJQAAQQkAQFACABCUAAAEJQAAQQkAQFACABCUAAAEJQAAQQkAQFACABCUAAAEJQAAQQkAQFACABCUAAAEJQAAQQkAQFACABCUAAAEJQAAQQkAQFACABCUAAAEJQAAQQkAQFACABCUAAAEJQAAQQkAQFACABCUAAAEJQAAQQkAQFACABCUAAAEJQAAQQkAQFACABCUAAAEJQAAQQkAQFACABCUAAAEJQAAQQkAQFACABCUAAAEJQAAQQkAQFACABCUAAAEJQAAQQkAQFACABCUAAAEJQAAQQkAQFACABCUAAAEJQAAQQkAQFACABCUAAAEJQAAQQkAQFACABCUAAAEJQAAQQkAQFACABCUAAAEJQAAQQkAQFACABCUAAAEJQAAQQkAQFACABCUAAAEJQAAQQkAQFACABCUAAAEJQAAQQkAQFACABCUAAAEJQAAQQkAQFACABCUAAAEJQAAQQkAQFACABCUAAAEJQAAQQkAQFACABCUAAAEJQAAQQkAQFACABCUAAAEJQAAQQkAQFACABCUAAAE9f8BualsgQmEW4UAAAAASUVORK5CYII=';
+  try{
+    document.getElementById('pwa-touch-icon').href=ICON192;
+    document.getElementById('pwa-favicon').href=ICON192;   // no favicon.ico to fetch
+    var here=location.href.split(/[?#]/)[0];
+    var manifest={
+      name:'MedBoard Prep — IM & Psych Boards',
+      short_name:'MedBoard',
+      description:'Flashcards, FSRS scheduling, and exam analytics for ABIM & ABPN board prep',
+      start_url:here,
+      scope:here.replace(/[^/]*$/,''),
+      display:'standalone',
+      orientation:'portrait',
+      background_color:'#f0f4f8',
+      theme_color:'#1e3a5f',
+      icons:[
+        {src:ICON192,sizes:'192x192',type:'image/png'},
+        {src:ICON512,sizes:'512x512',type:'image/png',purpose:'any maskable'}
+      ]
+    };
+    document.getElementById('pwa-manifest').href=
+      URL.createObjectURL(new Blob([JSON.stringify(manifest)],{type:'application/manifest+json'}));
+  }catch(e){/* install prompt is a bonus, never a requirement */}
+})();
+</script>
 <script src="https://cdnjs.cloudflare.com/ajax/libs/Chart.js/4.4.0/chart.umd.min.js"></script>
 <script src="https://cdnjs.cloudflare.com/ajax/libs/jszip/3.10.1/jszip.min.js"></script>
 <script src="https://cdnjs.cloudflare.com/ajax/libs/pdf.js/3.11.174/pdf.min.js"></script>
@@ -266,7 +300,7 @@ body[data-specialty="Psych"] .only-both{display:none!important}
     <div class="nav-item" onclick="navigate('settings')"><span class="nav-icon">⚙️</span><span>Settings</span></div>
   </nav>
   <div id="sidebar-footer">
-    <div style="color:rgba(255,255,255,.4);font-size:11px" title="Read the whole card and file it while importing">v3.97 · ABIM &amp; ABPN 2026</div>
+    <div id="app-version" style="color:rgba(255,255,255,.4);font-size:11px" title="Read the whole card and file it while importing">v3.97 · ABIM &amp; ABPN 2026</div>
   </div>
 </div>
 
@@ -1499,6 +1533,10 @@ A: [answer]. Citation: Harrison's Principles of Internal Medicine, 21e, Ch. 245.
 // ═══════════════════════════════════════════════════════════
 // DATA DEFINITIONS
 // ═══════════════════════════════════════════════════════════
+// Bump this on every release. The sidebar renders from it, and it re-checks
+// for an optional sw.js after an update. The other copy lives in sw.js (CACHE).
+const APP_VERSION='3.97';
+
 const ABIM_CATEGORIES = [
   {name:'Cardiovascular Disease',pct:14},
   {name:'Endocrinology, Diabetes & Metabolism',pct:9},
@@ -7714,6 +7752,8 @@ function endTutorial(){
 // INIT
 // ═══════════════════════════════════════════════════════════
 async function init(){
+  const vEl=document.getElementById('app-version');
+  if(vEl) vEl.textContent=`v${APP_VERSION} · ABIM & ABPN 2026`;
   await loadDB();
   updateContentAreaOptions();
   updateBatchContentArea();
@@ -7732,10 +7772,22 @@ async function init(){
   // First launch: run the feature tour (skippable; replayable from Settings → Help).
   if(!DB.settings.tutorialSeen) startTutorial();
 
-  // PWA (v3): register the offline service worker when served over http(s).
-  // Silently skipped when opened as a local file (file:// can't run SWs).
+  // PWA (v3.97): the app is a single index.html, so sw.js is optional — a
+  // service worker script CANNOT be inlined (the spec requires an http(s) URL,
+  // so blob:/data: registration is rejected). Deploy sw.js alongside this file
+  // and offline caching switches itself on; deploy index.html alone and this
+  // quietly does nothing. Skipped entirely on file:// (SWs can't run there).
   if('serviceWorker' in navigator && /^https?:$/.test(location.protocol)){
-    navigator.serviceWorker.register('sw.js').catch(()=>{});
+    navigator.serviceWorker.getRegistration().then(reg=>{
+      if(reg) return;                                        // already installed
+      // Probe once per version, so a single-file deploy doesn't log a 404 on
+      // every load — and a later deploy that DOES ship sw.js is still picked up.
+      try{ if(localStorage.getItem('mb-no-sw')===APP_VERSION) return; }catch(e){}
+      fetch('sw.js',{method:'HEAD'}).then(r=>{
+        if(r.ok) navigator.serviceWorker.register('sw.js').catch(()=>{});
+        else { try{ localStorage.setItem('mb-no-sw',APP_VERSION); }catch(e){} }
+      }).catch(()=>{});
+    }).catch(()=>{});
   }
 }
 
