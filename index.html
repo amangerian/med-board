@@ -136,6 +136,13 @@ kbd{display:inline-block;background:#eef2f7;border:1px solid #cbd5e1;border-bott
 .import-zone .icon{font-size:40px;margin-bottom:12px}
 .import-zone p{color:var(--muted);font-size:14px}
 .import-zone strong{color:var(--navy)}
+.import-hint{background:#f8faff;border:1px solid #e5edff;border-radius:8px;padding:9px 12px;font-size:12.5px;color:var(--muted);margin-bottom:10px}
+.import-hint strong{color:var(--navy)}
+.import-pager button[disabled]{opacity:.45;cursor:default}
+.ic-side{border:1px solid #eef2f7;border-radius:10px;padding:14px 16px;background:#fbfcff}
+.ic-label{font-size:11px;font-weight:700;text-transform:uppercase;letter-spacing:.8px;color:var(--muted);margin-bottom:6px}
+.ic-body{font-size:15px;line-height:1.6;color:var(--navy);overflow-wrap:break-word}
+.ic-body img{max-width:100%;max-height:320px;height:auto;border-radius:6px;margin:8px auto;display:block}
 .table-wrap{overflow-x:auto;margin-top:16px}
 table{width:100%;border-collapse:collapse;font-size:13px}
 th{background:#f8faff;padding:10px 12px;text-align:left;font-weight:600;color:var(--navy);border-bottom:2px solid #e5e7eb}
@@ -259,7 +266,7 @@ body[data-specialty="Psych"] .only-both{display:none!important}
     <div class="nav-item" onclick="navigate('settings')"><span class="nav-icon">⚙️</span><span>Settings</span></div>
   </nav>
   <div id="sidebar-footer">
-    <div style="color:rgba(255,255,255,.4);font-size:11px" title="Sortable columns in the card browser">v3.96 · ABIM &amp; ABPN 2026</div>
+    <div style="color:rgba(255,255,255,.4);font-size:11px" title="Read the whole card and file it while importing">v3.97 · ABIM &amp; ABPN 2026</div>
   </div>
 </div>
 
@@ -651,17 +658,19 @@ NOTES:
         <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:12px">
           <div style="font-weight:700;color:var(--navy)" id="csv-preview-label"></div>
           <div style="display:flex;gap:8px;align-items:center;flex-wrap:wrap">
-            <select id="csv-area" title="If this file is all one topic, set it here — it overrides the content_area column and auto-sorting" style="padding:7px 10px;border:2px solid #e5e7eb;border-radius:6px;font-size:13px;max-width:230px">
+            <select id="csv-area" onchange="renderImportRows('csv')" title="If this file is all one topic, set it here — it overrides the content_area column and auto-sorting. Cards you file yourself below keep the area you gave them." style="padding:7px 10px;border:2px solid #e5e7eb;border-radius:6px;font-size:13px;max-width:230px">
               <option value="">Use file / auto-sort</option>
             </select>
-            <button class="btn-secondary" onclick="document.getElementById('csv-preview').style.display='none'">Cancel</button>
+            <button class="btn-secondary" onclick="closeImportCard();pendingCSV=[];document.getElementById('csv-preview').style.display='none'">Cancel</button>
             <button class="btn-primary" onclick="importCSV()">Import All</button>
           </div>
         </div>
+        <div class="import-hint">Press <strong>👁 View</strong> on any row to read the whole card — both sides, images and all — before it is imported. Change a card's <strong>content area</strong> right here and it is filed that way on import, so you don't have to hunt it down afterwards.</div>
         <div class="table-wrap">
-          <table><thead><tr><th>#</th><th>Front</th><th>Back</th><th>Subject</th><th>Content Area</th></tr></thead>
+          <table><thead><tr><th>#</th><th>Front</th><th>Back</th><th>Subject</th><th>Content Area</th><th></th></tr></thead>
           <tbody id="csv-preview-tbody"></tbody></table>
         </div>
+        <div id="csv-preview-pager" class="import-pager"></div>
       </div>
     </div>
   </div>
@@ -696,10 +705,12 @@ NOTES:
             <button class="btn-primary" onclick="importApkg()">Import</button>
           </div>
         </div>
+        <div class="import-hint">Press <strong>👁 View</strong> on any row to read the whole card — both sides, images and all — before it is imported. Change a card's <strong>content area</strong> right here and it is filed that way on import, so you don't have to hunt it down afterwards.</div>
         <div class="table-wrap">
-          <table><thead><tr><th>#</th><th>Front</th><th>Back</th><th>Auto Content Area</th></tr></thead>
+          <table><thead><tr><th>#</th><th>Front</th><th>Back</th><th>Content Area</th><th></th></tr></thead>
           <tbody id="apkg-preview-tbody"></tbody></table>
         </div>
+        <div id="apkg-preview-pager" class="import-pager"></div>
       </div>
     </div>
   </div>
@@ -1420,6 +1431,38 @@ A: [answer]. Citation: Harrison's Principles of Internal Medicine, 21e, Ch. 245.
     <div style="display:flex;gap:10px;margin-top:8px">
       <button class="btn-primary" onclick="saveEditCard()">Save</button>
       <button class="btn-secondary" onclick="closeEditModal()">Cancel</button>
+    </div>
+  </div>
+</div>
+
+<!-- IMPORT CARD VIEWER — the whole card (both sides) before it is imported -->
+<div id="import-card-modal" style="display:none;position:fixed;inset:0;background:rgba(0,0,0,.5);z-index:210;align-items:center;justify-content:center;padding:18px">
+  <div style="background:#fff;border-radius:14px;padding:22px;width:100%;max-width:700px;max-height:92vh;display:flex;flex-direction:column">
+    <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:12px;gap:10px">
+      <div style="font-size:16px;font-weight:700;color:var(--navy)" id="ic-title">Card</div>
+      <button onclick="closeImportCard()" style="background:none;border:none;font-size:22px;cursor:pointer;color:var(--muted)">×</button>
+    </div>
+    <div style="overflow:auto;flex:1;display:flex;flex-direction:column;gap:12px">
+      <div class="ic-side">
+        <div class="ic-label">Front — question</div>
+        <div class="ic-body" id="ic-front"></div>
+      </div>
+      <div class="ic-side" style="background:#f7fffa;border-color:#dcfce7">
+        <div class="ic-label">Back — answer</div>
+        <div class="ic-body" id="ic-back"></div>
+      </div>
+      <div id="ic-tags" style="font-size:12px;color:var(--muted)"></div>
+    </div>
+    <div style="margin-top:14px">
+      <label style="display:block;font-size:12px;font-weight:600;color:var(--navy);margin-bottom:5px">Content area for this card</label>
+      <select id="ic-area" style="width:100%;padding:8px 10px;border:2px solid #e5e7eb;border-radius:8px;font-size:13px"></select>
+      <div id="ic-area-note" style="font-size:11.5px;color:var(--muted);margin-top:6px"></div>
+    </div>
+    <div style="display:flex;gap:8px;margin-top:14px;align-items:center;flex-wrap:wrap">
+      <button class="btn-secondary" id="ic-prev" onclick="importCardNav(-1)">← Previous</button>
+      <button class="btn-secondary" id="ic-next" onclick="importCardNav(1)">Next →</button>
+      <span style="font-size:11.5px;color:var(--muted)">← → arrow keys work too</span>
+      <button class="btn-primary" style="margin-left:auto" onclick="closeImportCard()">Done</button>
     </div>
   </div>
 </div>
@@ -4084,39 +4127,227 @@ function parseCSV(file){
         front, back,
         subject:normSubject(si>=0?cols[si]:'IM'),
         contentArea:ci>=0?(cols[ci]||'').trim():'',
-        tags:ti>=0?(cols[ti]||'').trim():''
+        tags:ti>=0?(cols[ti]||'').trim():'',
+        userArea:''            // set by hand on the review screen
       });
     }
     document.getElementById('csv-preview-label').textContent=`Preview: ${pendingCSV.length} cards`;
-    const tbody=document.getElementById('csv-preview-tbody');
-    tbody.innerHTML=pendingCSV.slice(0,10).map((c,i)=>`<tr><td>${i+1}</td><td style="max-width:200px">${escHtml(c.front.slice(0,80))}</td><td style="max-width:200px">${escHtml(c.back.slice(0,80))}</td><td>${escHtml(c.subject)}</td><td>${escHtml(c.contentArea)}</td></tr>`).join('');
-    if(pendingCSV.length>10) tbody.innerHTML+=`<tr><td colspan="5" style="color:var(--muted);font-style:italic">...and ${pendingCSV.length-10} more</td></tr>`;
     populateCsvAreas();
-  document.getElementById('csv-preview').style.display='';
+    importPage.csv=0;
+    closeImportCard();
+    renderImportRows('csv');
+    document.getElementById('csv-preview').style.display='';
   };
   reader.readAsText(file);
 }
 
+// ═══════════════════════════════════════════════════════════
+// IMPORT REVIEW  (v3.97 — shared by the CSV and .apkg previews)
+//
+// Nothing reaches the collection until it has been looked at. Every pending
+// card can be opened in full — both sides, rendered exactly as it will look
+// when studied — and filed by hand from the preview row or the viewer.
+// A card filed here carries `userArea`, which beats the deck-wide dropdown
+// and the auto-classifier; untouched cards behave exactly as before.
+// ═══════════════════════════════════════════════════════════
+const IMPORT_PAGE=25;
+const importPage={csv:0,apkg:0};
+let importView=null;                     // {kind,i} — card open in the viewer
+
+function pendingList(kind){ return kind==='csv'?pendingCSV:pendingApkg; }
+
+// The subject a content area implies (an ABPN area makes the card Psych).
+function areaSubject(area,fallback){
+  if(!area||area==='Uncategorized') return fallback;
+  return ABIM_CATEGORIES.some(k=>k.name===area)?'IM':'Psych';
+}
+
+// Deck-wide settings, read ONCE per render — detecting an .apkg's subject
+// walks the whole deck, so it must never happen per row.
+function importCtx(kind){
+  if(kind==='csv') return {kind, forced:((document.getElementById('csv-area')||{}).value)||''};
+  const mode=((document.getElementById('apkg-subject')||{}).value)||'Auto';
+  return {kind, forced:((document.getElementById('apkg-area')||{}).value)||'', eff:effectiveApkgSubject(mode)};
+}
+
+// Where row i would land right now, and why.
+//   origin: 'user' (picked here) · 'all' (deck-wide dropdown)
+//         · 'file' (CSV content_area column) · 'auto' (classifier)
+function importRowInfo(kind,i,ctx){
+  const c=pendingList(kind)[i]; if(!c) return null;
+  ctx=ctx||importCtx(kind);
+  const front=(c.front||'').trim(), back=(c.back||'').trim();
+  const base=kind==='csv'?c.subject:ctx.eff;
+  let area='', origin='';
+  if(c.userArea){ area=c.userArea; origin='user'; }
+  else if(ctx.forced){ area=ctx.forced; origin='all'; }
+  else if(kind==='csv' && c.contentArea && ALL_CATEGORIES.includes(c.contentArea)){ area=c.contentArea; origin='file'; }
+  else { area=autoCategorize(front,back,base,c.tags); origin='auto'; }
+  // An area chosen deliberately also settles the subject; auto/file keep theirs.
+  const subject=(origin==='user'||origin==='all')?areaSubject(area,base):base;
+  return {front,back,area,origin,subject,auto:origin==='auto',tags:c.tags||''};
+}
+
+// Same grouped area list as the cleanup modal, but the blank option here
+// means "hand this card back to the auto-sorter", not "leave it uncategorized".
+function importAreaOptions(selected){
+  return cleanupOptionsHtml(selected).replace(
+    '<option value="">— leave uncategorized —</option>',
+    '<option value="">— auto-sort this card —</option>');
+}
+
+const IMPORT_ORIGIN_NOTE={
+  user:{t:'you filed this',c:'#166534'},
+  all :{t:'whole-deck setting',c:'#1d4ed8'},
+  file:{t:'from the file',c:'var(--muted)'},
+  auto:{t:'auto-sorted',c:'var(--muted)'}
+};
+
+// The one-line explanation under each area picker. A card the classifier
+// couldn't place says so plainly instead of claiming it was "auto-sorted".
+function importOriginNote(r){
+  if(r.area==='Uncategorized') return {t:'no match — pick an area',c:'#c2410c'};
+  return IMPORT_ORIGIN_NOTE[r.origin];
+}
+
+function setImportArea(kind,i,val){
+  const c=pendingList(kind)[i]; if(!c) return;
+  c.userArea=val||'';
+  renderImportRows(kind);
+  if(importView&&importView.kind===kind&&importView.i===i) showImportCard();
+  toast(val?('This card → '+val):'This card goes back to auto-sorting');
+}
+function clearImportAreas(kind){
+  pendingList(kind).forEach(c=>{ c.userArea=''; });
+  renderImportRows(kind);
+  if(importView&&importView.kind===kind) showImportCard();
+  toast('Cleared your per-card picks');
+}
+function importPageBy(kind,d){ importPage[kind]+=d; renderImportRows(kind); }
+
+// One-line row preview. Image-only cards say so instead of looking empty.
+function importSnippet(html,n){
+  const t=stripHtml(html||'').replace(/\s+/g,' ').trim();
+  const img=/<img\b/i.test(String(html||''))?'🖼️ ':'';
+  if(!t) return img?img+'<span style="color:var(--muted);font-style:italic">image only</span>':'<span style="color:var(--muted)">—</span>';
+  return img+escHtml(t.slice(0,n))+(t.length>n?'…':'');
+}
+
+function renderImportRows(kind){
+  const list=pendingList(kind);
+  const tbody=document.getElementById(kind==='csv'?'csv-preview-tbody':'apkg-preview-tbody');
+  if(!tbody) return;
+  const cols=kind==='csv'?6:5;
+  const pages=Math.max(1,Math.ceil(list.length/IMPORT_PAGE));
+  importPage[kind]=Math.min(Math.max(0,importPage[kind]||0),pages-1);
+  const start=importPage[kind]*IMPORT_PAGE, end=Math.min(list.length,start+IMPORT_PAGE);
+  const ctx=importCtx(kind);
+  let html='';
+  for(let i=start;i<end;i++){
+    const r=importRowInfo(kind,i,ctx);
+    const note=importOriginNote(r);
+    const uncat=r.area==='Uncategorized';
+    const bd=r.origin==='user'?'#86efac':(uncat?'#f59e0b':'#e5e7eb');
+    const bg=r.origin==='user'?'#f0fdf4':(uncat?'#fffbeb':'#fff');
+    html+=`<tr>
+      <td style="font-size:12px;color:var(--muted);vertical-align:top">${i+1}</td>
+      <td style="max-width:230px;font-size:12.5px;vertical-align:top">${importSnippet(r.front,110)}</td>
+      <td style="max-width:230px;font-size:12.5px;vertical-align:top">${importSnippet(r.back,110)}</td>
+      ${kind==='csv'?`<td style="vertical-align:top">${subjectBadge(r.subject)}</td>`:''}
+      <td style="vertical-align:top">
+        <select onchange="setImportArea('${kind}',${i},this.value)" title="File this card here — it keeps this area when imported" style="max-width:210px;font-size:11.5px;padding:4px 6px;border:1px solid ${bd};border-radius:6px;background:${bg};color:${uncat?'#c2410c':'var(--navy)'}">${importAreaOptions(uncat?'':r.area)}</select>
+        <div style="font-size:10.5px;color:${note.c};margin-top:3px">${note.t}</div>
+      </td>
+      <td style="vertical-align:top"><button class="btn-secondary" style="padding:4px 9px;font-size:12px;white-space:nowrap" onclick="openImportCard('${kind}',${i})">👁 View</button></td>
+    </tr>`;
+  }
+  tbody.innerHTML=html||`<tr><td colspan="${cols}" style="padding:20px;text-align:center;color:var(--muted);font-size:13px">Nothing to preview</td></tr>`;
+  const pager=document.getElementById(kind==='csv'?'csv-preview-pager':'apkg-preview-pager');
+  if(!pager) return;
+  const hand=list.filter(c=>c.userArea).length;
+  pager.innerHTML=`<div style="display:flex;align-items:center;gap:8px;flex-wrap:wrap;margin-top:10px">
+      <button class="btn-secondary" style="padding:5px 11px;font-size:12px" ${start<=0?'disabled':''} onclick="importPageBy('${kind}',-1)">← Prev</button>
+      <button class="btn-secondary" style="padding:5px 11px;font-size:12px" ${end>=list.length?'disabled':''} onclick="importPageBy('${kind}',1)">Next →</button>
+      <span style="font-size:12px;color:var(--muted)">Showing ${list.length?start+1:0}–${end} of ${list.length}${hand?` · <strong style="color:#166534">${hand} filed by hand</strong>`:''}</span>
+      ${hand?`<button class="btn-secondary" style="padding:5px 11px;font-size:12px;margin-left:auto" onclick="clearImportAreas('${kind}')">Clear my picks</button>`:''}
+    </div>`;
+}
+
+// ── Full-card viewer ─────────────────────────────────────────────────
+// Renders each side the same way the study screen does (sanitize → hydrate
+// images), so what you approve here is literally what you will study.
+function importCardBody(raw){
+  const s=String(raw||'');
+  const inner=hydrateMedia(sanitizeHtml(s));
+  if(!inner.trim()) return '<span style="color:var(--muted);font-style:italic">(empty)</span>';
+  // Plain-text cards (CSV) keep their line breaks; HTML cards render as-is.
+  return /<[a-z!\/][^>]*>/i.test(s) ? inner : '<div style="white-space:pre-wrap">'+inner+'</div>';
+}
+function openImportCard(kind,i){
+  importView={kind,i};
+  document.getElementById('import-card-modal').style.display='flex';
+  showImportCard();
+}
+function closeImportCard(){
+  const m=document.getElementById('import-card-modal');
+  if(m) m.style.display='none';
+  importView=null;
+}
+function importCardNav(d){
+  if(!importView) return;
+  const list=pendingList(importView.kind);
+  const n=Math.min(Math.max(0,importView.i+d),list.length-1);
+  if(n===importView.i) return;
+  importView.i=n;
+  importPage[importView.kind]=Math.floor(n/IMPORT_PAGE);
+  renderImportRows(importView.kind);
+  showImportCard();
+}
+function showImportCard(){
+  if(!importView) return;
+  const kind=importView.kind, i=importView.i;
+  const list=pendingList(kind);
+  const r=importRowInfo(kind,i);
+  if(!r){ closeImportCard(); return; }
+  document.getElementById('ic-title').innerHTML=
+    `Card ${i+1} <span style="color:var(--muted);font-weight:600">of ${list.length}</span> &nbsp;${subjectBadge(r.subject)}`;
+  document.getElementById('ic-front').innerHTML=importCardBody(r.front);
+  document.getElementById('ic-back').innerHTML=importCardBody(r.back);
+  const tags=Array.isArray(r.tags)?r.tags.join(', '):String(r.tags||'');
+  document.getElementById('ic-tags').innerHTML=tags?`🏷️ ${escHtml(tags)}`:'';
+  const sel=document.getElementById('ic-area');
+  sel.innerHTML=importAreaOptions(r.area==='Uncategorized'?'':r.area);
+  sel.setAttribute('onchange',`setImportArea('${kind}',${i},this.value)`);
+  const note=importOriginNote(r);
+  document.getElementById('ic-area-note').innerHTML=
+    `<span style="color:${note.c};font-weight:600">${note.t}</span>`+
+    (r.origin==='user'?' — this card is imported under the area you picked.'
+                      :' — pick an area here if it looks wrong; the card is imported that way.');
+  document.getElementById('ic-prev').disabled=(i===0);
+  document.getElementById('ic-next').disabled=(i>=list.length-1);
+}
+
 function importCSV(){
-  let added=0, autoSorted=0;
-  // An explicit area beats both the file's column and the classifier.
-  const forced=(document.getElementById('csv-area')||{}).value||'';
-  pendingCSV.forEach(c=>{
-    if(c.front&&c.back){
-      let area=forced||c.contentArea;
-      // If no valid content area was supplied, read the card and auto-assign one.
-      if(!area || !ALL_CATEGORIES.includes(area)){
-        area=autoCategorize(c.front,c.back,c.subject,c.tags);
-        autoSorted++;
-      }
-      const subj=forced?(ABIM_CATEGORIES.some(k=>k.name===forced)?'IM':'Psych'):c.subject;
-      DB.cards.push(newCard(c.front,c.back,subj,area,c.tags));added++;
-    }
+  // Precedence: an area you set on the review screen beats the deck-wide
+  // dropdown, which beats the file's column, which beats the classifier.
+  const ctx=importCtx('csv');
+  let added=0, autoSorted=0, hand=0;
+  pendingCSV.forEach((c,i)=>{
+    if(!c.front||!c.back) return;
+    const r=importRowInfo('csv',i,ctx);
+    if(r.origin==='auto') autoSorted++;
+    if(r.origin==='user') hand++;
+    DB.cards.push(newCard(r.front,r.back,r.subject,r.area,c.tags));added++;
   });
   saveDB();
+  closeImportCard();
   document.getElementById('csv-preview').style.display='none';
   pendingCSV=[];
-  toast(`Imported ${added} cards${forced?` — all filed under ${forced}`:(autoSorted?` (${autoSorted} auto-categorized)`:'')}`);
+  const bits=[];
+  if(hand) bits.push(`${hand} filed by hand`);
+  if(ctx.forced) bits.push(hand?`the rest under ${ctx.forced}`:`all filed under ${ctx.forced}`);
+  if(autoSorted) bits.push(`${autoSorted} auto-categorized`);
+  toast(`Imported ${added} cards${bits.length?' — '+bits.join(' · '):''}`);
 }
 
 // ═══════════════════════════════════════════════════════════
@@ -4544,6 +4775,9 @@ async function parseApkg(file){
     }
 
     pendingApkg = cards;
+    apkgDetectedSubject=null;      // re-detect for this deck
+    importPage.apkg=0;
+    closeImportCard();
     status.innerHTML = imgCount ? `<div class="alert alert-success">Loaded ${imgCount} image${imgCount===1?'':'s'} from this deck.</div>` : '';
     showApkgPreview();
   }catch(err){
@@ -4606,15 +4840,13 @@ function detectDeckSubject(cards){
   return ps>=im ? 'Psych' : 'IM';
 }
 // Effective subject for the whole deck given the dropdown mode.
+// Detection walks the whole deck, so the answer is cached until a new file
+// is opened (parseApkg clears it).
+let apkgDetectedSubject=null;
 function effectiveApkgSubject(mode){
-  return mode==='Auto' ? detectDeckSubject(pendingApkg) : mode;
-}
-function resolveApkgCard(c, effSubject, forcedArea){
-  const front=(c.front||'').trim(), back=(c.back||'').trim();
-  // A deck you know is all one topic beats any classifier — when the area is
-  // set explicitly, don't second-guess it per card.
-  const area=forcedArea||autoCategorize(front,back,effSubject,c.tags);
-  return {front,back,subject:effSubject,area};
+  if(mode!=='Auto') return mode;
+  if(apkgDetectedSubject===null) apkgDetectedSubject=detectDeckSubject(pendingApkg);
+  return apkgDetectedSubject;
 }
 // Fill the "force this area" list, respecting specialty mode.
 function populateApkgAreas(){ populateAreaSelect('apkg-area'); }
@@ -4648,28 +4880,25 @@ function showApkgPreview(){
     ? ` · <strong style="color:#16a34a">${withSched}</strong> carry Anki progress (interval, ease, due date)${withSched<pendingApkg.length?`; ${pendingApkg.length-withSched} are new or mid-learning and will start fresh`:''}`
     : (pendingApkg.length?` · <span style="color:var(--muted)">no saved scheduling found in this deck — all cards start fresh</span>`:'');
   document.getElementById('apkg-preview-label').innerHTML=`Preview: ${pendingApkg.length} cards${detNote}${areaNote}${schedNote}`;
-  const tbody=document.getElementById('apkg-preview-tbody');
-  tbody.innerHTML=pendingApkg.slice(0,10).map((c,i)=>{
-    const r=resolveApkgCard(c,eff,forced);
-    return `<tr><td>${i+1}</td><td>${escHtml(stripHtml(c.front).slice(0,80))}</td><td>${escHtml(stripHtml(c.back).slice(0,80))}</td><td style="white-space:nowrap"><span style="font-size:11px;color:${r.area==='Uncategorized'?'#9ca3af':'var(--navy)'}">${escHtml(r.area)}</span></td></tr>`;
-  }).join('');
-  if(pendingApkg.length>10) tbody.innerHTML+=`<tr><td colspan="4" style="color:var(--muted);font-style:italic">...and ${pendingApkg.length-10} more</td></tr>`;
+  renderImportRows('apkg');
+  if(importView&&importView.kind==='apkg') showImportCard();
   document.getElementById('apkg-preview').style.display='';
   document.getElementById('apkg-status').innerHTML='';
 }
 
 function importApkg(){
-  const mode=document.getElementById('apkg-subject').value;
-  const eff=effectiveApkgSubject(mode);
   const keepSched=(document.getElementById('apkg-keep-sched')||{}).checked!==false;
-  const forcedArea=(document.getElementById('apkg-area')||{}).value||'';
-  let added=0, uncat=0, kept=0, fresh=0, susp=0;
-  pendingApkg.forEach(c=>{
+  // Same precedence as the preview showed: a card you filed on the review
+  // screen keeps that area, then the whole-deck setting, then the classifier.
+  const ctx=importCtx('apkg');
+  let added=0, uncat=0, kept=0, fresh=0, susp=0, hand=0;
+  pendingApkg.forEach((c,i)=>{
     // parseSQLiteAnki already cleans plain notes and intentionally formats
     // cloze cards (blank on front, highlighted reveal on back) — don't re-strip.
-    const r=resolveApkgCard(c,eff,forcedArea);
+    const r=importRowInfo('apkg',i,ctx);
     if(r.front&&r.back){
       if(r.area==='Uncategorized') uncat++;
+      if(r.origin==='user') hand++;
       const card=newCard(r.front,r.back,r.subject,r.area,c.tags||'');
       if(keepSched && c.sched){ applyAnkiSched(card,c.sched); kept++; if(c.sched.suspended) susp++; }
       else fresh++;
@@ -4677,9 +4906,12 @@ function importApkg(){
     }
   });
   saveDB();
+  closeImportCard();
   document.getElementById('apkg-preview').style.display='none';
   pendingApkg=[];
+  apkgDetectedSubject=null;
   const bits=[];
+  if(hand)  bits.push(`${hand} filed by hand`);
   if(kept)  bits.push(`${kept} kept their Anki progress`);
   if(fresh&&kept) bits.push(`${fresh} start fresh`);
   if(susp)  bits.push(`${susp} suspended`);
@@ -7528,6 +7760,16 @@ function seedSampleCards(){
 
 // Close modal on outside click
 document.getElementById('edit-modal').addEventListener('click',function(e){if(e.target===this)closeEditModal();});
+document.getElementById('import-card-modal').addEventListener('click',function(e){if(e.target===this)closeImportCard();});
+// Step through the cards being imported without leaving the keyboard.
+document.addEventListener('keydown',function(e){
+  if(!importView) return;
+  if(e.key==='Escape'){ closeImportCard(); return; }
+  const tag=(e.target.tagName||'').toLowerCase();
+  if(tag==='select'||tag==='input'||tag==='textarea'||e.target.isContentEditable) return;
+  if(e.key==='ArrowLeft'){ e.preventDefault(); importCardNav(-1); }
+  else if(e.key==='ArrowRight'){ e.preventDefault(); importCardNav(1); }
+});
 
 init();
 </script>
