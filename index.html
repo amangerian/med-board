@@ -1130,7 +1130,7 @@ front,back,subject,content_area,tags<br>
         <input type="number" id="set-daily-goal" min="1" max="500" onchange="saveSetting('dailyGoal',this.value)">
       </div>
       <div class="setting-row only-both" id="row-newmix">
-        <div><div class="setting-label">New-card mix (IM &amp; Psych)</div><div class="setting-desc">How new cards are chosen when both subjects have cards waiting. <strong>Balanced</strong> alternates IM and Psych so one specialty can't dominate, and within each subject it introduces your weakest, most heavily-tested areas first (the same ranking as "Study next"); <strong>By deck proportion</strong> matches each subject's share of your deck; <strong>Creation order</strong> introduces oldest-made cards first.</div></div>
+        <div><div class="setting-label">New-card mix (IM &amp; Psych)</div><div class="setting-desc">How new cards are chosen when both subjects have cards waiting. <strong>Balanced</strong> alternates IM and Psych so one specialty can't dominate, and within each subject it introduces your weakest, most heavily-tested areas first (the same ranking as "Study next"); <strong>By deck proportion</strong> matches each subject's share of your deck (also weakest-area-first within each subject); <strong>Creation order</strong> introduces oldest-made cards first.</div></div>
         <select id="set-newmix" onchange="saveSetting('newCardMix',this.value)" style="padding:6px 10px;border:2px solid #e5e7eb;border-radius:6px;font-size:14px">
           <option value="balanced">Balanced (alternate)</option>
           <option value="proportional">By deck proportion</option>
@@ -1535,7 +1535,7 @@ A: [answer]. Citation: Harrison's Principles of Internal Medicine, 21e, Ch. 245.
 // ═══════════════════════════════════════════════════════════
 // Bump this on every release. The sidebar renders from it, and it re-checks
 // for an optional sw.js after an update. The other copy lives in sw.js (CACHE).
-const APP_VERSION='3.97';
+const APP_VERSION='3.98';
 
 const ABIM_CATEGORIES = [
   {name:'Cardiovascular Disease',pct:14},
@@ -2043,7 +2043,7 @@ async function loadDB(){
   // Ask the browser not to evict our storage under disk pressure.
   try{ if(navigator.storage&&navigator.storage.persist) navigator.storage.persist(); }catch(e){}
   DB.cards=DB.cards||[];
-  DB.settings=Object.assign({name:'',newPerDay:10,dailyGoal:50,examDates:{},scheduler:'fsrs',targetRetention:90},DB.settings);
+  DB.settings=Object.assign({name:'',newPerDay:10,dailyGoal:50,examDates:{},scheduler:'fsrs',targetRetention:90,newCardMix:'balanced',studyFilter:'all'},DB.settings);
   DB.settings.examDates=DB.settings.examDates||{};
   DB.dailyLog=DB.dailyLog||{};
   DB.streak=DB.streak||{current:0,longest:0,lastDate:null};
@@ -2791,7 +2791,8 @@ function getDueCards(filter='all'){
 // Psych so a deck that happens to be built one-subject-first (as many are)
 // doesn't feed you weeks of a single specialty before the other appears.
 //   'balanced'     — round-robin across subjects (equal footing)
-//   'proportional' — mix matching each subject's share of the new-card pool
+//   'proportional' — mix matching each subject's share of the new-card pool,
+//                    weakest areas first within each subject
 //   'sequential'   — oldest-created first, regardless of subject (old behaviour)
 function pickNewCards(pool, limit){
   if(limit<=0 || !pool.length) return [];
@@ -2800,11 +2801,16 @@ function pickNewCards(pool, limit){
   const groups={IM:[],Psych:[],Both:[]};
   pool.forEach(c=>{ (groups[c.subject]||groups.IM).push(c); });
   const order=['IM','Psych','Both'].filter(k=>groups[k].length);
-  if(order.length<=1) return pool.slice(0,limit);   // single subject → nothing to balance
+  // Single subject (categorical resident, or the Study page filtered to one
+  // specialty) → no mixing to do, but still introduce weakest areas first.
+  if(order.length<=1) return orderByPriority(pool).slice(0,limit);
   const out=[];
   if(mix==='proportional'){
     // Fill by largest remaining share (Largest Remainder–style), so a 70/30
     // pool yields roughly 70/30 among today's new cards.
+    // Within each subject, same weakest-most-tested-first ordering as
+    // 'balanced'; only the IM:Psych ratio differs between the two modes.
+    order.forEach(k=>groups[k]=orderByPriority(groups[k]));
     const quota={}; order.forEach(k=>quota[k]=limit*groups[k].length/pool.length);
     const idx={}; order.forEach(k=>idx[k]=0);
     while(out.length<limit && order.some(k=>idx[k]<groups[k].length)){
@@ -3027,10 +3033,24 @@ function renderDashboard(){
 // STUDY
 // ═══════════════════════════════════════════════════════════
 function setStudyFilter(f, btn){
-  document.querySelectorAll('.filter-btn').forEach(b=>b.classList.remove('active'));
-  btn.classList.add('active');
   studyState.filter=f;
+  // Remember the choice across reloads — an IM-only push lasts weeks, not one
+  // session. Single-specialty mode keeps its own forced filter and never writes
+  // here, so switching back to Med-Psych restores whatever was last chosen.
+  if(currentSpecialty()==='both'){ DB.settings.studyFilter=f; saveDB(); }
+  syncStudyFilterUI();
   initStudy();
+}
+
+// Paint the active pill from studyState.filter (called on load, on navigation
+// to Study, and after every filter change).
+function syncStudyFilterUI(){
+  const row=document.getElementById('study-filter'); if(!row) return;
+  const want=studyState.filter||'all';
+  row.querySelectorAll('.filter-btn').forEach(b=>{
+    const m=/setStudyFilter\('([^']+)'/.exec(b.getAttribute('onclick')||'');
+    b.classList.toggle('active', !!m && m[1]===want);
+  });
 }
 
 function initStudy(){
@@ -3038,6 +3058,7 @@ function initStudy(){
   if(algoNote) algoNote.textContent=(DB.settings.scheduler||'fsrs')==='fsrs'
     ? `Spaced repetition — FSRS · target retention ${DB.settings.targetRetention||90}%`
     : 'Spaced repetition — SM-2 algorithm';
+  syncStudyFilterUI();
   const due=getDueCards(studyState.filter);
   document.getElementById('session-complete').style.display='none';
   document.getElementById('no-cards-msg').style.display='none';
@@ -3637,6 +3658,9 @@ function applySpecialty(){
     });
     studyState.filter=sp;
   } else {
+    // Med-Psych: the study-page subject filter is the user's own, so restore
+    // whatever they last picked rather than resetting to All each load.
+    studyState.filter=DB.settings.studyFilter||'all';
     ['card-subject','batch-subject','edit-subject','bulk-subject','extra-subject','apkg-subject'].forEach(id=>{
       const el=document.getElementById(id); if(!el) return;
       const wrap=el.closest('.form-group')||el.parentElement;
@@ -5802,10 +5826,21 @@ function saveName(v){
   if(typeof renderDashboard==='function') renderDashboard();
   toast(DB.settings.name?('Hi, '+DB.settings.name+'!'):'Greeting set to neutral');
 }
+// Settings arrive from both number inputs and <select> dropdowns. Numeric keys
+// are validated and coerced; everything else (e.g. newCardMix) is stored as the
+// string it is — parseInt'ing those used to yield NaN and silently reject the
+// change, which is why the New-card mix dropdown always snapped back.
+const NUMERIC_SETTINGS={newPerDay:1,dailyGoal:1};
 function saveSetting(key,val){
-  const n=parseInt(val,10);
-  if(isNaN(n)||n<1){ toast('Enter a number of at least 1'); renderSettings(); return; }
-  DB.settings[key]=n; saveDB(); toast('Setting saved');
+  const min=NUMERIC_SETTINGS[key];
+  if(min!==undefined){
+    const n=parseInt(val,10);
+    if(isNaN(n)||n<min){ toast('Enter a number of at least '+min); renderSettings(); return; }
+    DB.settings[key]=n;
+  } else {
+    DB.settings[key]=val;
+  }
+  saveDB(); toast('Setting saved');
 }
 
 // ═══════════════════════════════════════════════════════════
@@ -7764,6 +7799,7 @@ async function init(){
   setupMKSAPDrop();
   setupPRITEDrop();
   applySpecialty();
+  syncStudyFilterUI();
 
   seedSampleCards();
 
