@@ -4,7 +4,7 @@
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover">
 <title>MedBoard Prep — IM & Psych Residency Dashboard</title>
-<!-- PWA (v3.97): installable to a phone home screen when served over https.
+<!-- PWA (v3.99): installable to a phone home screen when served over https.
      Harmless no-ops when opened as a local file.
      The manifest and both icons are built below instead of being shipped as
      separate files, so the entire app is ONE uploadable index.html. -->
@@ -72,6 +72,11 @@ nav{padding:12px 0;flex:1}
 .nav-item.active{background:rgba(255,255,255,.12);color:#fff;border-left-color:#60a5fa}
 .nav-icon{font-size:16px;width:20px;text-align:center}
 #sidebar-footer{padding:16px 20px;border-top:1px solid rgba(255,255,255,.1)}
+.area-cell{display:inline-block;max-width:190px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;vertical-align:middle;padding:4px 6px;border:1px solid #e5e7eb;border-radius:6px;color:var(--muted);cursor:pointer}
+.area-cell:hover{border-color:var(--blue);color:var(--navy)}
+.area-cell.area-uncat{border-color:#f59e0b;background:#fffbeb;color:#c2410c}
+#browser-pager{display:flex;align-items:center;justify-content:center;gap:14px;padding:12px 0 2px}
+#browser-pager:empty{display:none}
 .subject-badge{display:inline-block;padding:2px 8px;border-radius:20px;font-size:11px;font-weight:600}
 .badge-im{background:#dbeafe;color:#1d4ed8}
 .badge-psych{background:#f3e8ff;color:#7c3aed}
@@ -300,7 +305,7 @@ body[data-specialty="Psych"] .only-both{display:none!important}
     <div class="nav-item" onclick="navigate('settings')"><span class="nav-icon">⚙️</span><span>Settings</span></div>
   </nav>
   <div id="sidebar-footer">
-    <div id="app-version" style="color:rgba(255,255,255,.4);font-size:11px" title="Read the whole card and file it while importing">v3.97 · ABIM &amp; ABPN 2026</div>
+    <div id="app-version" style="color:rgba(255,255,255,.4);font-size:11px" title="Read the whole card and file it while importing">v3.99 · updated 2026-09-05</div>
   </div>
 </div>
 
@@ -576,16 +581,16 @@ NOTES:
   </div>
   <div style="display:flex;gap:10px;margin-bottom:16px;flex-wrap:wrap">
     <input type="text" id="browser-search" placeholder="Search cards..." style="padding:9px 14px;border:2px solid #e5e7eb;border-radius:8px;font-size:14px;flex:1;min-width:200px" oninput="debouncedRenderBrowser()">
-    <select id="browser-subject" onchange="renderBrowser()" style="padding:9px 12px;border:2px solid #e5e7eb;border-radius:8px;font-size:14px">
+    <select id="browser-subject" onchange="browserFilterChanged()" style="padding:9px 12px;border:2px solid #e5e7eb;border-radius:8px;font-size:14px">
       <option value="all">All Subjects</option>
       <option value="IM">Internal Medicine</option>
       <option value="Psych">Psychiatry</option>
       <option value="Both">Both</option>
     </select>
-    <select id="browser-area" onchange="renderBrowser()" style="padding:9px 12px;border:2px solid #e5e7eb;border-radius:8px;font-size:14px">
+    <select id="browser-area" onchange="browserFilterChanged()" style="padding:9px 12px;border:2px solid #e5e7eb;border-radius:8px;font-size:14px">
       <option value="all">All Areas</option>
     </select>
-    <select id="browser-flag" onchange="renderBrowser()" style="padding:9px 12px;border:2px solid #e5e7eb;border-radius:8px;font-size:14px">
+    <select id="browser-flag" onchange="browserFilterChanged()" style="padding:9px 12px;border:2px solid #e5e7eb;border-radius:8px;font-size:14px">
       <option value="all">All Cards</option>
       <option value="flagged">🚩 Flagged only</option>
       <option value="suspended">⏸ Suspended only</option>
@@ -606,6 +611,7 @@ NOTES:
   </div>
   <div id="bulk-bar" style="display:none;align-items:center;gap:12px;flex-wrap:wrap;background:var(--light-blue);border:1px solid #bcdcf5;border-radius:8px;padding:10px 14px;margin-bottom:12px">
     <span id="bulk-count" style="font-weight:700;color:var(--navy);font-size:13px">0 selected</span>
+    <span id="bulk-selectall"></span>
     <div style="display:flex;align-items:center;gap:6px">
       <label style="font-size:12px;color:var(--muted);font-weight:600">Subject:</label>
       <select id="bulk-subject" style="padding:6px 8px;border:2px solid #e5e7eb;border-radius:6px;font-size:13px">
@@ -629,7 +635,7 @@ NOTES:
     <div class="table-wrap">
       <table id="browser-table">
         <thead><tr>
-          <th style="width:34px"><input type="checkbox" id="browser-select-all" onclick="toggleSelectAll(this)" title="Select all shown"></th>
+          <th style="width:34px"><input type="checkbox" id="browser-select-all" onclick="toggleSelectAll(this)" title="Select every card on this page"></th>
           <th class="sortable" onclick="setBrowserSort('front')">Front (Question)<span class="sort-ind" id="si-front"></span></th>
           <th class="sortable" onclick="setBrowserSort('subject')">Subject<span class="sort-ind" id="si-subject"></span></th>
           <th class="sortable" onclick="setBrowserSort('area')">Content Area<span class="sort-ind" id="si-area"></span></th>
@@ -641,6 +647,7 @@ NOTES:
         <tbody id="browser-tbody"></tbody>
       </table>
     </div>
+    <div id="browser-pager"></div>
     <div id="browser-empty" style="display:none;text-align:center;padding:40px;color:var(--muted)">No cards found</div>
   </div>
 </div>
@@ -678,6 +685,7 @@ NOTES:
         <button class="btn-danger" style="padding:7px 14px;font-size:12.5px" onclick="clearStoredMedia()">Remove all stored images</button>
       </div>
       <div id="media-missing-list" style="margin-top:14px"></div>
+      <div id="media-storage"></div>
     </div>
   </div>
   <div id="import-tab-csv" class="tab-content active">
@@ -1535,7 +1543,8 @@ A: [answer]. Citation: Harrison's Principles of Internal Medicine, 21e, Ch. 245.
 // ═══════════════════════════════════════════════════════════
 // Bump this on every release. The sidebar renders from it, and it re-checks
 // for an optional sw.js after an update. The other copy lives in sw.js (CACHE).
-const APP_VERSION='3.98';
+const APP_VERSION='3.99';
+const APP_UPDATED='2026-09-05';   // shown in the sidebar so users can see which build they have
 
 const ABIM_CATEGORIES = [
   {name:'Cardiovascular Disease',pct:14},
@@ -1789,8 +1798,8 @@ function scoreKeywords(text, keywords){
 // often names a shared treatment, so front matches count more. Anki/CSV tags
 // are curated topic hints and count most.
 function autoCategorize(front, back, subject, tags){
-  const f=expandAbbrev(stripHtml(front||'').toLowerCase());
-  const b=expandAbbrev(stripHtml(back||'').toLowerCase());
+  const f=expandAbbrev(stripHtmlFast(front||'').toLowerCase());
+  const b=expandAbbrev(stripHtmlFast(back||'').toLowerCase());
   let tagText = Array.isArray(tags)?tags.join(' '):(tags?String(tags):'');
   tagText = ' '+expandAbbrev(tagText.toLowerCase().replace(/[^a-z0-9]+/g,' ').trim())+' ';
   let cats;
@@ -1873,10 +1882,14 @@ let studyState = {
 };
 
 let pendingCSV = [];
+let pendingSrc = {csv:'',apkg:''};   // file each pending batch came from
 let pendingApkg = [];
 let editingCardId = null;
-let selectedCards = new Set();   // ids selected in Card Browser
-let browserShownIds = [];        // ids currently visible (post-filter) in Card Browser
+let selectedCards = new Set();     // ids selected in Card Browser
+let browserShownIds = new Set();   // ids matching the current filter (all pages)
+let browserPageIds = [];           // ids drawn on the page you're looking at
+let browserPage = 0;               // which page of the filtered list is drawn
+const BROWSER_PAGE = 100;
 let activityChart = null, trendReviewsChart = null, trendAccuracyChart = null, forecastChart = null, maturityChart = null;
 
 // ═══════════════════════════════════════════════════════════
@@ -1993,6 +2006,25 @@ function referencedImageNames(){
 }
 // Swap bare filenames for object URLs at render time; anything still missing
 // becomes a labelled placeholder instead of a broken-image icon.
+// v3.99: images are no longer all loaded up front. hydrateMedia emits an <img>
+// carrying the filename but no src, and resolveCardImages() fills in a blob URL
+// for the handful of pictures actually on screen. `mediaNames` — one cheap
+// getAllKeys at startup — still answers "do we have this file?" synchronously,
+// so the missing-image note below behaves exactly as before.
+// sanitizeHtml() assigns to innerHTML, and a browser starts fetching every src
+// the instant it does — so showing a card used to fire a doomed request for
+// "paste-abc.jpg" against the site's own origin before hydrateMedia could swap
+// in the stored copy. Park the attribute out of the parser's reach first.
+function deferImageSrc(html){
+  if(!html || html.indexOf('<img')<0) return html||'';
+  return String(html).replace(/<img\b[^>]*>/gi, tag=>
+    /\ssrc\s*=\s*["']?\s*(data:|blob:|https?:)/i.test(tag) ? tag      // already usable
+                                                          : tag.replace(/\ssrc\s*=/i,' data-mb-src='));
+}
+// The one way card content should reach the DOM: no stray fetches, scripts
+// stripped, stored pictures swapped in.
+function renderCardHtml(html){ return hydrateMedia(sanitizeHtml(deferImageSrc(html))); }
+
 function hydrateMedia(html){
   if(!html || html.indexOf('<img')<0) return html||'';
   // Unresolved images are dropped silently and summarised in ONE note at the
@@ -2000,30 +2032,96 @@ function hydrateMedia(html){
   // through the middle of the text, which was worse than the missing images.
   let missing=0;
   const out=String(html).replace(/<img\b[^>]*>/gi, tag=>{
-    const m=tag.match(/src\s*=\s*["']?([^"'>\s]+)["']?/i);
+    // data-mb-src first: deferImageSrc parks the filename there, and a bare
+    // /src=/ would also match inside that attribute name.
+    const m=tag.match(/\bdata-mb-src\s*=\s*["']?([^"'>\s]+)["']?/i)
+          || tag.match(/\bsrc\s*=\s*["']?([^"'>\s]+)["']?/i);
     if(!m) return tag;
     const raw=m[1];
     if(/^(data:|blob:|https?:)/i.test(raw)) return tag;    // already usable
     let fn=raw; try{ fn=decodeURIComponent(fn); }catch(_){}
-    const url=mediaUrls.get(fn)||mediaUrls.get(raw);
-    if(url) return '<img src="'+url+'" class="card-img" alt="'+escHtml(fn)+'">';
+    const key=mediaNames.has(fn)?fn:(mediaNames.has(raw)?raw:null);
+    if(key){
+      // A URL already in the cache paints immediately; otherwise the src is
+      // filled in a beat later, which is what every other image on the web does.
+      const cached=mediaUrls.get(key);
+      return '<img'+(cached?' src="'+cached+'"':'')+' data-mb="'+escHtml(key)+'" class="card-img" alt="'+escHtml(key)+'">';
+    }
     missing++;
     return '';
   });
   if(!missing) return out;
   return out+`<div class="img-missing">🖼️ ${missing===1?'1 image':missing+' images'} not loaded — add ${missing===1?'it':'them'} under Cards → Import → Card images</div>`;
 }
-// Build object URLs for every stored image so rendering stays synchronous.
+
+// ── Bounded image-URL cache ────────────────────────────────────────────────
+// A blob URL pins its blob in memory for as long as it exists, so a deck with
+// 2,000 pictures used to hold every one of them for the entire session. Only a
+// few are ever on screen: keep a most-recently-used set and revoke the rest.
+const MEDIA_URL_CAP=300;
+function touchMediaUrl(name){
+  // Map preserves insertion order, so delete+set moves an entry to the new end.
+  const url=mediaUrls.get(name);
+  if(url===undefined) return undefined;
+  mediaUrls.delete(name); mediaUrls.set(name,url);
+  return url;
+}
+function trimMediaUrls(){
+  while(mediaUrls.size>MEDIA_URL_CAP){
+    const oldest=mediaUrls.keys().next().value;
+    const url=mediaUrls.get(oldest);
+    mediaUrls.delete(oldest);
+    // Never revoke a URL still painted on screen — that would blank the image.
+    if(url && !document.querySelector('img[src="'+url+'"]')){
+      try{ URL.revokeObjectURL(url); }catch(e){}
+    }
+  }
+}
+// Fill in the <img> placeholders inside `el`. Safe to call on any container.
+async function resolveCardImages(el){
+  if(!el) return;
+  const pending=[...el.querySelectorAll('img[data-mb]:not([src])')];
+  if(!pending.length) return;
+  // A single card rarely repeats a picture, but a preview list can — load once.
+  const wanted=[...new Set(pending.map(n=>n.getAttribute('data-mb')))];
+  for(const name of wanted){
+    let url=touchMediaUrl(name);
+    if(url===undefined){
+      const blob=await idbMediaGet(name);
+      if(!blob) continue;
+      try{ url=URL.createObjectURL(blob); }catch(e){ continue; }
+      mediaUrls.set(name,url);
+      trimMediaUrls();
+    }
+    // Compare the attribute rather than building a selector: filenames come
+    // from Anki and can contain anything.
+    pending.forEach(n=>{ if(n.getAttribute('data-mb')===name && !n.getAttribute('src')) n.src=url; });
+  }
+}
+// Set card HTML and start resolving its pictures. Rendering stays synchronous.
+function setCardHtml(el, html){
+  if(!el) return;
+  el.innerHTML=html;
+  resolveCardImages(el);
+}
+// Startup reads only the KEY LIST — no blobs, no object URLs. This used to be
+// one sequential IndexedDB read per stored image before the app could draw
+// anything, which on a 2,000-image collection meant a visibly slow cold start
+// and a few hundred MB pinned in memory for the whole session.
 async function primeMediaCache(){
   const keys=await idbMediaKeys();
   mediaNames=new Set(keys);
-  for(const k of keys){
-    if(mediaUrls.has(k)) continue;
-    const blob=await idbMediaGet(k);
-    if(blob){ try{ mediaUrls.set(k, URL.createObjectURL(blob)); }catch(e){} }
-  }
   return keys.length;
 }
+
+// referencedImageNames() regex-scans every card, and renderBrowser calls it on
+// every keystroke in the search box. Cache it; saveDB() clears the cache.
+let _refImgCache=null;
+function referencedImageNamesCached(){
+  if(!_refImgCache) _refImgCache=referencedImageNames();
+  return _refImgCache;
+}
+function invalidateImageIndex(){ _refImgCache=null; }
 
 async function loadDB(){
   idb=await idbOpen();
@@ -2063,6 +2161,7 @@ async function loadDB(){
 // collapsing bursts of saves (bulk imports, rapid reviews) into one write.
 function saveDB(){
   dbDirty=true;
+  invalidateImageIndex();   // card text may have changed which images are referenced
   if(!dbFlushTimer) dbFlushTimer=setTimeout(flushDB,300);
 }
 function flushDB(){
@@ -2135,6 +2234,18 @@ function currentStreak(){
 }
 function subjectBadge(s){return `<span class="subject-badge badge-${String(s||'IM').toLowerCase()}">${s==='IM'?'IM':s==='Psych'?'Psych':'Both'}</span>`;}
 function stripHtml(h){const d=document.createElement('div');d.innerHTML=h;return d.textContent||d.innerText||'';}
+// Regex-only text extraction. stripHtml() above assigns to innerHTML, and the
+// browser then tries to FETCH every <img> in the string — harmless for one
+// card, thousands of requests when it runs across the whole collection
+// (searching, sorting by Front, scanning an import for duplicates). Use this
+// wherever the text is wanted for matching or display rather than rendering.
+function stripHtmlFast(h){
+  return String(h==null?'':h)
+    .replace(/<[^>]*>/g,' ')
+    .replace(/&nbsp;/gi,' ').replace(/&amp;/gi,'&').replace(/&lt;/gi,'<').replace(/&gt;/gi,'>')
+    .replace(/&#39;|&rsquo;/gi,"'").replace(/&quot;/gi,'"')
+    .replace(/\s+/g,' ').trim();
+}
 // Escape text for safe interpolation into HTML (tables, previews, toasts).
 function escHtml(s){return String(s==null?'':s).replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/"/g,'&quot;').replace(/'/g,'&#39;');}
 // Sanitize card HTML for display: keeps benign markup (img, span, br) but
@@ -2347,7 +2458,7 @@ const HEALTH_MIN_REVIEWS=6, HEALTH_MIN_LAPSES=4, HEALTH_MIN_RATE=0.40;
 function cardLapses(c){ const g=c.gradeCounts; return g?(g.again||0):Math.max(0,(c.totalReviews||0)-(c.correctReviews||0)); }
 // Why is this card hard? Returns the structural problems worth naming.
 function cardComplexity(c){
-  const front=stripHtml(c.front||''), back=stripHtml(c.back||'');
+  const front=stripHtmlFast(c.front||''), back=stripHtmlFast(c.back||'');
   const issues=[];
   const blanks=(front.match(/\[[^\]]*\]/g)||[]).length;
   const words=back.split(/\s+/).filter(Boolean).length;
@@ -2381,7 +2492,7 @@ function openCardHealth(){
       ? `<span style="color:#b45309">Looks overloaded — ${issues.map(i=>i.t).join(', ')}.</span>`
       : `<span style="color:var(--muted)">Structurally fine — this one may just need a mnemonic or a clearer answer.</span>`;
     return `<div style="padding:10px 0;border-bottom:1px solid #f3f4f6">
-      <div style="font-size:13px;color:var(--navy);line-height:1.45">${escHtml(stripHtml(c.front).slice(0,160))}</div>
+      <div style="font-size:13px;color:var(--navy);line-height:1.45">${escHtml(stripHtmlFast(c.front).slice(0,160))}</div>
       <div style="font-size:11.5px;margin-top:4px"><strong style="color:#b91c1c">missed ${lp} of ${tr}</strong> · ${diag}</div>
     </div>`;
   }).join('')||'<p style="color:var(--muted);font-size:13px;padding:12px 0">Nothing is tripping you up right now.</p>';
@@ -2396,7 +2507,7 @@ function buildHealthPrompt(){
   if(!healthTargets.length){ toast('Nothing to rewrite'); return; }
   const body=healthTargets.map((c,i)=>{
     const issues=cardComplexity(c).map(x=>x.t).join('; ');
-    return `--- CARD ${i+1} (${c.contentArea||'uncategorised'}${issues?' — '+issues:''})\nFRONT: ${stripHtml(c.front).slice(0,700)}\nBACK: ${stripHtml(c.back).slice(0,900)}`;
+    return `--- CARD ${i+1} (${c.contentArea||'uncategorised'}${issues?' — '+issues:''})\nFRONT: ${stripHtmlFast(c.front).slice(0,700)}\nBACK: ${stripHtmlFast(c.back).slice(0,900)}`;
   }).join('\n\n');
   const prompt=`I'm a resident studying for boards with spaced repetition. The ${healthTargets.length} card${healthTargets.length===1?'':'s'} below ${healthTargets.length===1?'is one I keep':'are ones I keep'} failing — I've reviewed each at least six times and still miss ${healthTargets.length===1?'it':'them'} more often than not.
 
@@ -2754,8 +2865,12 @@ function updateStreak(){
 // ═══════════════════════════════════════════════════════════
 // CARD CRUD
 // ═══════════════════════════════════════════════════════════
-function newCard(front, back, subject, contentArea, tags=''){
-  return {
+// `meta` records where a card came from: Anki's own note id (guid) when there
+// is one, plus the file it arrived in. Without it, re-importing an updated deck
+// silently gives you a second copy of everything with no way to tell which
+// batch is which.
+function newCard(front, back, subject, contentArea, tags='', meta=null){
+  const c={
     id:uuid(), front:front.trim(), back:back.trim(),
     subject, contentArea, tags:tags.split(',').map(t=>t.trim()).filter(Boolean),
     interval:1, repetitions:0, efactor:2.5,
@@ -2763,6 +2878,80 @@ function newCard(front, back, subject, contentArea, tags=''){
     gradeCounts:{again:0,hard:0,good:0,easy:0},
     lastReview:null, createdDate:today(), suspended:false, introducedDate:null, flagged:false
   };
+  if(meta){
+    if(meta.guid) c.guid=meta.guid;
+    if(meta.src){ c.src=meta.src; c.imported=today(); }
+  }
+  return c;
+}
+
+// ── DUPLICATE DETECTION (v3.99) ────────────────────────────────────────────
+// Two ways to recognise a card you already have, in order of confidence:
+//   • guid  — Anki's own note id. Exact, survives edits on either side.
+//   • text  — the normalised question. Best effort for CSV and hand-made
+//             cards, which carry no id at all.
+// Text matching deliberately only reports; it never removes anything on its
+// own, because legitimate sibling and cloze cards can share a question stem.
+function dupTextKey(front){
+  return stripHtmlFast(front).toLowerCase().replace(/[^a-z0-9]+/g,' ').trim();
+}
+function buildDupIndex(){
+  const byGuid=new Map(), byText=new Map();
+  (DB.cards||[]).forEach(c=>{
+    if(c.guid && !byGuid.has(c.guid)) byGuid.set(c.guid,c);
+    const k=dupTextKey(c.front);
+    if(k && !byText.has(k)) byText.set(k,c);
+  });
+  return {byGuid,byText};
+}
+// For each pending row: null, or {how:'guid'|'text', card} for what it matches.
+function scanImportDupes(kind){
+  const list=pendingList(kind), idx=buildDupIndex(), out=[];
+  let guidHits=0, textHits=0;
+  list.forEach(c=>{
+    let hit=null;
+    if(c.guid && idx.byGuid.has(c.guid)){ hit={how:'guid',card:idx.byGuid.get(c.guid)}; guidHits++; }
+    else {
+      const k=dupTextKey(c.front);
+      if(k && idx.byText.has(k)){ hit={how:'text',card:idx.byText.get(k)}; textHits++; }
+    }
+    out.push(hit);
+  });
+  return {hits:out, guidHits, textHits, total:guidHits+textHits};
+}
+let dupScan={csv:null,apkg:null};
+function dupMode(kind){
+  const el=document.getElementById(kind+'-dup-mode');
+  return (el&&el.value)||'skip';
+}
+function setDupMode(kind,v){ renderDupBox(kind); }
+// The banner above the import preview. Silent when there's nothing to report.
+function renderDupBox(kind){
+  const label=document.getElementById(kind==='csv'?'csv-preview-label':'apkg-preview-label');
+  if(!label) return;
+  let box=document.getElementById(kind+'-dup-box');
+  if(!box){
+    box=document.createElement('div');
+    box.id=kind+'-dup-box';
+    box.style.cssText='margin:10px 0';
+    label.insertAdjacentElement('afterend',box);
+  }
+  const sc=dupScan[kind];
+  if(!sc || !sc.total){ box.innerHTML=''; return; }
+  const cur=dupMode(kind);
+  const parts=[];
+  if(sc.guidHits) parts.push(`<strong>${sc.guidHits}</strong> ${sc.guidHits===1?'is the same Anki note':'are the same Anki notes'} as ${sc.guidHits===1?'a card':'cards'} you already have`);
+  if(sc.textHits) parts.push(`<strong>${sc.textHits}</strong> ${sc.textHits===1?'has':'have'} the same question text as an existing card`);
+  box.innerHTML=`<div class="alert alert-warn" style="margin:0">
+    <div style="margin-bottom:8px">${parts.join(' · ')}.</div>
+    <label style="font-size:12.5px;font-weight:600;color:var(--navy);margin-right:8px">What should happen to those?</label>
+    <select id="${kind}-dup-mode" onchange="setDupMode('${kind}',this.value)" style="padding:6px 8px;border:2px solid #e5e7eb;border-radius:6px;font-size:13px">
+      <option value="skip"${cur==='skip'?' selected':''}>Skip them — import only what's new</option>
+      <option value="update"${cur==='update'?' selected':''}>Update the existing card's front &amp; back</option>
+      <option value="keep"${cur==='keep'?' selected':''}>Import anyway — I want both copies</option>
+    </select>
+    ${cur==='update'?'<div style="margin-top:8px;font-size:12px;color:#9a3412">Updating overwrites the wording of those cards, including any edits you made by hand here. Their review history and scheduling are kept.</div>':''}
+  </div>`;
 }
 
 // Returns the cards actually studyable today: all due REVIEW cards, plus up to
@@ -3201,7 +3390,7 @@ function showCurrentCard(){
   fc.classList.remove('flipped');
   void fc.offsetWidth;               // force reflow so the snap applies
   fc.style.transition='';
-  document.getElementById('fc-front-text').innerHTML=hydrateMedia(sanitizeHtml(card.front));
+  setCardHtml(document.getElementById('fc-front-text'), renderCardHtml(card.front));
   // Answer is only loaded into the back face on flip (see flipCard), so it
   // can never be glimpsed early even if a browser skips the snap.
   document.getElementById('fc-back-text').innerHTML='';
@@ -3230,7 +3419,7 @@ function flipCard(){
     // First flip: load and reveal the answer, show the rating bar.
     studyState.revealed=true;
     studyState.flipped=true;
-    document.getElementById('fc-back-text').innerHTML=hydrateMedia(sanitizeHtml(card.back));
+    setCardHtml(document.getElementById('fc-back-text'), renderCardHtml(card.back));
     fc.classList.add('flipped');
     document.getElementById('fc-hint').innerHTML='How well did you know this? &nbsp;<span style="color:var(--muted)">Press <kbd>A</kbd> <kbd>S</kbd> <kbd>D</kbd> <kbd>F</kbd> · <kbd>Z</kbd> undoes · tap card to re-read</span>';
     document.getElementById('rating-row').style.display='grid';
@@ -3455,11 +3644,12 @@ const BROWSER_SORT_NUMERIC=new Set(['acc','reviews','due']);
 function setBrowserSort(key){
   if(browserSort.key===key) browserSort.dir=-browserSort.dir;
   else browserSort={key, dir: BROWSER_SORT_NUMERIC.has(key) ? -1 : 1};
+  browserPage=0;
   renderBrowser();
 }
 function browserSortValue(c,key){
   switch(key){
-    case 'front':   return stripHtml(c.front||'').trim().toLowerCase();
+    case 'front':   return stripHtmlFast(c.front).toLowerCase();
     case 'subject': return (c.subject||'').toLowerCase();
     case 'area':    return (c.contentArea||'Uncategorized').toLowerCase();
     // Suspended cards have no meaningful due date — park them at the end.
@@ -3493,8 +3683,11 @@ function updateSortIndicators(){
 let browserSearchTimer=null;
 function debouncedRenderBrowser(){
   clearTimeout(browserSearchTimer);
-  browserSearchTimer=setTimeout(renderBrowser,200);
+  browserSearchTimer=setTimeout(browserFilterChanged,200);
 }
+// Any change to what's being listed sends you back to the first page —
+// otherwise a narrower filter can strand you on a page that no longer exists.
+function browserFilterChanged(){ browserPage=0; renderBrowser(); }
 function renderBrowser(){
   const search=document.getElementById('browser-search').value.toLowerCase();
   const subj=document.getElementById('browser-subject').value;
@@ -3515,8 +3708,8 @@ function renderBrowser(){
   // Missing-image banner — images referenced by cards but not stored here.
   const mb=document.getElementById('missing-img-banner');
   if(mb){
-    const need=referencedImageNames();
-    const miss=[...need].filter(n=>!mediaUrls.has(n)).length;
+    const need=referencedImageNamesCached();
+    const miss=[...need].filter(n=>!mediaNames.has(n)).length;
     mb.style.display=miss?'flex':'none';
     const mc=document.getElementById('missing-img-count'); if(mc) mc.textContent=miss;
   }
@@ -3534,7 +3727,7 @@ function renderBrowser(){
     if(search){
       // Search visible text + tags, not raw HTML (so "png" doesn't match every
       // card with an embedded image).
-      const hay=(stripHtml(c.front)+' '+stripHtml(c.back)+' '+(c.tags||[]).join(' ')).toLowerCase();
+      const hay=(stripHtmlFast(c.front)+' '+stripHtmlFast(c.back)+' '+(c.tags||[]).join(' ')).toLowerCase();
       if(!hay.includes(search)) return false;
     }
     return true;
@@ -3545,13 +3738,29 @@ function renderBrowser(){
 
   filtered=applyBrowserSort(filtered);
   updateSortIndicators();
-  browserShownIds=filtered.map(c=>c.id);
-  selectedCards.forEach(id=>{ if(!browserShownIds.includes(id)) selectedCards.delete(id); });
+  browserShownIds=new Set(filtered.map(c=>c.id));
+  // Set membership, not Array.includes — select-all on a few thousand cards
+  // used to be quadratic and ran on every keystroke in the search box.
+  selectedCards.forEach(id=>{ if(!browserShownIds.has(id)) selectedCards.delete(id); });
 
-  if(filtered.length===0){tbody.innerHTML='';empty.style.display='';updateBulkBar();return;}
+  if(filtered.length===0){
+    tbody.innerHTML=''; empty.style.display=''; browserPageIds=[];
+    renderBrowserPager(0,1); updateBulkBar(); return;
+  }
   empty.style.display='none';
+
+  // Only one page is drawn. This table used to build a row per matching card,
+  // each carrying its own 42-option <select> — roughly 300,000 nodes in a
+  // single innerHTML at 4,000 cards, which locks up a phone. The area picker
+  // is now a plain cell that becomes a <select> when you click it.
+  const pages=Math.max(1,Math.ceil(filtered.length/BROWSER_PAGE));
+  if(browserPage>=pages) browserPage=pages-1;
+  if(browserPage<0) browserPage=0;
+  const pageRows=filtered.slice(browserPage*BROWSER_PAGE,(browserPage+1)*BROWSER_PAGE);
+  browserPageIds=pageRows.map(c=>c.id);
+
   const t=today();
-  tbody.innerHTML=filtered.map(c=>{
+  tbody.innerHTML=pageRows.map(c=>{
     const acc=c.totalReviews>0?Math.round(c.correctReviews/c.totalReviews*100)+'%':'—';
     const nrev=c.totalReviews||0;
     const due=c.suspended?'<span style="color:#9ca3af;font-weight:600">⏸ suspended</span>':(c.dueDate<=t?'<span style="color:#dc2626;font-weight:600">Due</span>':c.dueDate);
@@ -3561,9 +3770,9 @@ function renderBrowser(){
     const rowStyle=(selectedCards.has(c.id)?'background:#eef6ff;':'')+(c.suspended?'opacity:.55;':'');
     return `<tr class="card-row"${rowStyle?` style="${rowStyle}"`:''}>
       <td><input type="checkbox" class="row-check" ${checked} onclick="toggleCardSelect('${c.id}',this)"></td>
-      <td style="max-width:260px"><div style="overflow:hidden;text-overflow:ellipsis;white-space:nowrap;font-size:13px">${flag}${escHtml(stripHtml(c.front))}</div></td>
+      <td style="max-width:260px"><div style="overflow:hidden;text-overflow:ellipsis;white-space:nowrap;font-size:13px">${flag}${escHtml(stripHtmlFast(c.front))}</div></td>
       <td>${subjectBadge(c.subject)}</td>
-      <td style="font-size:12px"><select class="area-inline" onchange="setCardArea('${c.id}',this.value)" title="Change content area" style="max-width:190px;font-size:11.5px;padding:4px 6px;border:1px solid ${areaTxt==='Uncategorized'?'#f59e0b':'#e5e7eb'};border-radius:6px;background:${areaTxt==='Uncategorized'?'#fffbeb':'#fff'};color:${areaTxt==='Uncategorized'?'#c2410c':'var(--muted)'}">${cleanupOptionsHtml(areaTxt==='Uncategorized'?'':areaTxt)}</select></td>
+      <td style="font-size:12px"><span class="area-cell${areaTxt==='Uncategorized'?' area-uncat':''}" onclick="editAreaCell(this,'${c.id}')" title="Click to change content area">${escHtml(areaTxt)}</span></td>
       <td style="font-size:12px">${due}</td>
       <td style="font-size:13px;font-weight:600">${acc}</td>
       <td style="font-size:12.5px;color:var(--muted)">${nrev||'—'}</td>
@@ -3575,7 +3784,42 @@ function renderBrowser(){
       </td>
     </tr>`;
   }).join('');
+  renderBrowserPager(filtered.length,pages);
   updateBulkBar();
+}
+
+// The 42-option dropdown is built for one cell at a time, on demand — building
+// it into every row is what made this page expensive.
+function editAreaCell(span,id){
+  if(!span || span.dataset.editing) return;
+  const c=DB.cards.find(x=>x.id===id); if(!c) return;
+  span.dataset.editing='1';
+  const cur=c.contentArea||'Uncategorized';
+  const sel=document.createElement('select');
+  sel.className='area-inline';
+  sel.style.cssText='max-width:190px;font-size:11.5px;padding:4px 6px;border:1px solid var(--blue);border-radius:6px';
+  sel.innerHTML=cleanupOptionsHtml(cur==='Uncategorized'?'':cur);
+  sel.onchange=()=>setCardArea(id,sel.value);      // re-renders the table
+  sel.onblur=()=>{ if(span.dataset.editing){ delete span.dataset.editing; sel.replaceWith(span); } };
+  span.replaceWith(sel);
+  sel.focus();
+}
+
+function renderBrowserPager(total,pages){
+  const el=document.getElementById('browser-pager'); if(!el) return;
+  if(total<=BROWSER_PAGE){ el.innerHTML=''; return; }
+  const start=browserPage*BROWSER_PAGE+1;
+  const end=Math.min(total,(browserPage+1)*BROWSER_PAGE);
+  el.innerHTML=`
+    <button class="btn-secondary" style="padding:5px 12px;font-size:12px" ${browserPage<=0?'disabled':''} onclick="browserPageBy(-1)">← Prev</button>
+    <span style="font-size:12.5px;color:var(--muted)">${start.toLocaleString()}–${end.toLocaleString()} of <strong>${total.toLocaleString()}</strong> · page ${browserPage+1} of ${pages}</span>
+    <button class="btn-secondary" style="padding:5px 12px;font-size:12px" ${browserPage>=pages-1?'disabled':''} onclick="browserPageBy(1)">Next →</button>`;
+}
+function browserPageBy(d){
+  browserPage+=d;
+  renderBrowser();
+  const tw=document.querySelector('#page-browser .table-wrap');
+  if(tw) tw.scrollIntoView({block:'start',behavior:'smooth'});
 }
 
 // Inline content-area change straight from the browser table (no modal).
@@ -3608,7 +3852,7 @@ function bulkSuspend(v){
 // ── Uncategorized cleanup ───────────────────────────────────
 let cleanupIds=[];
 function bestGuessCategory(front, back, tags){
-  const f=stripHtml(front||'').toLowerCase(), b=stripHtml(back||'').toLowerCase();
+  const f=stripHtmlFast(front||'').toLowerCase(), b=stripHtmlFast(back||'').toLowerCase();
   let tagText=' '+String(Array.isArray(tags)?tags.join(' '):(tags||'')).toLowerCase().replace(/[^a-z0-9]+/g,' ').trim()+' ';
   let best=null,bestScore=-1;
   [...ABIM_CATEGORIES,...ABPN_CATEGORIES].forEach(c=>{
@@ -3776,8 +4020,8 @@ function exportForAIReview(){
   const rows=[['id','current_area','subject','front','back']];
   (DB.cards||[]).forEach(c=>{
     rows.push([c.id, c.contentArea||'Uncategorized', c.subject||'',
-               stripHtml(c.front||'').replace(/\s+/g,' ').slice(0,300),
-               stripHtml(c.back||'').replace(/\s+/g,' ').slice(0,300)]);
+               stripHtmlFast(c.front||'').replace(/\s+/g,' ').slice(0,300),
+               stripHtmlFast(c.back||'').replace(/\s+/g,' ').slice(0,300)]);
   });
   const csv=aiReviewInstructions()+'\n'+rows.map(r=>r.map(csvField).join(',')).join('\n');
   const blob=new Blob([csv],{type:'text/csv'});
@@ -3873,7 +4117,7 @@ function renderReviewTable(){
     const c=DB.cards.find(x=>x.id===r.id); if(!c) return '';
     return `<tr>
       <td style="padding:8px;border-bottom:1px solid #f3f4f6;vertical-align:top"><input type="checkbox" class="review-check" data-i="${i}" ${r.checked?'checked':''} onchange="reviewRows[${i}].checked=this.checked"></td>
-      <td style="padding:8px;border-bottom:1px solid #f3f4f6;vertical-align:top"><div style="max-width:380px;font-size:12.5px;color:var(--navy)">${escHtml(stripHtml(c.front).slice(0,140))}</div></td>
+      <td style="padding:8px;border-bottom:1px solid #f3f4f6;vertical-align:top"><div style="max-width:380px;font-size:12.5px;color:var(--navy)">${escHtml(stripHtmlFast(c.front).slice(0,140))}</div></td>
       <td style="padding:8px;border-bottom:1px solid #f3f4f6;vertical-align:top;font-size:12px">
         <div style="color:${r.cur==='Uncategorized'?'#c2410c':'var(--muted)'};margin-bottom:4px">${escHtml(r.cur)} <span style="color:var(--muted)">→</span></div>
         <select onchange="reviewRows[${i}].sug=this.value" style="width:100%;padding:5px 7px;border:1px solid #bbf7d0;background:#f0fdf4;border-radius:6px;font-size:12px;color:#166534;font-weight:600">${cleanupOptionsHtml(r.sug)}</select>
@@ -3919,7 +4163,7 @@ function renderCleanupTable(){
     const sel=guess.score>0?guess.area:'';
     const conf=guess.score>0?`<span style="color:${guess.score>=4?'#16a34a':'#d97706'};font-size:10px">${guess.score>=4?'confident':'low-confidence'} guess</span>`:'<span style="color:#9ca3af;font-size:10px">no keyword match — pick manually</span>';
     return `<tr data-cid="${id}">
-      <td style="padding:8px;border-bottom:1px solid #f3f4f6;vertical-align:top"><div style="max-width:440px;font-size:12.5px;color:var(--navy)">${escHtml(stripHtml(c.front).slice(0,150))}</div><div style="margin-top:2px">${conf}</div></td>
+      <td style="padding:8px;border-bottom:1px solid #f3f4f6;vertical-align:top"><div style="max-width:440px;font-size:12.5px;color:var(--navy)">${escHtml(stripHtmlFast(c.front).slice(0,150))}</div><div style="margin-top:2px">${conf}</div></td>
       <td style="padding:8px;border-bottom:1px solid #f3f4f6"><select class="cleanup-sel" style="width:100%;padding:6px;border:2px solid #e5e7eb;border-radius:6px;font-size:12px">${cleanupOptionsHtml(sel)}</select></td>
     </tr>`;
   }).join('');
@@ -3963,10 +4207,18 @@ function toggleCardSelect(id, el){
   const tr=el.closest('tr'); if(tr) tr.style.background=el.checked?'#eef6ff':'';
   updateBulkBar();
 }
+// The header checkbox covers the page you can see. Selecting every match is a
+// separate, explicit button — with paging, a checkbox that silently picked up
+// 3,000 off-screen cards ahead of a Delete button would be a trap.
 function toggleSelectAll(el){
-  if(el.checked) browserShownIds.forEach(id=>selectedCards.add(id));
-  else browserShownIds.forEach(id=>selectedCards.delete(id));
+  if(el.checked) browserPageIds.forEach(id=>selectedCards.add(id));
+  else browserPageIds.forEach(id=>selectedCards.delete(id));
   renderBrowser();
+}
+function selectAllMatching(){
+  browserShownIds.forEach(id=>selectedCards.add(id));
+  renderBrowser();
+  toast(`Selected all ${selectedCards.size.toLocaleString()} matching cards`);
 }
 function clearSelection(){
   selectedCards.clear();
@@ -3980,10 +4232,19 @@ function updateBulkBar(){
   // keep the select-all box in sync
   const all=document.getElementById('browser-select-all');
   if(all){
-    const shown=browserShownIds.length;
-    const sel=browserShownIds.filter(id=>selectedCards.has(id)).length;
+    const shown=browserPageIds.length;
+    const sel=browserPageIds.filter(id=>selectedCards.has(id)).length;
     all.checked=shown>0&&sel===shown;
     all.indeterminate=sel>0&&sel<shown;
+  }
+  // Offer the whole filtered set once the visible page is fully selected.
+  const sa=document.getElementById('bulk-selectall');
+  if(sa){
+    const total=browserShownIds.size;
+    const pageAll=browserPageIds.length>0&&browserPageIds.every(id=>selectedCards.has(id));
+    sa.innerHTML=(pageAll&&n<total)
+      ? `<button class="btn-secondary" style="padding:5px 12px;font-size:12px" onclick="selectAllMatching()">Select all ${total.toLocaleString()} matching</button>`
+      : '';
   }
   // populate the bulk content-area dropdown (subject-agnostic: show all areas)
   const areaSel=document.getElementById('bulk-area');
@@ -4063,19 +4324,64 @@ function saveEditCard(){
 function handleMediaFiles(e){ const f=[...(e.target.files||[])]; e.target.value=''; if(f.length) ingestMediaFiles(f); }
 function handleMediaDrop(e){ e.preventDefault(); e.currentTarget.classList.remove('dragover'); const f=[...(e.dataTransfer.files||[])]; if(f.length) ingestMediaFiles(f); }
 const MEDIA_EXT=/\.(jpe?g|png|gif|webp|bmp|svg)$/i;
+
+// ── Storage headroom ───────────────────────────────────────────────────────
+// Anki decks routinely carry full-resolution photos, and a 4,000-card deck can
+// run to several hundred MB — enough to hit a phone's per-site limit. Shrinking
+// to something a phone screen can actually display cuts that several-fold with
+// no visible loss. GIFs (animation) and SVGs (vector, already tiny) are left
+// alone, as is anything already small.
+const MEDIA_MAX_DIM=1600, MEDIA_QUALITY=0.82, MEDIA_MIN_RESIZE=120000;
+async function downscaleImage(blob, name){
+  if(/\.(gif|svg)$/i.test(name)) return blob;
+  if(blob.size<MEDIA_MIN_RESIZE) return blob;
+  if(typeof createImageBitmap!=='function') return blob;
+  try{
+    const bmp=await createImageBitmap(blob);
+    const scale=Math.min(1, MEDIA_MAX_DIM/Math.max(bmp.width,bmp.height));
+    if(scale>=1){ if(bmp.close) bmp.close(); return blob; }
+    const w=Math.round(bmp.width*scale), h=Math.round(bmp.height*scale);
+    const cv=document.createElement('canvas'); cv.width=w; cv.height=h;
+    cv.getContext('2d').drawImage(bmp,0,0,w,h);
+    if(bmp.close) bmp.close();
+    const out=await new Promise(res=>cv.toBlob(res,'image/jpeg',MEDIA_QUALITY));
+    // Keep the original if the "optimised" version came out bigger.
+    return (out && out.size<blob.size) ? out : blob;
+  }catch(e){ return blob; }
+}
+// How much room is left. Returns null where the browser won't say.
+async function storageEstimate(){
+  try{
+    if(!navigator.storage || !navigator.storage.estimate) return null;
+    const e=await navigator.storage.estimate();
+    if(!e || !e.quota) return null;
+    return {used:e.usage||0, quota:e.quota, pct:Math.min(100,Math.round((e.usage||0)/e.quota*100))};
+  }catch(e){ return null; }
+}
+function fmtBytes(n){
+  if(n>=1073741824) return (n/1073741824).toFixed(1)+' GB';
+  if(n>=1048576)    return Math.round(n/1048576)+' MB';
+  return Math.max(1,Math.round(n/1024))+' KB';
+}
+
 async function ingestMediaFiles(files){
   const prog=document.getElementById('media-progress');
-  const needed=referencedImageNames();
+  const needed=referencedImageNamesCached();
   if(!idb){ prog.innerHTML='<div class="alert alert-warn">This browser has no IndexedDB, so images can\'t be stored. Try a different browser.</div>'; return; }
-  let stored=0, skipped=0, unpacked=0;
+  let stored=0, skipped=0, unpacked=0, failed=0, saved=0;
   const put=async(name,blob)=>{
     // Only keep images some card actually points at — no need to store a whole
     // media folder when the deck references a fraction of it.
     if(needed.size && !needed.has(name)){ skipped++; return; }
-    if(await idbMediaPut(name,blob)){
-      stored++;
-      if(!mediaUrls.has(name)){ try{ mediaUrls.set(name,URL.createObjectURL(blob)); }catch(e){} }
-      mediaNames.add(name);
+    const before=blob.size;
+    const small=await downscaleImage(blob,name);
+    if(await idbMediaPut(name,small)){
+      stored++; saved+=Math.max(0,before-small.size);
+      mediaNames.add(name);   // the blob URL is built on demand at render time
+    } else {
+      // Nearly always the storage quota. Counting these silently as "not
+      // stored" is how someone ends up with half a deck of blank pictures.
+      failed++;
     }
   };
   for(const f of files){
@@ -4104,16 +4410,23 @@ async function ingestMediaFiles(files){
       await put(f.name,f);
     }
   }
-  prog.innerHTML=`<div class="alert alert-success">Stored <strong>${stored}</strong> image${stored===1?'':'s'}${unpacked?` (unpacked from .apkg)`:''}${skipped?` · ignored ${skipped} not referenced by any card`:''}.</div>`;
-  toast(`Stored ${stored} image${stored===1?'':'s'}`);
+  const est=await storageEstimate();
+  let msg=`<div class="alert alert-success">Stored <strong>${stored}</strong> image${stored===1?'':'s'}${unpacked?` (unpacked from .apkg)`:''}${skipped?` · ignored ${skipped} not referenced by any card`:''}${saved>1048576?` · saved ${fmtBytes(saved)} by resizing`:''}.</div>`;
+  if(failed){
+    msg=`<div class="alert alert-warn"><strong>${failed}</strong> image${failed===1?'':'s'} could not be saved — this device is out of storage for the app${est?` (${fmtBytes(est.used)} of ${fmtBytes(est.quota)} used)`:''}. Free space in your browser's site data, or remove the stored images below and add a smaller set.</div>`+msg;
+  }
+  prog.innerHTML=msg;
+  toast(failed?`Stored ${stored} · ${failed} failed (out of space)`:`Stored ${stored} image${stored===1?'':'s'}`);
   refreshMediaStatus();
   if(document.getElementById('page-study').classList.contains('active')) showCurrentCard();
 }
 function refreshMediaStatus(){
   const box=document.getElementById('media-status-box'); if(!box) return;
-  const needed=referencedImageNames();
-  const have=[...needed].filter(n=>mediaUrls.has(n));
-  const missing=[...needed].filter(n=>!mediaUrls.has(n));
+  const needed=referencedImageNamesCached();
+  // Whether we HAVE a file is answered by the key list, not by whether a blob
+  // URL happens to be cached — those now come and go as cards are displayed.
+  const have=[...needed].filter(n=>mediaNames.has(n));
+  const missing=[...needed].filter(n=>!mediaNames.has(n));
   const cardsWithImgs=(DB.cards||[]).filter(c=>String(c.front||'').includes('<img')||String(c.back||'').includes('<img')).length;
   if(!needed.size){
     box.className='alert alert-info';
@@ -4131,12 +4444,24 @@ function refreshMediaStatus(){
       ? `<details><summary style="cursor:pointer;font-size:12.5px;color:var(--muted)">Show ${missing.length} missing filename${missing.length===1?'':'s'}</summary><div style="max-height:180px;overflow:auto;font-family:ui-monospace,Menlo,monospace;font-size:11px;color:#42506a;margin-top:8px;line-height:1.7">${missing.slice(0,400).map(escHtml).join('<br>')}${missing.length>400?'<br>…':''}</div></details>`
       : '';
   }
+  renderStorageMeter();
+}
+// Quiet until it matters: says nothing below 60% of the browser's limit.
+async function renderStorageMeter(){
+  const el=document.getElementById('media-storage'); if(!el) return;
+  const est=await storageEstimate();
+  if(!est || est.pct<60){ el.innerHTML=''; return; }
+  const col=est.pct>=90?'#dc2626':est.pct>=75?'#d97706':'var(--muted)';
+  el.innerHTML=`<div style="margin-top:10px;font-size:12px;color:${col}">
+    Device storage for this app: <strong>${fmtBytes(est.used)}</strong> of ${fmtBytes(est.quota)} used (${est.pct}%).
+    ${est.pct>=90?'New images may fail to save.':''}</div>`;
 }
 async function clearStoredMedia(){
   if(!confirm('Remove every stored card image from this device? Your cards keep their image references, so you can add the files again later.')) return;
   await idbMediaClear();
   mediaUrls.forEach(u=>{ try{ URL.revokeObjectURL(u); }catch(e){} });
   mediaUrls.clear(); mediaNames=new Set();
+  invalidateImageIndex();
   refreshMediaStatus();
   toast('Stored images removed');
 }
@@ -4193,6 +4518,8 @@ function parseCSV(file){
         userArea:''            // set by hand on the review screen
       });
     }
+    pendingSrc.csv=file.name||'cards.csv';
+    dupScan.csv=scanImportDupes('csv');
     document.getElementById('csv-preview-label').textContent=`Preview: ${pendingCSV.length} cards`;
     populateCsvAreas();
     importPage.csv=0;
@@ -4289,7 +4616,7 @@ function importPageBy(kind,d){ importPage[kind]+=d; renderImportRows(kind); }
 
 // One-line row preview. Image-only cards say so instead of looking empty.
 function importSnippet(html,n){
-  const t=stripHtml(html||'').replace(/\s+/g,' ').trim();
+  const t=stripHtmlFast(html||'').replace(/\s+/g,' ').trim();
   const img=/<img\b/i.test(String(html||''))?'🖼️ ':'';
   if(!t) return img?img+'<span style="color:var(--muted);font-style:italic">image only</span>':'<span style="color:var(--muted)">—</span>';
   return img+escHtml(t.slice(0,n))+(t.length>n?'…':'');
@@ -4324,6 +4651,7 @@ function renderImportRows(kind){
     </tr>`;
   }
   tbody.innerHTML=html||`<tr><td colspan="${cols}" style="padding:20px;text-align:center;color:var(--muted);font-size:13px">Nothing to preview</td></tr>`;
+  renderDupBox(kind);
   const pager=document.getElementById(kind==='csv'?'csv-preview-pager':'apkg-preview-pager');
   if(!pager) return;
   const hand=list.filter(c=>c.userArea).length;
@@ -4340,7 +4668,7 @@ function renderImportRows(kind){
 // images), so what you approve here is literally what you will study.
 function importCardBody(raw){
   const s=String(raw||'');
-  const inner=hydrateMedia(sanitizeHtml(s));
+  const inner=renderCardHtml(s);
   if(!inner.trim()) return '<span style="color:var(--muted);font-style:italic">(empty)</span>';
   // Plain-text cards (CSV) keep their line breaks; HTML cards render as-is.
   return /<[a-z!\/][^>]*>/i.test(s) ? inner : '<div style="white-space:pre-wrap">'+inner+'</div>';
@@ -4373,8 +4701,8 @@ function showImportCard(){
   if(!r){ closeImportCard(); return; }
   document.getElementById('ic-title').innerHTML=
     `Card ${i+1} <span style="color:var(--muted);font-weight:600">of ${list.length}</span> &nbsp;${subjectBadge(r.subject)}`;
-  document.getElementById('ic-front').innerHTML=importCardBody(r.front);
-  document.getElementById('ic-back').innerHTML=importCardBody(r.back);
+  setCardHtml(document.getElementById('ic-front'), importCardBody(r.front));
+  setCardHtml(document.getElementById('ic-back'),  importCardBody(r.back));
   const tags=Array.isArray(r.tags)?r.tags.join(', '):String(r.tags||'');
   document.getElementById('ic-tags').innerHTML=tags?`🏷️ ${escHtml(tags)}`:'';
   const sel=document.getElementById('ic-area');
@@ -4393,19 +4721,27 @@ function importCSV(){
   // Precedence: an area you set on the review screen beats the deck-wide
   // dropdown, which beats the file's column, which beats the classifier.
   const ctx=importCtx('csv');
-  let added=0, autoSorted=0, hand=0;
+  const mode=dupMode('csv'), hits=(dupScan.csv&&dupScan.csv.hits)||[];
+  const src=pendingSrc.csv||'';
+  let added=0, autoSorted=0, hand=0, skippedDup=0, updated=0;
   pendingCSV.forEach((c,i)=>{
     if(!c.front||!c.back) return;
     const r=importRowInfo('csv',i,ctx);
+    const dup=hits[i];
+    if(dup && mode==='skip'){ skippedDup++; return; }
+    if(dup && mode==='update'){ dup.card.front=r.front; dup.card.back=r.back; updated++; return; }
     if(r.origin==='auto') autoSorted++;
     if(r.origin==='user') hand++;
-    DB.cards.push(newCard(r.front,r.back,r.subject,r.area,c.tags));added++;
+    DB.cards.push(newCard(r.front,r.back,r.subject,r.area,c.tags,{src}));added++;
   });
   saveDB();
   closeImportCard();
   document.getElementById('csv-preview').style.display='none';
   pendingCSV=[];
+  pendingSrc.csv=''; dupScan.csv=null;
   const bits=[];
+  if(skippedDup) bits.push(`${skippedDup} skipped as duplicates`);
+  if(updated)    bits.push(`${updated} existing card${updated===1?'':'s'} updated`);
   if(hand) bits.push(`${hand} filed by hand`);
   if(ctx.forced) bits.push(hand?`the rest under ${ctx.forced}`:`all filed under ${ctx.forced}`);
   if(autoSorted) bits.push(`${autoSorted} auto-categorized`);
@@ -4643,6 +4979,12 @@ function parseSQLiteAnki(ab){
     // (space-separated tag string). Capture it as a categorization hint.
     const tags = (fldsIdx>0 && typeof row[fldsIdx-1]==='string') ? row[fldsIdx-1].trim() : '';
 
+    // Anki's note guid sits four columns before tags: [guid][mid][mod][usn][tags][flds].
+    // It is a short opaque string; anything else means an unfamiliar schema, so
+    // fall back to no id rather than storing a wrong one.
+    const guidRaw = (fldsIdx>=5 && typeof row[fldsIdx-5]==='string') ? row[fldsIdx-5].trim() : '';
+    const guid = (guidRaw && guidRaw.length<=32 && !/\s/.test(guidRaw) && !guidRaw.includes(SEP)) ? guidRaw : '';
+
     const parts = flds.includes(SEP) ? flds.split(SEP) : [flds];
 
     // Scheduling rows for this note (cloze card N ↔ Anki ord N).
@@ -4651,18 +4993,29 @@ function parseSQLiteAnki(ab){
 
     // Cloze-deletion notes ({{c1::answer}}) → expand into hide/reveal cards.
     const clozeCards = expandClozeNote(parts);
-    if(clozeCards){ clozeCards.forEach((c,i)=>{ c.tags=tags; c.sched=schedFor(i); }); cards.push(...clozeCards); continue; }
+    // One cloze note becomes several cards, so the note id alone can't tell
+    // them apart — qualify it with the ordinal, matching Anki's own nid/ord.
+    if(clozeCards){ clozeCards.forEach((c,i)=>{ c.tags=tags; c.sched=schedFor(i); c.guid=guid?guid+'::'+i:''; }); cards.push(...clozeCards); continue; }
 
     if(flds.includes(SEP)){
       const front = cleanHtml(parts[0]||'').trim();
       const back  = cleanHtml(parts.slice(1).filter(Boolean).join('\n')).trim();
-      if(front && back) cards.push({front, back, tags, sched:schedFor(0)});
-      else if(front)    cards.push({front, back:'(no back field in this note)', tags, sched:schedFor(0)});
+      if(front && back) cards.push({front, back, tags, guid, sched:schedFor(0)});
+      else if(front)    cards.push({front, back:'(no back field in this note)', tags, guid, sched:schedFor(0)});
     } else {
       const front = cleanHtml(flds).trim();
-      if(front.length>5) cards.push({front, back:'(single-field note — edit to add back)', tags, sched:schedFor(0)});
+      if(front.length>5) cards.push({front, back:'(single-field note — edit to add back)', tags, guid, sched:schedFor(0)});
     }
   }
+
+  // Safety net for an unfamiliar notes schema. Anki guids are unique per note,
+  // so if the column we read isn't nearly all-unique we grabbed the wrong one —
+  // and a shared fake id would make duplicate detection flag half a deck as
+  // already-owned, which under the default "skip" would silently drop it.
+  // Better to have no ids at all and fall back to matching on question text.
+  const gids=cards.filter(c=>c.guid).map(c=>c.guid);
+  if(gids.length && new Set(gids).size < gids.length*0.9) cards.forEach(c=>{ c.guid=''; });
+
   return cards;
 }
 
@@ -4837,6 +5190,9 @@ async function parseApkg(file){
     }
 
     pendingApkg = cards;
+    pendingSrc.apkg=file.name||'deck.apkg';
+    // Scan once per deck, not on every dropdown change in the preview.
+    dupScan.apkg=scanImportDupes('apkg');
     apkgDetectedSubject=null;      // re-detect for this deck
     importPage.apkg=0;
     closeImportCard();
@@ -4953,26 +5309,39 @@ function importApkg(){
   // Same precedence as the preview showed: a card you filed on the review
   // screen keeps that area, then the whole-deck setting, then the classifier.
   const ctx=importCtx('apkg');
-  let added=0, uncat=0, kept=0, fresh=0, susp=0, hand=0;
+  const mode=dupMode('apkg'), hits=(dupScan.apkg&&dupScan.apkg.hits)||[];
+  const src=pendingSrc.apkg||'';
+  let added=0, uncat=0, kept=0, fresh=0, susp=0, hand=0, skippedDup=0, updated=0;
   pendingApkg.forEach((c,i)=>{
     // parseSQLiteAnki already cleans plain notes and intentionally formats
     // cloze cards (blank on front, highlighted reveal on back) — don't re-strip.
     const r=importRowInfo('apkg',i,ctx);
-    if(r.front&&r.back){
-      if(r.area==='Uncategorized') uncat++;
-      if(r.origin==='user') hand++;
-      const card=newCard(r.front,r.back,r.subject,r.area,c.tags||'');
-      if(keepSched && c.sched){ applyAnkiSched(card,c.sched); kept++; if(c.sched.suspended) susp++; }
-      else fresh++;
-      DB.cards.push(card); added++;
+    if(!(r.front&&r.back)) return;
+    const dup=hits[i];
+    if(dup && mode==='skip'){ skippedDup++; return; }
+    if(dup && mode==='update'){
+      // Wording only. Scheduling and review history stay with the card you
+      // have — that's the part you can't get back.
+      dup.card.front=r.front; dup.card.back=r.back;
+      if(c.guid && !dup.card.guid) dup.card.guid=c.guid;
+      updated++; return;
     }
+    if(r.area==='Uncategorized') uncat++;
+    if(r.origin==='user') hand++;
+    const card=newCard(r.front,r.back,r.subject,r.area,c.tags||'',{guid:c.guid,src});
+    if(keepSched && c.sched){ applyAnkiSched(card,c.sched); kept++; if(c.sched.suspended) susp++; }
+    else fresh++;
+    DB.cards.push(card); added++;
   });
   saveDB();
   closeImportCard();
   document.getElementById('apkg-preview').style.display='none';
   pendingApkg=[];
+  pendingSrc.apkg=''; dupScan.apkg=null;
   apkgDetectedSubject=null;
   const bits=[];
+  if(skippedDup) bits.push(`${skippedDup} skipped as duplicates`);
+  if(updated)    bits.push(`${updated} existing card${updated===1?'':'s'} updated`);
   if(hand)  bits.push(`${hand} filed by hand`);
   if(kept)  bits.push(`${kept} kept their Anki progress`);
   if(fresh&&kept) bits.push(`${fresh} start fresh`);
@@ -5314,7 +5683,7 @@ function buildCardConceptIndex(){
   const idx=new Set();
   (DB.cards||[]).forEach(c=>{
     if(c.suspended) return;
-    const t=conceptTokens(stripHtml(c.front||'')+' '+stripHtml(c.back||''));
+    const t=conceptTokens(stripHtmlFast(c.front||'')+' '+stripHtmlFast(c.back||''));
     t.bigrams.forEach(b=>idx.add('b:'+b));
     t.terms.forEach(x=>idx.add('t:'+x));
   });
@@ -5471,7 +5840,7 @@ function buildCardWordIndex(){
   const words=new Set(), bigrams=new Set();
   (DB.cards||[]).forEach(c=>{
     if(c.suspended) return;
-    const t=(stripHtml(c.front||'')+' '+stripHtml(c.back||'')+' '+(c.tags||[]).join(' '))
+    const t=(stripHtmlFast(c.front||'')+' '+stripHtmlFast(c.back||'')+' '+(c.tags||[]).join(' '))
       .toLowerCase().replace(/[^a-z0-9 ]/g,' ').split(/\s+/).filter(Boolean).map(bpStem);
     for(let i=0;i<t.length;i++){
       if(t[i].length>=4) words.add(t[i]);
@@ -7788,7 +8157,7 @@ function endTutorial(){
 // ═══════════════════════════════════════════════════════════
 async function init(){
   const vEl=document.getElementById('app-version');
-  if(vEl) vEl.textContent=`v${APP_VERSION} · ABIM & ABPN 2026`;
+  if(vEl) vEl.textContent=`v${APP_VERSION} · updated ${APP_UPDATED}`;
   await loadDB();
   updateContentAreaOptions();
   updateBatchContentArea();
