@@ -281,6 +281,93 @@ body[data-specialty="Psych"] .only-both{display:none!important}
 #tutorial-skip{background:none;border:none;color:var(--muted);font-size:13px;font-weight:600;cursor:pointer;padding:8px 4px}
 #tutorial-skip:hover{color:var(--navy);text-decoration:underline}
 @media(max-width:640px){#tutorial-card{max-height:80vh}}
+/* ── LEGENDS: streak-milestone birds (v4.0) ─────────────────────────────── */
+/* Earned only by an unbroken run of days. Nothing about an unearned legend is
+   drawn anywhere in the UI — the whole point is that it's a surprise. */
+#legend-overlay{position:fixed;inset:0;z-index:9990;display:none;align-items:center;justify-content:center;padding:20px;
+  background:radial-gradient(circle at 50% 44%,rgba(20,32,56,.88),rgba(5,9,18,.975));
+  backdrop-filter:blur(3px);-webkit-backdrop-filter:blur(3px);opacity:0;transition:opacity .45s ease}
+#legend-overlay.on{display:flex;opacity:1}
+.lgo-card{position:relative;width:100%;max-width:470px;text-align:center;color:#fff}
+.lgo-rays{position:absolute;left:50%;top:34%;width:640px;height:640px;margin:-320px 0 0 -320px;pointer-events:none;
+  background:conic-gradient(from 0deg,rgba(255,214,110,.30) 0 5deg,transparent 5deg 22deg);border-radius:50%;
+  opacity:0;animation:lgo-spin 26s linear infinite,lgo-fade 1s .4s forwards;
+  -webkit-mask:radial-gradient(circle,#000 22%,transparent 66%);mask:radial-gradient(circle,#000 22%,transparent 66%)}
+@keyframes lgo-spin{to{transform:rotate(360deg)}}
+@keyframes lgo-fade{to{opacity:1}}
+.lgo-stage{position:relative;width:100%;padding-top:57.14%;border-radius:18px;overflow:hidden;
+  box-shadow:0 26px 64px rgba(0,0,0,.62),0 0 0 1px rgba(255,255,255,.14);
+  transform:scale(.85);opacity:0;animation:lgo-pop .75s cubic-bezier(.2,.9,.25,1.15) forwards}
+@keyframes lgo-pop{to{transform:scale(1);opacity:1}}
+.lgo-layer{position:absolute;inset:0}
+.lgo-dark{background:#080d18}
+.lgo-color{clip-path:inset(100% 0 0 0);animation:lgo-wipe 1.6s 1.2s cubic-bezier(.4,0,.2,1) forwards}
+@keyframes lgo-wipe{to{clip-path:inset(0 0 0 0)}}
+.lgo-shine{position:absolute;top:-25%;bottom:-25%;left:-70%;right:-70%;pointer-events:none;
+  background:linear-gradient(104deg,transparent 42%,rgba(255,255,255,.7) 50%,transparent 58%);
+  transform:translateX(-62%);animation:lgo-shine 1.15s .3s ease-in-out forwards}
+@keyframes lgo-shine{to{transform:translateX(62%)}}
+.lgo-flash{position:absolute;inset:0;background:radial-gradient(circle,#fff,rgba(255,255,255,.4));opacity:0;
+  animation:lgo-flash .55s 1.55s ease-out forwards;pointer-events:none}
+@keyframes lgo-flash{0%{opacity:0}20%{opacity:.9}100%{opacity:0}}
+.lgo-name{margin-top:17px;font-size:23px;font-weight:800;letter-spacing:.3px;text-shadow:0 2px 20px rgba(0,0,0,.65)}
+.lgo-name span{display:inline-block;white-space:pre;opacity:0;transform:translateY(15px) rotateX(-45deg);
+  animation:lgo-let .5s cubic-bezier(.2,.9,.25,1.1) forwards}
+@keyframes lgo-let{to{opacity:1;transform:none}}
+.lgo-chip{display:inline-block;margin-top:11px;padding:6px 15px;border-radius:999px;font-size:12px;font-weight:800;
+  letter-spacing:1px;text-transform:uppercase;color:#12213a;background:linear-gradient(135deg,#ffeab4,#f5c518);
+  box-shadow:0 8px 24px rgba(245,197,24,.42);opacity:0;transform:scale(.55);
+  animation:lgo-stamp .6s 2.45s cubic-bezier(.2,1.6,.4,1) forwards}
+@keyframes lgo-stamp{to{opacity:1;transform:none}}
+.lgo-sub{margin-top:13px;font-size:13px;line-height:1.55;color:rgba(255,255,255,.74);opacity:0;animation:lgo-fade .7s 2.85s forwards}
+.lgo-btn{margin-top:18px;padding:11px 28px;border:none;border-radius:999px;font-size:14px;font-weight:700;cursor:pointer;
+  background:#fff;color:#12213a;opacity:0;animation:lgo-fade .7s 3.05s forwards}
+.lgo-btn:hover{background:#f1f5f9}
+.lgo-spark{position:absolute;left:50%;top:46%;width:7px;height:7px;border-radius:50%;pointer-events:none;background:#ffeab4;
+  box-shadow:0 0 12px 3px rgba(255,214,110,.8);opacity:0;animation:lgo-spark 1.5s 1.5s cubic-bezier(.15,.7,.3,1) forwards}
+@keyframes lgo-spark{0%{opacity:0;transform:translate(0,0) scale(.4)}12%{opacity:1;transform:translate(0,0) scale(1)}
+  100%{opacity:0;transform:translate(var(--dx),var(--dy)) scale(.15)}}
+
+/* Progress toward the next milestone — a filling ring, never a preview. */
+.lg-ring-wrap{display:flex;align-items:center;gap:22px;flex-wrap:wrap}
+.lg-ring{position:relative;width:152px;height:152px;flex:0 0 auto}
+.lg-ring>svg{width:100%;height:100%;transform:rotate(-90deg)}
+.lg-ring-track{stroke:#e8ecf1}
+.lg-ring-fill{stroke-linecap:round;transition:stroke-dashoffset 1.2s cubic-bezier(.3,.9,.3,1)}
+.lg-ring-mid{position:absolute;inset:0;display:flex;flex-direction:column;align-items:center;justify-content:center;text-align:center}
+.lg-ring-num{font-size:36px;font-weight:800;color:var(--navy);line-height:1}
+.lg-ring-of{font-size:11px;color:var(--muted);margin-top:4px;letter-spacing:.5px;text-transform:uppercase}
+.lg-ring.lg-close .lg-ring-fill{animation:lg-glow 1.9s ease-in-out infinite}
+@keyframes lg-glow{0%,100%{opacity:1}50%{opacity:.5}}
+.lg-tease{flex:1 1 210px;min-width:200px}
+.lg-tease h4{font-size:15px;font-weight:800;color:var(--navy);margin-bottom:5px}
+.lg-tease p{font-size:13px;color:var(--muted);line-height:1.6}
+.lg-mystery{width:52px;height:34px;opacity:.14;margin-bottom:6px}
+.lg-mystery path{fill:var(--navy)}
+.lg-dots{display:flex;flex-wrap:wrap;gap:5px;margin-top:12px}
+.lg-dot{width:9px;height:9px;border-radius:50%;background:#e2e8f0}
+.lg-dot.on{background:linear-gradient(135deg,#f5c518,#e08a2a)}
+@media(max-width:640px){
+  .lg-ring-wrap{justify-content:center;gap:14px}
+  .lg-tease{text-align:center}
+  .lg-mystery{display:block;margin:0 auto 4px}
+  .lg-dots{justify-content:center}
+}
+
+/* The roost — earned legends only. */
+.lg-perch{cursor:pointer}
+.lg-breathe{transform-box:fill-box;transform-origin:50% 100%;animation:lg-breathe 4.6s ease-in-out infinite}
+@keyframes lg-breathe{0%,100%{transform:translateY(0) scaleY(1)}50%{transform:translateY(-.4px) scaleY(1.014)}}
+.lg-blink{transform-box:fill-box;transform-origin:center;transform:scaleY(.02);animation:lg-blink 8s infinite}
+@keyframes lg-blink{0%,93%{transform:scaleY(.02)}94.5%,96.5%{transform:scaleY(1)}98%,100%{transform:scaleY(.02)}}
+.lg-perch:hover .lg-breathe{animation-duration:1.6s}
+@media(prefers-reduced-motion:reduce){
+  #legend-overlay *,.lg-breathe,.lg-blink{animation:none!important;transition:none!important}
+  .lgo-color{clip-path:none!important}
+  .lgo-stage,.lgo-name span,.lgo-chip,.lgo-sub,.lgo-btn,.lgo-rays{opacity:1!important;transform:none!important}
+  .lgo-shine,.lgo-flash,.lgo-spark{display:none!important}
+  .lg-blink{transform:scaleY(.02)!important}
+}
 </style>
 </head>
 <body>
@@ -305,7 +392,7 @@ body[data-specialty="Psych"] .only-both{display:none!important}
     <div class="nav-item" onclick="navigate('settings')"><span class="nav-icon">⚙️</span><span>Settings</span></div>
   </nav>
   <div id="sidebar-footer">
-    <div id="app-version" style="color:rgba(255,255,255,.4);font-size:11px" title="Read the whole card and file it while importing">v3.99 · updated 2026-09-05</div>
+    <div id="app-version" style="color:rgba(255,255,255,.4);font-size:11px" title="Read the whole card and file it while importing">v4.0 · updated 2026-09-05</div>
   </div>
 </div>
 
@@ -1161,7 +1248,7 @@ front,back,subject,content_area,tags<br>
       <h3>Backup &amp; Restore</h3>
       <div class="alert alert-info" style="margin-bottom:14px">Your cards and progress live only in this browser. Back up regularly — a backup file lets you restore everything or move to another computer/browser.</div>
       <div class="setting-row">
-        <div><div class="setting-label">Full backup</div><div class="setting-desc">Download everything — cards, scheduling, streak &amp; aviary, settings, and your parsed ITE / MKSAP / PRITE score reports — as a .json file</div></div>
+        <div><div class="setting-label">Full backup</div><div class="setting-desc">Download everything — cards, scheduling, streak, aviary &amp; milestone legends, settings, and your parsed ITE / MKSAP / PRITE score reports — as a .json file</div></div>
         <button class="btn-primary" onclick="exportBackup()">Download Backup</button>
       </div>
       <div class="setting-row">
@@ -1293,7 +1380,7 @@ A: [answer]. Citation: Harrison's Principles of Internal Medicine, 21e, Ch. 245.
 <div id="page-streak" class="page">
   <div class="page-header">
     <h2>🔥 Streak &amp; Aviary</h2>
-    <p>Keep your daily streak to reveal a new bird every 7 days</p>
+    <p>Every 7 study-days reveals a bird &mdash; and an unbroken run earns something else entirely</p>
   </div>
   <div class="stat-grid" style="grid-template-columns:repeat(3,1fr)">
     <div class="stat-card"><div class="label">Current Streak</div><div class="value" id="streak-current">0</div><div class="sub">days in a row</div></div>
@@ -1311,6 +1398,17 @@ A: [answer]. Citation: Harrison's Principles of Internal Medicine, 21e, Ch. 245.
     </div>
     <div id="streak-reveal"></div>
     <div class="progress-bar-wrap" style="margin-top:14px"><div class="progress-bar-fill" id="streak-reveal-bar" style="width:0%"></div></div>
+  </div>
+  <div class="panel" style="margin-top:16px">
+    <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:14px;flex-wrap:wrap;gap:8px">
+      <div style="font-weight:700;color:var(--navy)">⛰️&nbsp; Next milestone</div>
+      <div style="font-size:12.5px;color:var(--muted)">earned only by consecutive days</div>
+    </div>
+    <div id="legend-progress"></div>
+  </div>
+  <div class="panel" style="margin-top:16px">
+    <div style="font-weight:700;color:var(--navy);margin-bottom:12px">🌙&nbsp; The Crag — <span id="legend-count">0</span> earned by unbroken runs</div>
+    <div id="legend-roost"></div>
   </div>
   <div class="panel" style="margin-top:16px">
     <div style="font-weight:700;color:var(--navy);margin-bottom:12px">🏆 Aviary — birds you've earned</div>
@@ -1543,7 +1641,7 @@ A: [answer]. Citation: Harrison's Principles of Internal Medicine, 21e, Ch. 245.
 // ═══════════════════════════════════════════════════════════
 // Bump this on every release. The sidebar renders from it, and it re-checks
 // for an optional sw.js after an update. The other copy lives in sw.js (CACHE).
-const APP_VERSION='3.99';
+const APP_VERSION='4.0';
 const APP_UPDATED='2026-09-05';   // shown in the sidebar so users can see which build they have
 
 const ABIM_CATEGORIES = [
@@ -2150,6 +2248,10 @@ async function loadDB(){
   // earned list, so seed it from that list's length — the best record we have.
   DB.aviary.earned=DB.aviary.earned||[];
   if(DB.aviary.completed==null) DB.aviary.completed=DB.aviary.earned.length;
+  // Milestone legends (v4.0) — a separate ladder keyed to CONSECUTIVE days.
+  // Additive only: an older save simply arrives with an empty crag.
+  DB.legends=DB.legends||{earned:[]};
+  DB.legends.earned=DB.legends.earned||[];
   DB.reviewLog=DB.reviewLog||[];
   DB.readinessLog=DB.readinessLog||[];
   DB.iteReports=DB.iteReports||[];
@@ -2442,6 +2544,7 @@ function reviewCard(card, grade){
 
   updateStreak();
   advanceAviary();
+  checkLegendMilestones();
   invalidatePriorityCache();   // this review may have shifted the area rankings
   return card;
 }
@@ -6276,6 +6379,8 @@ function restoreBackup(incoming, mode){
     DB.dailyLog=incoming.dailyLog||{};
     DB.streak=incoming.streak||{current:0,longest:0,lastDate:null};
     DB.aviary=incoming.aviary||{revealed:0,current:0,earned:[],lastDate:null};
+    DB.legends=incoming.legends||{earned:[]};
+    DB.legends.earned=DB.legends.earned||[];
     // Score reports travel with the backup too (v3 fix — these were silently
     // dropped before, so moving to a new device lost every ITE/MKSAP/PRITE report).
     DB.reviewLog=incoming.reviewLog||[];
@@ -6305,6 +6410,15 @@ function restoreBackup(incoming, mode){
       DB.aviary=DB.aviary||{revealed:0,current:0,earned:[],lastDate:null};
       DB.aviary.earned=DB.aviary.earned||[];
       incoming.aviary.earned.forEach(b=>{ if(!DB.aviary.earned.includes(b)) DB.aviary.earned.push(b); });
+    }
+    // Legends merge on the day-count, which is unique per legend by
+    // construction — restoring the same backup twice can't duplicate a trophy.
+    if(incoming.legends&&Array.isArray(incoming.legends.earned)){
+      DB.legends=DB.legends||{earned:[]};
+      DB.legends.earned=DB.legends.earned||[];
+      const haveDays=new Set(DB.legends.earned.map(r=>r.days));
+      incoming.legends.earned.forEach(r=>{ if(r&&!haveDays.has(r.days)){ DB.legends.earned.push(r); haveDays.add(r.days); } });
+      DB.legends.earned.sort((a,b)=>(a.days||0)-(b.days||0));
     }
     // Review log: union both sides, de-duplicated on card+date+grade+elapsed so
     // restoring the same backup twice can't inflate retention statistics.
@@ -6393,7 +6507,7 @@ function downloadSampleCSV(){
 function confirmReset(){
   if(confirm('This will permanently delete ALL cards and progress. Are you sure?')){
     if(confirm('Really? This cannot be undone.')){
-      DB={cards:[],settings:{newPerDay:10,dailyGoal:50},dailyLog:{},streak:{current:0,longest:0,lastDate:null},aviary:{revealed:0,current:0,earned:[],lastDate:null},reviewLog:[]};
+      DB={cards:[],settings:{newPerDay:10,dailyGoal:50},dailyLog:{},streak:{current:0,longest:0,lastDate:null},aviary:{revealed:0,current:0,earned:[],lastDate:null},legends:{earned:[]},reviewLog:[]};
       // Also clear the v2 localStorage snapshot so a reset can't be silently
       // undone by the one-time migration re-importing stale data later.
       try{ localStorage.removeItem('medboard_v1'); }catch(e){}
@@ -6696,6 +6810,584 @@ function showAviaryBird(bi){
   </div>`;
 }
 
+// ═══════════════════════════════════════════════════════════
+// LEGENDS — streak-milestone birds (v4.0)
+// ═══════════════════════════════════════════════════════════
+// The 7-day aviary rewards *showing up*: it counts study-days and doesn't care
+// whether they were consecutive. Legends reward the opposite thing — an
+// unbroken run. Every 10th consecutive day earns one, and the ladder never
+// resets: once the 10-day bird is yours, only 20 days IN A ROW earns the next.
+// Break at day 19 and you keep everything already earned, but you start the
+// 20-day climb again from zero. That asymmetry is the whole design — the birds
+// are safe, the progress is not.
+//
+// Nothing about an unearned legend is drawn, named, or hinted at anywhere in
+// the UI. The first sight of one is the reveal animation.
+const LEGEND_STEP=10;
+const LEGENDS=[
+  // 0 · 10 days
+  {n:'Great Horned Owl',form:'owl',body:'#8a6a4a',head:'#8a6a4a',belly:'#d9c3a5',wing:'#5f472e',beak:'#33383d',
+   disc:'#c39a6b',eye:'#f5c518',tufts:true,barred:true,foot:'#c9a45c',scene:'night',sky:['#16233c','#3d5273']},
+  // 1 · 20 days
+  {n:'Peregrine Falcon',form:'raptor',body:'#4c5a6b',head:'#3a4654',belly:'#efeae0',wing:'#3a4654',tail:'#42505f',
+   beak:'#3a3a3a',cere:'#f2c23a',cheek:'#f0ece2',malar:'#39434f',ering:'#f2c23a',eye:'#2b2b2b',foot:'#f2c23a',
+   scene:'dusk',sky:['#3a2c4e','#e0834a']},
+  // 2 · 30 days
+  {n:'Barn Owl',form:'owl',body:'#d8b681',head:'#e7d3ac',belly:'#f7f3e8',wing:'#b8935f',beak:'#e6dccb',
+   disc:'#f9f6ee',eye:'#2a2320',heart:true,fleck:true,foot:'#d9c9ae',scene:'night',sky:['#1b2033','#4a4560']},
+  // 3 · 40 days
+  {n:'Osprey',form:'raptor',body:'#4a453f',head:'#f4f1ea',belly:'#f7f5f0',wing:'#3e3a35',tail:'#4a453f',
+   beak:'#2b2b2b',stripe:'#4a453f',eye:'#f5c518',ering:'#8d8880',foot:'#c9cdd2',scene:'sea',sky:['#4d86ad','#d6ecf7']},
+  // 4 · 50 days
+  {n:'Snowy Owl',form:'owl',body:'#f7f7f5',head:'#fbfbfa',belly:'#ffffff',wing:'#c8ccd2',beak:'#33383d',
+   disc:'#ffffff',eye:'#f5c518',fleck:true,foot:'#e6e8ea',scene:'ice',sky:['#8fb8d8','#eaf5fc']},
+  // 5 · 60 days
+  {n:'Red-tailed Hawk',form:'raptor',body:'#7d6247',head:'#6d5238',belly:'#efe6d4',wing:'#5c4530',tail:'#b4653a',
+   beak:'#3a3a3a',cere:'#f2c23a',eye:'#5a4432',foot:'#f2c23a',scene:'day',sky:['#7fb2e0','#dceefb']},
+  // 6 · 70 days
+  {n:'Barred Owl',form:'owl',body:'#8b8578',head:'#918b7e',belly:'#ece5d6',wing:'#645e53',beak:'#e0c877',
+   disc:'#c3bcac',eye:'#2a2320',barred:true,foot:'#cbbfa4',scene:'night',sky:['#1c2b2a','#42605a']},
+  // 7 · 80 days
+  {n:'Golden Eagle',form:'raptor',body:'#5b4630',head:'#4c3a27',belly:'#6b543a',wing:'#3f3021',tail:'#54402c',
+   beak:'#33383d',cere:'#f2c23a',nape:'#c9993f',eye:'#e0b45c',ering:'#a87f2c',foot:'#f2c23a',brow:'#241a11',
+   scene:'peak',sky:['#2f4a6b','#c9dbe8']},
+  // 8 · 90 days
+  {n:'Eastern Screech-Owl',form:'owl',body:'#a8613c',head:'#b06a41',belly:'#e8d3bd',wing:'#7f452a',beak:'#d6cbb4',
+   disc:'#c98d5f',eye:'#f5c518',tufts:true,barred:true,foot:'#c9a45c',scene:'night',sky:['#2b1f2e','#6b4a52']},
+  // 9 · 100 days — the centrepiece
+  {n:'Bald Eagle',form:'raptor',body:'#4a3a2c',head:'#fbfaf7',belly:'#463628',wing:'#372a1f',tail:'#fbfaf7',
+   beak:'#f2b32a',cere:'#f2b32a',eye:'#f6e7b0',foot:'#f2b32a',brow:'#e0e0dc',scene:'dusk',sky:['#1f3350','#f0a24a']},
+  // 10 · 110 days
+  {n:'Great Gray Owl',form:'owl',body:'#8f8f8a',head:'#9b9b95',belly:'#d7d6cf',wing:'#6a6a65',beak:'#e4d493',
+   disc:'#bcbcb4',eye:'#f5c518',discRing:true,fleck:true,foot:'#c8c3b2',scene:'ice',sky:['#4b5f70','#cfdde6']},
+  // 11 · 120 days
+  {n:'Gyrfalcon',form:'raptor',body:'#e6e8ea',head:'#f2f4f5',belly:'#fbfbfa',wing:'#b9c0c7',tail:'#cfd5da',
+   beak:'#4a5058',cere:'#8fa3b8',eye:'#2b2b2b',ering:'#e0a83a',foot:'#c9d2d9',brow:'#9aa5ae',
+   scene:'ice',sky:['#7295b5','#e8f3fa']},
+  // 12 · 130 days
+  {n:'Northern Saw-whet Owl',form:'owl',body:'#8d6a4c',head:'#96745a',belly:'#f2ece0',wing:'#6a4c34',beak:'#33383d',
+   disc:'#e0cbb4',eye:'#f5c518',fleck:true,foot:'#c9a45c',scene:'night',sky:['#1f2b3d','#4c6478']},
+  // 13 · 140 days
+  {n:'Atlantic Puffin',form:'puffin',scene:'sea',sky:['#3f7fa8','#cfe9f5']},
+  // 14 · 150 days
+  {n:'Scarlet Macaw',form:'parrot',body:'#e02a1c',head:'#e02a1c',belly:'#cf2418',wing:'#1f6bb5',
+   wing2:'#f5c518',tail:'#e02a1c',tail2:'#1f6bb5',scene:'jungle',sky:['#1d5c3a','#9fd08a']},
+  // 15 · 160 days
+  {n:'Resplendent Quetzal',form:'quetzal',body:'#0f9b6c',head:'#0f9b6c',belly:'#d6382c',wing:'#0a7d57',
+   tail:'#12a878',tail2:'#0c8a60',beak:'#f2c23a',scene:'jungle',sky:['#124b3d','#8fc9a8']},
+  // 16 · 170 days
+  {n:'Shoebill',form:'shoebill',body:'#8e97a0',head:'#98a1aa',wing:'#737d87',beak:'#a89880',beak2:'#7d7264',
+   scene:'day',sky:['#5f8fa8','#d9ecef']},
+  // 17 · 180 days
+  {n:'Secretarybird',form:'secretary',body:'#c4c2bb',head:'#d0cec7',wing:'#a9a7a0',tail:'#2b2b2b',beak:'#5a6068',
+   face:'#e8734a',scene:'day',sky:['#c98b3f','#f3e0b8']},
+  // 18 · 190 days
+  {n:'Harpy Eagle',form:'raptor',body:'#4a4f56',head:'#b6bcc2',belly:'#f2f2ef',wing:'#3a3f45',tail:'#4a4f56',
+   beak:'#2b2b2b',cere:'#4a5058',eye:'#3a3a3a',foot:'#e0e4e8',crestQ:true,ruff:'#3a3f45',brow:'#8b9198',
+   scene:'jungle',sky:['#183b30','#83b596']},
+  // 19 · 200 days
+  {n:'Andean Condor',form:'condor',body:'#2b2b2b',head:'#c9a07a',neck:'#c9a07a',wing:'#1c1c1c',ruff:'#fbfaf7',
+   beak:'#d9cdb4',caruncle:true,scene:'peak',sky:['#2b4767','#d0dee8']},
+  // 20 · 210 days
+  {n:'Wandering Albatross',form:'albatross',body:'#f7f6f2',head:'#fbfaf8',wing:'#4a5058',beak:'#e8dcb8',
+   scene:'sea',sky:['#456f92','#dceef7']},
+  // 21 · 220 days
+  {n:'Emperor Penguin',form:'penguin',throat:'#f5c518',patch:'#f6b93b',beak:'#3a3a3a',mandible:'#e8734a',
+   scene:'ice',sky:['#5d7fa8','#e8f2fa']},
+  // 22 · 230 days
+  {n:'Greater Bird-of-Paradise',form:'bop',body:'#8a5a2c',head:'#f2d64a',belly:'#7a4d24',throat:'#0f6b52',
+   plume:'#f0a83a',plume2:'#f7d183',beak:'#cfd8dc',scene:'jungle',sky:['#1f5a3c','#a8d6a0']},
+  // 23 · 240 days
+  {n:'California Condor',form:'condor',body:'#242424',head:'#e0703a',neck:'#e0703a',wing:'#161616',ruff:'#2f2f2f',
+   beak:'#e0d6bc',scene:'peak',sky:['#513a5c','#e8a86a']}
+];
+
+function legendSpec(i){ return LEGENDS[((Number(i)%LEGENDS.length)+LEGENDS.length)%LEGENDS.length]; }
+// Legend ids travel through the shared creature helpers as the string 'L<n>'
+// so one portrait popup and one perch renderer serve birds and legends alike.
+function isLegendId(id){ return typeof id==='string' && /^L\d+$/.test(id); }
+function legendIndexOf(id){ return Number(String(id).slice(1)); }
+
+// ── Vector art ───────────────────────────────────────────────────────────
+// Every legend is drawn with its feet at the local origin, facing left — the
+// same anchor the songbirds use, so they can share perch code. They are built
+// roughly twice a songbird's size, because that is the point of them.
+function lgTalons(col,xs,len,w){
+  return xs.map(x=>`<path d="M${x} ${-len} L${x} -2.5" stroke="${col}" stroke-width="${w}" stroke-linecap="round" fill="none"/>`
+    +`<path d="M${x-5} -.4 q2.5 -3.6 5 -2.6 q2.5 -1 5 2.6" stroke="${col}" stroke-width="${Math.max(1.8,w-1.3)}" fill="none" stroke-linecap="round"/>`).join('');
+}
+// Forward-facing pair of eyes with a lid that drops every few seconds. The lid
+// is its own <g> because CSS transforms override an element's SVG transform
+// attribute — animating the group that carries the flip would un-flip the bird.
+function lgEyes(lx,rx,y,r,eye,lid,delay){
+  const hi=(x)=>`<circle cx="${(x-r*.3).toFixed(1)}" cy="${(y-r*.32).toFixed(1)}" r="${(r*.18).toFixed(1)}" fill="#fff"/>`;
+  return `<circle cx="${lx}" cy="${y}" r="${r}" fill="#fdfcf8"/><circle cx="${rx}" cy="${y}" r="${r}" fill="#fdfcf8"/>
+    <circle cx="${lx}" cy="${y}" r="${(r*.8).toFixed(1)}" fill="${eye}"/><circle cx="${rx}" cy="${y}" r="${(r*.8).toFixed(1)}" fill="${eye}"/>
+    <circle cx="${lx}" cy="${y}" r="${(r*.4).toFixed(1)}" fill="#0b0b0b"/><circle cx="${rx}" cy="${y}" r="${(r*.4).toFixed(1)}" fill="#0b0b0b"/>
+    ${hi(lx)}${hi(rx)}
+    <g class="lg-blink" style="animation-delay:${delay}s"><ellipse cx="${lx}" cy="${y}" rx="${r+.5}" ry="${r+.5}" fill="${lid}"/><ellipse cx="${rx}" cy="${y}" rx="${r+.5}" ry="${r+.5}" fill="${lid}"/></g>`;
+}
+function lgOwl(s,d){
+  const disc=s.disc||s.head;
+  const discPath=s.heart
+    ? 'M-3 -77 q-16 2 -16 15 q0 10 8 16 q6 5 8 9 q2 -4 8 -9 q8 -6 8 -16 q0 -13 -16 -15 Z'
+    : 'M-3 -76 q-17 3 -16 17 q1 14 16 18 q15 -4 16 -18 q1 -14 -16 -17 Z';
+  return `${lgTalons(s.foot||'#c9a45c',[-7,6],11,3.4)}
+    <path d="M13 -32 q17 11 14 27 q-11 -5 -18 -18 Z" fill="${s.wing}"/>
+    <ellipse cx="0" cy="-32" rx="18" ry="23" fill="${s.body}"/>
+    <path d="M-15 -34 q15 21 27 5 q-1 22 -14 22 q-14 -3 -13 -27 Z" fill="${s.belly}"/>
+    ${s.barred?`<g stroke="${s.wing}" stroke-width="1.3" fill="none" opacity=".45"><path d="M-10 -38 q7 4 14 0"/><path d="M-10 -30 q7 4 14 0"/><path d="M-9 -22 q6 4 12 0"/><path d="M-8 -14 q5 3 10 0"/></g>`:''}
+    ${s.fleck?`<g fill="${s.wing}" opacity=".45"><circle cx="-6" cy="-40" r="1.3"/><circle cx="3" cy="-34" r="1.3"/><circle cx="-8" cy="-26" r="1.2"/><circle cx="5" cy="-21" r="1.2"/><circle cx="-3" cy="-15" r="1.2"/><circle cx="8" cy="-40" r="1.2"/></g>`:''}
+    <ellipse cx="10" cy="-36" rx="8.5" ry="18" fill="${s.wing}" transform="rotate(-7 10 -36)"/>
+    <circle cx="-3" cy="-60" r="17" fill="${s.head}"/>
+    ${s.tufts?`<path d="M-17 -70 L-22 -86 L-8 -73 Z" fill="${s.head}"/><path d="M11 -70 L17 -86 L2 -73 Z" fill="${s.head}"/>`:''}
+    <path d="${discPath}" fill="${disc}"/>
+    ${s.discRing?`<g fill="none" stroke="${s.wing}" stroke-width="1" opacity=".5"><circle cx="-10.5" cy="-60" r="8.5"/><circle cx="4.5" cy="-60" r="8.5"/><circle cx="-10.5" cy="-60" r="11.5"/><circle cx="4.5" cy="-60" r="11.5"/></g>`:''}
+    ${lgEyes(-10.5,4.5,-60,6.2,s.eye||'#f5c518',disc,d)}
+    <path d="M-3.2 -57 q3.6 4 1.6 8.6 q-3.8 .4 -3.4 -8.6 Z" fill="${s.beak}"/>`;
+}
+function lgRaptor(s,d){
+  return `${lgTalons(s.foot||'#f2c23a',[-7,5],13,3.6)}
+    <path d="M15 -30 q22 5 25 24 q-15 3 -27 -11 Z" fill="${s.tail||s.wing}"/>
+    <ellipse cx="1" cy="-34" rx="21" ry="17" fill="${s.body}" transform="rotate(-9 1 -34)"/>
+    <path d="M-17 -30 q17 15 32 4 q-4 15 -19 15 q-15 -2 -13 -19 Z" fill="${s.belly}"/>
+    <path d="M5 -44 q22 5 24 23 q-5 11 -20 8 q-13 -9 -4 -31 Z" fill="${s.wing}"/>
+    <g stroke="${s.body}" stroke-width="1.5" opacity=".4" fill="none"><path d="M12 -26 l14 4"/><path d="M14 -19 l12 4"/></g>
+    <path d="M-19 -45 q11 -9 24 1 q-7 7 -24 -1 Z" fill="${s.head}"/>
+    <circle cx="-15" cy="-54" r="12.5" fill="${s.head}"/>
+    ${s.cheek?`<ellipse cx="-19.5" cy="-45" rx="6.6" ry="5" fill="${s.cheek}"/>`:''}
+    ${s.ruff?`<path d="M-25 -43 q15 10 30 2 q-4 10 -17 10 q-14 -2 -13 -12 Z" fill="${s.ruff}"/>`:''}
+    ${s.crestQ?`<path d="M-9 -66 L-7 -80 L-2 -66 Z M-3 -66 L2 -79 L6 -65 Z" fill="${s.head}"/>`:''}
+    ${s.nape?`<path d="M-6 -62 q12 -5 14 4 q-9 5 -14 -4 Z" fill="${s.nape}"/>`:''}
+    ${s.malar?`<path d="M-21.5 -54 q3.2 7 2 11.5 q-5.2 -2.6 -5.2 -11.5 Z" fill="${s.malar}"/>`:''}
+    ${s.stripe?`<path d="M-28 -56 q12 -3 19 1 q-9 5 -19 -1 Z" fill="${s.stripe}"/>`:''}
+    <path d="M-24.5 -58.5 q-5 -1.5 -7.5 2" stroke="${s.brow||'#33383d'}" stroke-width="2.6" fill="none" stroke-linecap="round"/>
+    <path d="M-24 -57 q-10 1 -11.5 7 q5 6.5 9.5 3 q-5 -2 -3 -6 Z" fill="${s.beak}"/>
+    ${s.cere?`<path d="M-24 -57.5 q-5.5 .3 -7.5 2.4 q4.5 1 7.5 -2.4 Z" fill="${s.cere}"/>`:''}
+    ${s.ering?`<circle cx="-19" cy="-57" r="4.4" fill="none" stroke="${s.ering}" stroke-width="1.7"/>`:''}
+    <circle cx="-19" cy="-57" r="3" fill="${s.eye||'#f5c518'}"/>
+    <circle cx="-19.4" cy="-57" r="1.5" fill="#0b0b0b"/>
+    <circle cx="-20" cy="-57.8" r=".7" fill="#fff"/>
+    <g class="lg-blink" style="animation-delay:${d}s"><circle cx="-19" cy="-57" r="3.4" fill="${s.head}"/></g>`;
+}
+function lgPuffin(s,d){
+  return `${lgTalons('#e8621f',[-5,5],9,3.2)}
+    <path d="M12 -22 q14 5 14 16 q-11 0 -17 -9 Z" fill="#1a1a1a"/>
+    <ellipse cx="0" cy="-27" rx="15" ry="22" fill="#1a1a1a"/>
+    <path d="M-13 -29 q13 19 24 3 q-2 21 -12 22 q-13 -3 -12 -25 Z" fill="#f6f4ef"/>
+    <ellipse cx="8" cy="-31" rx="7" ry="15" fill="#111"/>
+    <circle cx="-4" cy="-51" r="14" fill="#1a1a1a"/>
+    <path d="M-12 -61 q-8 6 -7 17 q1 8 9 11 q6 -13 -2 -28 Z" fill="#f6f4ef"/>
+    <path d="M-16 -53 q-14 2 -15 8 q1 8 15 10 q5 -9 0 -18 Z" fill="#e8621f"/>
+    <path d="M-16 -53 q-7 1 -9.5 4 q1 4.5 9.5 5.5 q3 -5 0 -9.5 Z" fill="#f2c23a"/>
+    <path d="M-25 -51 q3 6 1.5 11" stroke="#c9451a" stroke-width="1.2" fill="none"/>
+    <circle cx="-11" cy="-54" r="2.5" fill="#111"/>
+    <circle cx="-11" cy="-54" r="3.8" fill="none" stroke="#c9451a" stroke-width="1.2"/>
+    <g class="lg-blink" style="animation-delay:${d}s"><circle cx="-11" cy="-54" r="2.7" fill="#f6f4ef"/></g>`;
+}
+function lgParrot(s,d){
+  return `${lgTalons('#5a5a5a',[-5,5],9,3)}
+    <path d="M10 -28 q30 9 36 36 q-18 -3 -29 -22 Z" fill="${s.tail}"/>
+    <path d="M13 -32 q26 10 30 33 q-15 -3 -24 -20 Z" fill="${s.tail2}" opacity=".9"/>
+    <ellipse cx="0" cy="-30" rx="16" ry="20" fill="${s.body}"/>
+    <path d="M-13 -32 q13 18 25 4 q-2 20 -13 22 q-13 -3 -12 -26 Z" fill="${s.belly}"/>
+    <ellipse cx="8" cy="-34" rx="8" ry="16" fill="${s.wing}" transform="rotate(-8 8 -34)"/>
+    <path d="M5 -41 q9 5 10 15" stroke="${s.wing2}" stroke-width="4.5" fill="none" stroke-linecap="round"/>
+    <circle cx="-8" cy="-54" r="13" fill="${s.head}"/>
+    <ellipse cx="-16" cy="-54" rx="7.5" ry="8.5" fill="#f6f2ea"/>
+    <g stroke="#dcd2c2" stroke-width="1" fill="none"><path d="M-15 -58 q-2.5 3.5 -1 7"/><path d="M-11.5 -60 q-2.5 4 -1 8"/></g>
+    <path d="M-19 -61 q-11.5 2 -11.5 10.5 q0 9 10 11 q-7 -10 1.5 -21.5 Z" fill="#f2efe8"/>
+    <path d="M-19 -55 q-9 3 -8 9.5 q4 5 8 4 q-5 -6.5 0 -13.5 Z" fill="#2b2b2b"/>
+    <circle cx="-15" cy="-56.5" r="2.4" fill="#111"/>
+    <g class="lg-blink" style="animation-delay:${d}s"><circle cx="-15" cy="-56.5" r="2.6" fill="#f6f2ea"/></g>`;
+}
+function lgQuetzal(s,d){
+  return `${lgTalons('#5a5a5a',[-4,4],8,2.8)}
+    <path d="M7 -30 q32 1 43 33 q-15 5 -28 -13 q-11 -12 -15 -20 Z" fill="${s.tail}"/>
+    <path d="M9 -25 q30 6 37 31 q-13 3 -24 -14 q-9 -10 -13 -17 Z" fill="${s.tail2}" opacity=".85"/>
+    <ellipse cx="0" cy="-28" rx="14" ry="18" fill="${s.body}"/>
+    <path d="M-11 -29 q11 16 22 2 q-2 19 -11 21 q-12 -3 -11 -23 Z" fill="${s.belly}"/>
+    <ellipse cx="7" cy="-32" rx="7" ry="14" fill="${s.wing}" transform="rotate(-8 7 -32)"/>
+    <circle cx="-7" cy="-48" r="11.5" fill="${s.head}"/>
+    <path d="M-15 -57 q8 -9 15 -2 q-9 -1 -15 2 Z" fill="${s.head}"/>
+    <g stroke="${s.head}" stroke-width="2.4" fill="none" stroke-linecap="round"><path d="M-12 -60 q4.5 -7 9.5 -3"/><path d="M-17 -57 q4.5 -6 8.5 -3"/></g>
+    <path d="M-17 -49 q-8 0 -9 3.2 q3.4 4.2 9 3 Z" fill="${s.beak}"/>
+    <circle cx="-12" cy="-50.5" r="2.2" fill="#111"/>
+    <g class="lg-blink" style="animation-delay:${d}s"><circle cx="-12" cy="-50.5" r="2.4" fill="${s.head}"/></g>`;
+}
+function lgShoebill(s,d){
+  return `<g stroke="#5a6068" stroke-width="3.2" stroke-linecap="round" fill="none"><path d="M-5 -1 L-5 -23"/><path d="M5 -1 L5 -23"/></g>
+    <g stroke="#5a6068" stroke-width="2.4" fill="none" stroke-linecap="round"><path d="M-9.5 -.4 q4 -3.2 8.5 -1.4"/><path d="M.5 -.4 q4 -3.2 8.5 -1.4"/></g>
+    <path d="M11 -25 q17 8 15 23 q-12 -4 -19 -15 Z" fill="${s.wing}"/>
+    <ellipse cx="0" cy="-34" rx="16" ry="15" fill="${s.body}"/>
+    <ellipse cx="7" cy="-35" rx="8" ry="12" fill="${s.wing}" transform="rotate(-8 7 -35)"/>
+    <path d="M-7 -45 q4 -12 -1.5 -20" stroke="${s.body}" stroke-width="9" fill="none" stroke-linecap="round"/>
+    <circle cx="-9" cy="-65" r="10.5" fill="${s.head}"/>
+    <path d="M-6 -75 q7.5 -6 10.5 2 q-6.5 0 -10.5 -2 Z" fill="${s.head}"/>
+    <path d="M-16 -67 q-15 2 -15 9.5 q0 8 12.5 9 q7.5 -1 6.5 -9.5 q0 -8.5 -4 -9 Z" fill="${s.beak}"/>
+    <path d="M-31 -58.5 q4.5 3.5 5.5 -2" fill="${s.beak2}"/>
+    <path d="M-29 -63 q10.5 -1 13.5 3" stroke="${s.beak2}" stroke-width="1.1" fill="none" opacity=".7"/>
+    <circle cx="-13" cy="-67" r="2.6" fill="#f0ead8"/><circle cx="-13.4" cy="-67" r="1.4" fill="#111"/>
+    <g class="lg-blink" style="animation-delay:${d}s"><circle cx="-13" cy="-67" r="2.8" fill="${s.head}"/></g>`;
+}
+function lgSecretary(s,d){
+  return `<g stroke="#c9b9a8" stroke-width="2.8" stroke-linecap="round" fill="none"><path d="M-5 -1 L-4 -31"/><path d="M5 -1 L4 -31"/></g>
+    <g stroke="#c9b9a8" stroke-width="2.2" fill="none" stroke-linecap="round"><path d="M-9.5 -.4 q4 -3.2 8.5 -1.4"/><path d="M.5 -.4 q4 -3.2 8.5 -1.4"/></g>
+    <g stroke="#2b2b2b" stroke-width="5" stroke-linecap="round"><path d="M-4.5 -31 L-4.5 -41"/><path d="M4.5 -31 L4.5 -41"/></g>
+    <path d="M10 -43 q21 15 21 36 q-15 -7 -25 -26 Z" fill="${s.tail}"/>
+    <ellipse cx="0" cy="-49" rx="15" ry="13" fill="${s.body}"/>
+    <ellipse cx="7" cy="-50" rx="8" ry="10" fill="${s.wing}" transform="rotate(-8 7 -50)"/>
+    <path d="M-6 -57 q3 -10 -2 -16" stroke="${s.body}" stroke-width="7.5" fill="none" stroke-linecap="round"/>
+    <circle cx="-9" cy="-77" r="9.5" fill="${s.head}"/>
+    <g stroke="#2b2b2b" stroke-width="2.2" stroke-linecap="round" fill="none"><path d="M-4 -85 q7.5 -5 12.5 -1"/><path d="M-6 -88 q6.5 -6.5 12.5 -3.5"/><path d="M-2 -81 q8.5 -3 12.5 1"/></g>
+    <ellipse cx="-14" cy="-77" rx="6" ry="5" fill="${s.face}"/>
+    <path d="M-19 -78 q-9.5 1 -9.5 4 q3 4.2 9.5 3 Z" fill="${s.beak}"/>
+    <circle cx="-14" cy="-79" r="2.2" fill="#111"/>
+    <g class="lg-blink" style="animation-delay:${d}s"><circle cx="-14" cy="-79" r="2.4" fill="${s.face}"/></g>`;
+}
+function lgCondor(s,d){
+  return `${lgTalons('#7b7268',[-7,6],11,3.4)}
+    <path d="M16 -32 q23 6 25 25 q-16 2 -27 -13 Z" fill="${s.wing}"/>
+    <ellipse cx="0" cy="-36" rx="22" ry="19" fill="${s.body}"/>
+    <path d="M8 -48 q23 6 24 25 q-6 11 -21 7 q-13 -10 -3 -32 Z" fill="${s.wing}"/>
+    <path d="M-20 -45 q19 12 34 3 q-4 12 -20 12 q-16 -2 -14 -15 Z" fill="${s.ruff}"/>
+    <path d="M-8 -55 q4 -10 -2.5 -14" stroke="${s.neck}" stroke-width="9" fill="none" stroke-linecap="round"/>
+    <circle cx="-13" cy="-69" r="10" fill="${s.head}"/>
+    ${s.caruncle?`<path d="M-11 -80 q9.5 -8 12.5 1 q-7.5 2 -12.5 -1 Z" fill="${s.head}"/>`:''}
+    <path d="M-21 -74 q-6 2 -6.5 6.5" stroke="${s.head}" stroke-width="3" fill="none"/>
+    <path d="M-22 -71 q-9.5 1 -10.5 6.5 q5 5 9 2 q-4 -2 -2 -6 Z" fill="${s.beak}"/>
+    <circle cx="-17" cy="-71" r="2.5" fill="#3a2f28"/><circle cx="-17.3" cy="-71" r="1.3" fill="#111"/>
+    <g class="lg-blink" style="animation-delay:${d}s"><circle cx="-17" cy="-71" r="2.7" fill="${s.head}"/></g>`;
+}
+function lgAlbatross(s,d){
+  return `${lgTalons('#8fa3b8',[-5,5],9,3)}
+    <path d="M14 -27 q17 4 17 17 q-13 1 -20 -9 Z" fill="${s.wing}"/>
+    <ellipse cx="0" cy="-31" rx="19" ry="15" fill="${s.body}"/>
+    <ellipse cx="8" cy="-33" rx="10" ry="12" fill="${s.wing}" transform="rotate(-10 8 -33)"/>
+    <path d="M-10 -41 q3 -10 -2 -14" stroke="${s.body}" stroke-width="9" fill="none" stroke-linecap="round"/>
+    <circle cx="-13" cy="-57" r="10" fill="${s.head}"/>
+    <path d="M-21 -58 q-16 1 -16.5 5 q1 5 16.5 5 q4 -5 0 -10 Z" fill="${s.beak}"/>
+    <path d="M-37.5 -53 q4.5 3.5 6 -1" fill="${s.beak}"/>
+    <path d="M-31 -56.5 q7.5 0 9.5 2" stroke="#c9a45c" stroke-width="1" fill="none" opacity=".7"/>
+    <path d="M-22 -61 q6 -2.5 9 -.5" stroke="#c8d4de" stroke-width="1.8" fill="none" stroke-linecap="round"/>
+    <circle cx="-17" cy="-59" r="2.3" fill="#111"/>
+    <g class="lg-blink" style="animation-delay:${d}s"><circle cx="-17" cy="-59" r="2.5" fill="${s.head}"/></g>`;
+}
+function lgPenguin(s,d){
+  return `<g stroke="#3a3a3a" stroke-width="3" stroke-linecap="round" fill="none"><path d="M-10 -.6 q7 -4.4 12.5 -1"/><path d="M-.5 -.6 q7 -4.4 12.5 -1"/></g>
+    <g stroke="#3a3a3a" stroke-width="3.4" stroke-linecap="round"><path d="M-8 -7 L-8 -14"/><path d="M6 -7 L6 -14"/></g>
+    <path d="M12 -20 q10 6 9 14 q-9 -1 -13 -8 Z" fill="#1c2430"/>
+    <ellipse cx="0" cy="-35" rx="16" ry="27" fill="#1c2430"/>
+    <path d="M-12 -42 q13 25 24 6 q0 25 -12 27 q-14 -4 -12 -33 Z" fill="#f4f2ea"/>
+    <path d="M-13 -46 q-6 15 -3 31 q-5 -2 -6 -17 q0 -12 9 -14 Z" fill="#161d27"/>
+    <ellipse cx="11" cy="-39" rx="5" ry="18" fill="#141a24" transform="rotate(-6 11 -39)"/>
+    <circle cx="-6" cy="-68" r="13" fill="#1c2430"/>
+    <path d="M-15 -64 q7.5 8.5 15.5 3 q-2 10.5 -9.5 11.5 q-8.5 -3 -6 -14.5 Z" fill="${s.throat}"/>
+    <path d="M-16.5 -72 q6 6 3 12.5 q-7.5 -2 -6.5 -12.5 Z" fill="${s.patch}"/>
+    <path d="M-19 -69 q-11.5 1 -12.5 4.2 q2 4.2 12.5 4.2 q4 -4.2 0 -8.4 Z" fill="${s.beak}"/>
+    <path d="M-28 -66 q6.5 0 8.5 1" stroke="${s.mandible}" stroke-width="2" fill="none" stroke-linecap="round"/>
+    <circle cx="-11" cy="-71" r="2.2" fill="#f4f2ea"/><circle cx="-11.2" cy="-71" r="1.2" fill="#111"/>
+    <g class="lg-blink" style="animation-delay:${d}s"><circle cx="-11" cy="-71" r="2.4" fill="#1c2430"/></g>`;
+}
+function lgBop(s,d){
+  return `${lgTalons('#7a5a3a',[-5,5],9,3)}
+    <g opacity=".95">
+      <path d="M8 -30 q31 -7 45 14 q-27 5 -47 -4 Z" fill="${s.plume}"/>
+      <path d="M8 -33 q29 -15 47 -2 q-27 11 -47 8 Z" fill="${s.plume2}" opacity=".85"/>
+      <path d="M10 -28 q27 3 39 21 q-25 -2 -41 -13 Z" fill="${s.plume}" opacity=".65"/>
+    </g>
+    <g stroke="#2b2b2b" stroke-width="1.2" fill="none" opacity=".8"><path d="M6 -35 q23 -30 27 -47"/><path d="M9 -34 q25 -27 31 -43"/></g>
+    <ellipse cx="0" cy="-31" rx="14" ry="17" fill="${s.body}"/>
+    <path d="M-11 -33 q11 16 22 2 q-2 18 -11 20 q-12 -3 -11 -22 Z" fill="${s.belly}"/>
+    <circle cx="-8" cy="-49" r="11" fill="${s.head}"/>
+    <path d="M-15 -43 q9.5 6.5 17 0 q-3 9.5 -9.5 10.5 q-8.5 -2 -7.5 -10.5 Z" fill="${s.throat}"/>
+    <path d="M-18 -51 q-9.5 1 -10 4 q3 4.2 10 3.6 Z" fill="${s.beak}"/>
+    <circle cx="-13" cy="-52" r="2.2" fill="#111"/>
+    <g class="lg-blink" style="animation-delay:${d}s"><circle cx="-13" cy="-52" r="2.4" fill="${s.head}"/></g>`;
+}
+const LG_FORMS={owl:lgOwl,raptor:lgRaptor,puffin:lgPuffin,parrot:lgParrot,quetzal:lgQuetzal,
+  shoebill:lgShoebill,secretary:lgSecretary,condor:lgCondor,albatross:lgAlbatross,penguin:lgPenguin,bop:lgBop};
+// One legend, feet at the local origin. `flip` mirrors it to face right.
+function legendInner(li,flip){
+  const s=legendSpec(li);
+  const blinkDelay=(((li*2.7)%5)+0.5).toFixed(1);
+  const art=(LG_FORMS[s.form]||lgOwl)(s,blinkDelay);
+  return `<title>${escHtml(s.n)}</title>
+    <g class="lg-face" transform="scale(${flip?-1:1},1)"><g class="lg-breathe">${art}</g></g>`;
+}
+const LG_CRAG=`<path d="M96 268 q60 -16 128 -12 q80 5 154 -6 q56 -8 92 8 l0 22 q-100 -14 -180 -6 q-96 10 -194 4 Z" fill="#3f3a34"/>
+    <path d="M96 268 q60 -16 128 -12 q80 5 154 -6 q56 -8 92 8" stroke="#5a5148" stroke-width="3" fill="none"/>`;
+// The shape alone, before the reveal: pure black on a lit haze.
+function legendSilhouette(li){
+  return `<svg viewBox="0 0 560 320" preserveAspectRatio="xMidYMid slice" xmlns="http://www.w3.org/2000/svg">
+    <defs><linearGradient id="lgsilA" x1="0" y1="0" x2="0" y2="1">
+      <stop offset="0" stop-color="#22304d"/><stop offset="1" stop-color="#080d18"/></linearGradient>
+      <radialGradient id="lgsilB" cx="48%" cy="62%" r="58%">
+      <stop offset="0" stop-color="#5d7fb5" stop-opacity=".85"/><stop offset="1" stop-color="#5d7fb5" stop-opacity="0"/></radialGradient></defs>
+    <rect width="560" height="320" fill="url(#lgsilA)"/>
+    <ellipse cx="262" cy="186" rx="190" ry="128" fill="url(#lgsilB)"/>
+    ${lgStars(li)}
+    <path d="M96 268 q60 -16 128 -12 q80 5 154 -6 q56 -8 92 8 l0 26 q-100 -16 -180 -8 q-96 10 -194 4 Z" fill="#05090f"/>
+    <g transform="translate(258,262) scale(2.35)" style="filter:brightness(0) saturate(0)">${legendInner(li,false)}</g>
+  </svg>`;
+}
+// Figure only, transparent ground — for the faint dashboard backdrop, where a
+// full portrait scene would fade to a grey rectangle instead of a bird.
+function legendGhost(li){
+  return `<svg viewBox="-52 -102 112 112" xmlns="http://www.w3.org/2000/svg" style="width:100%;display:block">${legendInner(li,li%2===1)}</svg>`;
+}
+// Deterministic star field so a legend's portrait looks the same every time.
+function lgStars(seed){
+  let x=(seed+7)*9301, out='';
+  for(let i=0;i<26;i++){
+    x=(x*9301+49297)%233280;
+    const cx=(x/233280*560).toFixed(0);
+    x=(x*9301+49297)%233280;
+    const cy=(x/233280*180).toFixed(0);
+    x=(x*9301+49297)%233280;
+    out+=`<circle cx="${cx}" cy="${cy}" r="${(0.7+x/233280*1.2).toFixed(1)}" fill="#fff" opacity="${(0.3+x/233280*0.6).toFixed(2)}"/>`;
+  }
+  return out;
+}
+// Full portrait scene, framed like the songbird portraits (560×320, 57.14%).
+function legendPortrait(li){
+  const s=legendSpec(li), id='lgp'+(((li%LEGENDS.length)+LEGENDS.length)%LEGENDS.length), sc=s.scene||'dusk';
+  let mid='', ground='';
+  if(sc==='night'){
+    mid=`<circle cx="456" cy="66" r="70" fill="#fdf6d8" opacity=".14"/><circle cx="456" cy="66" r="30" fill="#fdf6d8" opacity=".95"/>
+      <circle cx="444" cy="58" r="26" fill="${s.sky[0]}" opacity=".4"/>${lgStars(li)}
+      <path d="M0 256 L54 178 L96 236 L146 152 L206 250 L262 192 L318 256 L378 170 L428 248 L488 198 L560 258 L560 320 L0 320 Z" fill="#0d1524" opacity=".82"/>`;
+    ground=`<rect y="272" width="560" height="48" fill="#111a2b"/>`;
+  } else if(sc==='dusk'){
+    mid=`<circle cx="452" cy="118" r="96" fill="#ffd08a" opacity=".28"/><circle cx="452" cy="118" r="40" fill="#ffe6a8" opacity=".95"/>
+      <ellipse cx="150" cy="70" rx="76" ry="15" fill="#fff" opacity=".28"/><ellipse cx="250" cy="96" rx="60" ry="11" fill="#fff" opacity=".2"/>
+      <path d="M0 244 L90 186 L170 236 L262 176 L350 240 L440 194 L560 250 L560 320 L0 320 Z" fill="#5a3f4e" opacity=".75"/>`;
+    ground=`<rect y="272" width="560" height="48" fill="#4a3340"/>`;
+  } else if(sc==='peak'){
+    mid=`<circle cx="474" cy="60" r="26" fill="#fff6d8" opacity=".9"/>
+      <path d="M-20 254 L86 118 L168 212 L252 92 L342 218 L424 148 L580 256 L580 320 L-20 320 Z" fill="#8fa8c0" opacity=".92"/>
+      <path d="M252 92 L216 146 L252 136 L288 150 Z" fill="#fff" opacity=".92"/>
+      <path d="M86 118 L58 158 L86 150 L116 164 Z" fill="#fff" opacity=".82"/>
+      <path d="M424 148 L404 176 L424 170 L446 180 Z" fill="#fff" opacity=".7"/>`;
+    ground=`<rect y="276" width="560" height="44" fill="#7d93a8"/>`;
+  } else if(sc==='ice'){
+    mid=`<circle cx="468" cy="62" r="24" fill="#fffbe8" opacity=".85"/>
+      <path d="M-20 250 L70 200 L150 246 L240 196 L330 250 L420 202 L580 252 L580 320 L-20 320 Z" fill="#cfe4f2"/>
+      <path d="M40 286 L108 264 L182 288 Z" fill="#eaf6ff"/><path d="M380 284 L446 262 L520 286 Z" fill="#eaf6ff"/>`;
+    ground=`<rect y="278" width="560" height="42" fill="#b7d4e8"/>`;
+  } else if(sc==='sea'){
+    mid=`<circle cx="466" cy="58" r="24" fill="#fff6d8" opacity=".85"/>
+      <ellipse cx="130" cy="52" rx="60" ry="13" fill="#fff" opacity=".7"/><ellipse cx="196" cy="62" rx="44" ry="10" fill="#fff" opacity=".45"/>
+      <rect y="228" width="560" height="92" fill="#3f7fa8"/>
+      <g stroke="#cfe9f5" stroke-width="2.4" fill="none" opacity=".6"><path d="M20 250 q22 -8 44 0 t44 0"/><path d="M300 264 q22 -8 44 0 t44 0"/><path d="M120 282 q22 -8 44 0 t44 0"/></g>`;
+    ground=`<path d="M0 268 q140 -20 280 -4 q140 16 280 -2 L560 320 L0 320 Z" fill="#5a6f7d"/>`;
+  } else if(sc==='jungle'){
+    mid=`<circle cx="452" cy="66" r="60" fill="#fff6c8" opacity=".2"/>
+      <g fill="#0f3b2a" opacity=".55"><path d="M0 0 q70 40 40 110 q-30 -60 -70 -70 Z"/><path d="M560 0 q-80 34 -52 116 q34 -62 76 -74 Z"/>
+        <path d="M120 0 q40 60 6 116 q-4 -70 -46 -92 Z"/><path d="M440 0 q-46 54 -14 118 q6 -72 50 -90 Z"/></g>
+      <path d="M0 250 q100 -26 180 -6 q120 30 200 -4 q100 -26 180 4 L560 320 L0 320 Z" fill="#1d6b46" opacity=".85"/>`;
+    ground=`<rect y="282" width="560" height="38" fill="#175539"/>`;
+  } else {
+    mid=`<circle cx="466" cy="58" r="26" fill="#fff6d8" opacity=".9"/>
+      <ellipse cx="132" cy="50" rx="58" ry="14" fill="#fff" opacity=".8"/><ellipse cx="192" cy="60" rx="42" ry="10" fill="#fff" opacity=".5"/>
+      <path d="M0 252 L100 210 L190 248 L290 206 L390 250 L480 214 L560 252 L560 320 L0 320 Z" fill="#a8c49a" opacity=".8"/>`;
+    ground=`<rect y="274" width="560" height="46" fill="#93b487"/>`;
+  }
+  // A crag rather than a wire — legends do not perch on telephone lines.
+  const perch=LG_CRAG;
+  return `<svg viewBox="0 0 560 320" preserveAspectRatio="xMidYMid slice" xmlns="http://www.w3.org/2000/svg">
+    <defs><linearGradient id="${id}" x1="0" y1="0" x2="0" y2="1">
+      <stop offset="0" stop-color="${s.sky[0]}"/><stop offset="1" stop-color="${s.sky[1]}"/></linearGradient></defs>
+    <rect width="560" height="320" fill="url(#${id})"/>
+    ${mid}${ground}${perch}
+    <g transform="translate(258,262) scale(2.35)">${legendInner(li,false)}</g>
+  </svg>`;
+}
+
+// ── Milestone bookkeeping ────────────────────────────────────────────────
+function legendsEarned(){ return (DB.legends&&DB.legends.earned)||[]; }
+function legendTargetFor(k){ return LEGEND_STEP*(k+1); }
+function nextLegendTarget(){ return legendTargetFor(legendsEarned().length); }
+// Called after updateStreak() on every review. Awards every threshold the
+// CURRENT run has passed — a while loop rather than a single check, so an
+// imported backup with a long live streak is credited for the whole climb.
+function checkLegendMilestones(){
+  DB.legends=DB.legends||{earned:[]};
+  DB.legends.earned=DB.legends.earned||[];
+  const st=currentStreak();
+  let last=null, extra=0;
+  while(st>=legendTargetFor(DB.legends.earned.length) && DB.legends.earned.length<500){
+    const k=DB.legends.earned.length;
+    const rec={i:k%LEGENDS.length, days:legendTargetFor(k), date:today()};
+    DB.legends.earned.push(rec);
+    if(last) extra++;
+    last=rec;
+  }
+  if(last){
+    saveDB();
+    setTimeout(()=>playLegendReveal(last,extra),700);
+  }
+}
+
+// ── The reveal ───────────────────────────────────────────────────────────
+// Two stacked copies of the same portrait: a desaturated black silhouette and
+// the real thing clipped to nothing. A light sweep crosses the silhouette, the
+// clip wipes upward, the frame flashes, sparks fly, and the name types itself
+// in one letter at a time. Everything is CSS keyframes on a fixed timeline —
+// no rAF loop to leak if the overlay is dismissed early.
+function playLegendReveal(rec,extra){
+  let ov=document.getElementById('legend-overlay');
+  if(!ov){
+    ov=document.createElement('div'); ov.id='legend-overlay';
+    ov.addEventListener('click',e=>{ if(e.target===ov) closeLegendReveal(); });
+    document.body.appendChild(ov);
+  }
+  const s=legendSpec(rec.i), art=legendPortrait(rec.i);
+  const letters=String(s.n).split('').map((ch,i)=>
+    `<span style="animation-delay:${(1.9+i*0.042).toFixed(2)}s">${ch===' '?'&nbsp;':escHtml(ch)}</span>`).join('');
+  let sparks='';
+  for(let i=0;i<20;i++){
+    const a=(i/20)*Math.PI*2, d=130+((i*47)%110);
+    sparks+=`<i class="lgo-spark" style="--dx:${(Math.cos(a)*d).toFixed(0)}px;--dy:${(Math.sin(a)*d).toFixed(0)}px;animation-delay:${(1.5+(i%5)*0.06).toFixed(2)}s"></i>`;
+  }
+  ov.innerHTML=`<div class="lgo-card">
+    <div class="lgo-rays"></div>${sparks}
+    <div class="lgo-stage">
+      <div class="lgo-layer lgo-dark">${legendSilhouette(rec.i)}</div>
+      <div class="lgo-layer lgo-color">${art}</div>
+      <div class="lgo-shine"></div><div class="lgo-flash"></div>
+    </div>
+    <div class="lgo-name">${letters}</div>
+    <div><span class="lgo-chip">${rec.days} days unbroken</span></div>
+    <div class="lgo-sub">${extra?`…and ${extra} earlier milestone${extra===1?'':'s'} caught up with you.<br>`:''}
+      It's yours to keep — a broken streak never takes one back.<br>
+      <strong style="color:#ffe6a1">Next legend: ${rec.days+LEGEND_STEP} days in a row.</strong></div>
+    <button class="lgo-btn" onclick="closeLegendReveal()">Beautiful</button>
+  </div>`;
+  requestAnimationFrame(()=>ov.classList.add('on'));
+  try{ if(!(window.matchMedia&&matchMedia('(prefers-reduced-motion: reduce)').matches)) setTimeout(()=>launchConfetti(14000),1500); }catch(e){ }
+  document.addEventListener('keydown',legendEscHandler);
+}
+function legendEscHandler(e){ if(e.key==='Escape') closeLegendReveal(); }
+function closeLegendReveal(){
+  const ov=document.getElementById('legend-overlay'); if(!ov) return;
+  document.removeEventListener('keydown',legendEscHandler);
+  ov.classList.remove('on');
+  setTimeout(()=>{ ov.innerHTML=''; ov.style.display=''; },450);
+  if(document.getElementById('page-streak')&&document.getElementById('page-streak').classList.contains('active')) renderStreak();
+  renderDashboardBirds();
+}
+
+// ── The roost ────────────────────────────────────────────────────────────
+// Earned legends stand on a moonlit crag, five to a ledge, each labelled with
+// the run that earned it. Tapping one opens its portrait.
+function legendRoostHtml(list){
+  const per=5, rows=Math.max(1,Math.ceil(list.length/per));
+  const W=800, rowH=152, top=30, H=top+rows*rowH+16;
+  let svg=`<svg viewBox="0 0 ${W} ${H}" xmlns="http://www.w3.org/2000/svg" style="width:100%;display:block;border-radius:12px">
+    <defs><linearGradient id="lgroost" x1="0" y1="0" x2="0" y2="1">
+      <stop offset="0" stop-color="#16233c"/><stop offset="1" stop-color="#3b5170"/></linearGradient></defs>
+    <rect width="${W}" height="${H}" fill="url(#lgroost)"/>
+    <circle cx="${W-96}" cy="52" r="54" fill="#fdf6d8" opacity=".12"/>
+    <circle cx="${W-96}" cy="52" r="24" fill="#fdf6d8" opacity=".92"/>
+    <circle cx="${W-106}" cy="45" r="20" fill="#16233c" opacity=".35"/>`;
+  for(let i=0;i<40;i++){
+    const x=((i*137)%W), y=((i*79)%(H-40))+8, r=(i%3)?0.9:1.5;
+    svg+=`<circle cx="${x}" cy="${y}" r="${r}" fill="#fff" opacity="${(0.18+(i%5)*0.1).toFixed(2)}"/>`;
+  }
+  for(let r=0;r<rows;r++){
+    const by=top+r*rowH+116;
+    svg+=`<path d="M40 ${by} q120 -14 250 -8 q170 8 300 -10 q100 -12 170 10 l0 16 q-140 -18 -250 -6 q-180 18 -320 8 q-90 -6 -150 -6 Z" fill="#2a3346"/>
+      <path d="M40 ${by} q120 -14 250 -8 q170 8 300 -10 q100 -12 170 10" stroke="#4d5c78" stroke-width="2.5" fill="none"/>`;
+    const items=list.slice(r*per,(r+1)*per);
+    items.forEach((rec,j)=>{
+      const gi=r*per+j;
+      const x=Math.round(W*(j+0.5)/items.length);
+      const y=by-4+Math.round(Math.sin((x/W)*Math.PI)*-3);
+      svg+=`<g class="lg-perch" transform="translate(${x},${y}) scale(1.16)" onclick="showLegendPortrait(${gi})">
+        ${legendInner(rec.i,j%2===1)}</g>
+        <text x="${x}" y="${by+34}" text-anchor="middle" font-size="13" font-weight="700" fill="#dbe6f5" opacity=".9">${rec.days} days</text>`;
+    });
+  }
+  svg+='</svg>';
+  return svg;
+}
+let legendOpenIdx=null;
+function showLegendPortrait(k){
+  const el=document.getElementById('legend-portrait'); if(!el) return;
+  if(legendOpenIdx===k){ el.innerHTML=''; legendOpenIdx=null; return; }
+  legendOpenIdx=k;
+  const rec=legendsEarned()[k]; if(!rec) return;
+  const s=legendSpec(rec.i);
+  el.innerHTML=`<div style="max-width:440px;margin:14px auto 0;border:1px solid #e5e7eb;border-radius:12px;overflow:hidden;box-shadow:var(--card-shadow)">
+    <div style="width:100%;padding-top:57.14%;position:relative"><div style="position:absolute;inset:0">${legendPortrait(rec.i)}</div></div>
+    <div style="display:flex;justify-content:space-between;align-items:center;gap:10px;padding:10px 14px">
+      <div><div style="font-weight:700;color:var(--navy);font-size:14px">${escHtml(s.n)}</div>
+        <div style="font-size:11.5px;color:var(--muted)">${rec.days} consecutive days · earned ${rec.date||'—'}</div></div>
+      <button class="btn-secondary" style="padding:4px 10px;font-size:12px" onclick="showLegendPortrait(${k})">Close</button>
+    </div>
+  </div>`;
+  el.scrollIntoView({behavior:'smooth',block:'nearest'});
+}
+
+// ── Progress toward the next one ─────────────────────────────────────────
+// A filling ring, not a preview. The species behind it is never drawn, named
+// or hinted at — the placeholder is the same anonymous soaring shape every
+// time, so nothing about the next legend leaks before it is earned.
+function mysterySilhouette(){
+  return `<svg class="lg-mystery" viewBox="0 0 100 46" xmlns="http://www.w3.org/2000/svg"><path d="M50 30
+    q-5 -10 -19 -14 q-16 -5 -29 3 q14 -1 22 5 q7 6 13 10 q-7 5 -7 12 q5 -7 11 -9 h18 q6 2 11 9 q0 -7 -7 -12
+    q6 -4 13 -10 q8 -6 22 -5 q-13 -8 -29 -3 q-14 4 -19 14 Z"/></svg>`;
+}
+function renderLegendProgress(){
+  const host=document.getElementById('legend-progress'); if(!host) return;
+  const st=currentStreak(), n=legendsEarned().length, target=nextLegendTarget();
+  const left=Math.max(0,target-st);
+  const frac=Math.max(0,Math.min(1,st/target));
+  const R=64, C=2*Math.PI*R;
+  const dots=target<=20?Array.from({length:target},(_,i)=>`<span class="lg-dot${i<st?' on':''}"></span>`).join(''):'';
+  host.innerHTML=`<div class="lg-ring-wrap">
+    <div class="lg-ring${left<=2&&left>0?' lg-close':''}">
+      <svg viewBox="0 0 152 152">
+        <defs><linearGradient id="lgGrad" x1="0" y1="0" x2="1" y2="1">
+          <stop offset="0" stop-color="#f5c518"/><stop offset="1" stop-color="#e0741f"/></linearGradient></defs>
+        <circle class="lg-ring-track" cx="76" cy="76" r="${R}" fill="none" stroke-width="13"/>
+        <circle class="lg-ring-fill" cx="76" cy="76" r="${R}" fill="none" stroke="url(#lgGrad)" stroke-width="13"
+          stroke-dasharray="${C.toFixed(1)}" stroke-dashoffset="${C.toFixed(1)}"/>
+      </svg>
+      <div class="lg-ring-mid"><div class="lg-ring-num">${st}</div><div class="lg-ring-of">of ${target} days</div></div>
+    </div>
+    <div class="lg-tease">
+      ${mysterySilhouette()}
+      <h4>${left===0?'Milestone reached':left===1?'One more day.':left+' days to go'}</h4>
+      <p>${n===0
+        ? 'Study '+target+' days in a row and something rare turns up. No hints — you’ll see it when you’ve earned it.'
+        : 'A '+target+'-day run earns the next one. Miss a day and this ring resets to zero, but every legend already on your crag stays there.'}</p>
+      ${dots?`<div class="lg-dots">${dots}</div>`:''}
+    </div>
+  </div>`;
+  // Let the dash-offset animate from empty on every render.
+  const fill=host.querySelector('.lg-ring-fill');
+  if(fill) requestAnimationFrame(()=>{ fill.style.strokeDashoffset=(C*(1-frac)).toFixed(1); });
+}
+function renderLegends(){
+  renderLegendProgress();
+  const el=document.getElementById('legend-roost'); if(!el) return;
+  const list=legendsEarned();
+  legendOpenIdx=null;
+  const cnt=document.getElementById('legend-count'); if(cnt) cnt.textContent=list.length;
+  if(!list.length){
+    el.innerHTML='<p style="color:var(--muted);font-size:14px;text-align:center;padding:18px 6px">'
+      +'Nothing roosting yet. These are not handed out for showing up — only for '+LEGEND_STEP
+      +' days in a row, then '+(LEGEND_STEP*2)+', then '+(LEGEND_STEP*3)+', and on. Whatever lands here, you haven’t seen it before.</p>';
+  } else {
+    el.innerHTML=legendRoostHtml(list)
+      +'<p style="text-align:center;color:var(--muted);font-size:12px;margin-top:8px">Tap one for its portrait · '
+      +list.length+' earned · longest run '+(DB.streak.longest||0)+' days</p>'
+      +'<div id="legend-portrait"></div>';
+  }
+}
+
 // ── DASHBOARD HEADER WIRE (v3) ───────────────────────────────────────────
 // Earned birds also perch on a small wire beside the greeting, and every few
 // seconds one of them hops along the wire or flies to a new spot. Purely
@@ -6791,6 +7483,7 @@ function milestoneHint(){
 }
 
 function renderStreak(){
+  renderLegends();
   const st=currentStreak(), lg=DB.streak.longest||0;
   const av=DB.aviary||{revealed:0,current:0,earned:[]};
   document.getElementById('streak-current').textContent=st;
@@ -6818,11 +7511,19 @@ function renderStreak(){
 function renderDashboardBirds(){
   const el=document.getElementById('dashboard-aviary-bg'); if(!el) return;
   const earned=(DB.aviary&&DB.aviary.earned)||[];
-  if(!earned.length){ el.innerHTML=''; return; }
+  // Milestone legends hang here too, a touch stronger than the weekly birds —
+  // they cost a great deal more to get.
+  const legs=legendsEarned();
+  if(!earned.length&&!legs.length){ el.innerHTML=''; return; }
   const positions=[{top:'1%',left:'63%',w:'240px',r:'6deg'},{top:'42%',left:'2%',w:'200px',r:'-8deg'},{top:'58%',left:'70%',w:'260px',r:'9deg'},{top:'20%',left:'36%',w:'180px',r:'-4deg'},{top:'74%',left:'30%',w:'210px',r:'5deg'}];
+  const lpos=[{top:'8%',left:'12%',w:'300px',r:'-5deg'},{top:'52%',left:'46%',w:'330px',r:'7deg'},{top:'28%',left:'72%',w:'280px',r:'-3deg'}];
   el.innerHTML=earned.map((bi,i)=>{
     const b=creatureById(bi); const p=positions[i%positions.length];
     return `<div style="position:absolute;top:${p.top};left:${p.left};width:${p.w};opacity:.10;transform:rotate(${p.r})">${b.svg}</div>`;
+  }).join('')
+  +legs.slice(-3).map((rec,i)=>{
+    const p=lpos[i%lpos.length];
+    return `<div style="position:absolute;top:${p.top};left:${p.left};width:${p.w};opacity:.11;transform:rotate(${p.r})">${legendGhost(rec.i)}</div>`;
   }).join('');
 }
 
@@ -8082,7 +8783,8 @@ const TUTORIAL_STEPS=[
   {icon:'🎓',title:'Exam Readiness',body:`
     <p>Set your exam dates and get a weighted <strong>readiness %</strong> per exam, a pacing check (are you learning new cards fast enough to finish in time?), and a list of <strong>tested topics you have no card for</strong> — pulled from objectives you actually missed on the ITE and MKSAP.</p>`},
   {icon:'🔥',title:'Streak &amp; Aviary',body:`
-    <p>Study every day to keep your streak. Each study day uncovers pieces of a mystery bird — <em>both its portrait and its name</em> reveal gradually over 7 days. Finish the week and the bird joins your aviary (and lives faintly on your dashboard, forever).</p>`},
+    <p>Study every day to keep your streak. Each study day uncovers pieces of a mystery bird — <em>both its portrait and its name</em> reveal gradually over 7 days. Finish the week and the bird joins your aviary (and lives faintly on your dashboard, forever).</p>
+    <p style="margin-top:8px">Separately, an <strong>unbroken run</strong> of days earns a milestone bird at 10 days, then 20, then 30, and on. These are a different class of creature and nothing about one is shown before you've earned it — not its picture, not its name. Break the streak and you keep every one already earned, but the next still takes the full run: the 20-day bird only comes from 20 days in a row.</p>`},
   {icon:'📲',title:'Install it as an app',body:()=>{
     // Highlight whichever platform they're actually on; keep the rest listed so
     // one person can walk a colleague through it on a different device.
