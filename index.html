@@ -392,7 +392,7 @@ body[data-specialty="Psych"] .only-both{display:none!important}
     <div class="nav-item" onclick="navigate('settings')"><span class="nav-icon">⚙️</span><span>Settings</span></div>
   </nav>
   <div id="sidebar-footer">
-    <div id="app-version" style="color:rgba(255,255,255,.4);font-size:11px" title="Read the whole card and file it while importing">v4.0 · updated 2026-09-05</div>
+    <div id="app-version" style="color:rgba(255,255,255,.4);font-size:11px" title="Read the whole card, file it, or drop it — all while importing">v4.1 · updated 2026-09-09</div>
   </div>
 </div>
 
@@ -790,13 +790,13 @@ NOTES:
             <select id="csv-area" onchange="renderImportRows('csv')" title="If this file is all one topic, set it here — it overrides the content_area column and auto-sorting. Cards you file yourself below keep the area you gave them." style="padding:7px 10px;border:2px solid #e5e7eb;border-radius:6px;font-size:13px;max-width:230px">
               <option value="">Use file / auto-sort</option>
             </select>
-            <button class="btn-secondary" onclick="closeImportCard();pendingCSV=[];document.getElementById('csv-preview').style.display='none'">Cancel</button>
+            <button class="btn-secondary" onclick="cancelImport('csv')">Cancel</button>
             <button class="btn-primary" onclick="importCSV()">Import All</button>
           </div>
         </div>
-        <div class="import-hint">Press <strong>👁 View</strong> on any row to read the whole card — both sides, images and all — before it is imported. Change a card's <strong>content area</strong> right here and it is filed that way on import, so you don't have to hunt it down afterwards.</div>
+        <div class="import-hint">Press <strong>👁 View</strong> on any row to read the whole card — both sides, images and all — before it is imported. Change a card's <strong>content area</strong> right here and it is filed that way on import, so you don't have to hunt it down afterwards. <strong>Don't want a card?</strong> Tick its box and press <strong>Remove</strong> — it is dropped from this batch before anything is written to your collection.</div>
         <div class="table-wrap">
-          <table><thead><tr><th>#</th><th>Front</th><th>Back</th><th>Subject</th><th>Content Area</th><th></th></tr></thead>
+          <table><thead><tr><th style="width:26px"><input type="checkbox" id="imp-all-csv" onclick="toggleImportSelPage('csv',this.checked)" title="Tick every card on this page" style="width:auto;cursor:pointer"></th><th>#</th><th>Front</th><th>Back</th><th>Subject</th><th>Content Area</th><th></th></tr></thead>
           <tbody id="csv-preview-tbody"></tbody></table>
         </div>
         <div id="csv-preview-pager" class="import-pager"></div>
@@ -831,12 +831,13 @@ NOTES:
             <label id="apkg-sched-wrap" style="display:none;align-items:center;gap:6px;font-size:12px;color:var(--navy);cursor:pointer" title="Carry over each card's interval, ease and due date from Anki">
               <input type="checkbox" id="apkg-keep-sched" checked style="width:auto"> Keep Anki progress
             </label>
+            <button class="btn-secondary" onclick="cancelImport('apkg')">Cancel</button>
             <button class="btn-primary" onclick="importApkg()">Import</button>
           </div>
         </div>
-        <div class="import-hint">Press <strong>👁 View</strong> on any row to read the whole card — both sides, images and all — before it is imported. Change a card's <strong>content area</strong> right here and it is filed that way on import, so you don't have to hunt it down afterwards.</div>
+        <div class="import-hint">Press <strong>👁 View</strong> on any row to read the whole card — both sides, images and all — before it is imported. Change a card's <strong>content area</strong> right here and it is filed that way on import, so you don't have to hunt it down afterwards. <strong>Don't want a card?</strong> Tick its box and press <strong>Remove</strong> — it is dropped from this batch before anything is written to your collection.</div>
         <div class="table-wrap">
-          <table><thead><tr><th>#</th><th>Front</th><th>Back</th><th>Content Area</th><th></th></tr></thead>
+          <table><thead><tr><th style="width:26px"><input type="checkbox" id="imp-all-apkg" onclick="toggleImportSelPage('apkg',this.checked)" title="Tick every card on this page" style="width:auto;cursor:pointer"></th><th>#</th><th>Front</th><th>Back</th><th>Content Area</th><th></th></tr></thead>
           <tbody id="apkg-preview-tbody"></tbody></table>
         </div>
         <div id="apkg-preview-pager" class="import-pager"></div>
@@ -1601,6 +1602,7 @@ A: [answer]. Citation: Harrison's Principles of Internal Medicine, 21e, Ch. 245.
     <div style="display:flex;gap:8px;margin-top:14px;align-items:center;flex-wrap:wrap">
       <button class="btn-secondary" id="ic-prev" onclick="importCardNav(-1)">← Previous</button>
       <button class="btn-secondary" id="ic-next" onclick="importCardNav(1)">Next →</button>
+      <button class="btn-danger" onclick="removeViewedImportCard()" title="Drop this card from the batch. Nothing is saved until you press Import, so this deletes nothing you already own.">🗑 Remove this card</button>
       <span style="font-size:11.5px;color:var(--muted)">← → arrow keys work too</span>
       <button class="btn-primary" style="margin-left:auto" onclick="closeImportCard()">Done</button>
     </div>
@@ -1641,8 +1643,8 @@ A: [answer]. Citation: Harrison's Principles of Internal Medicine, 21e, Ch. 245.
 // ═══════════════════════════════════════════════════════════
 // Bump this on every release. The sidebar renders from it, and it re-checks
 // for an optional sw.js after an update. The other copy lives in sw.js (CACHE).
-const APP_VERSION='4.0';
-const APP_UPDATED='2026-09-05';   // shown in the sidebar so users can see which build they have
+const APP_VERSION='4.1';
+const APP_UPDATED='2026-09-09';   // shown in the sidebar so users can see which build they have
 
 const ABIM_CATEGORIES = [
   {name:'Cardiovascular Disease',pct:14},
@@ -2299,13 +2301,14 @@ let toastTimer=null;
 function toast(msg){const t=document.getElementById('toast');t.textContent=msg;t.style.pointerEvents='none';clearTimeout(toastTimer);t.classList.add('show');toastTimer=setTimeout(()=>t.classList.remove('show'),2500);}
 // ── Delete with undo ─────────────────────────────────────────
 let undoBuffer=null;
-function toastWithUndo(msg){
+let importUndo=null;   // a pending import batch as it was before cards were dropped
+function toastWithUndo(msg,handler){
   const t=document.getElementById('toast');
-  t.innerHTML=escHtml(msg)+' <button onclick="undoDelete()" style="margin-left:10px;background:#60a5fa;color:#fff;border:none;border-radius:6px;padding:4px 12px;font-size:12px;font-weight:700;cursor:pointer">Undo</button>';
+  t.innerHTML=escHtml(msg)+' <button onclick="'+(handler||'undoDelete')+'()" style="margin-left:10px;background:#60a5fa;color:#fff;border:none;border-radius:6px;padding:4px 12px;font-size:12px;font-weight:700;cursor:pointer">Undo</button>';
   t.style.pointerEvents='auto';
   clearTimeout(toastTimer);
   t.classList.add('show');
-  toastTimer=setTimeout(()=>{t.classList.remove('show');t.style.pointerEvents='none';undoBuffer=null;},6000);
+  toastTimer=setTimeout(()=>{t.classList.remove('show');t.style.pointerEvents='none';undoBuffer=null;importUndo=null;},6000);
 }
 function deleteCardsWithUndo(ids,msg){
   const removed=DB.cards.filter(c=>ids.has(c.id));
@@ -3023,11 +3026,15 @@ function scanImportDupes(kind){
   return {hits:out, guidHits, textHits, total:guidHits+textHits};
 }
 let dupScan={csv:null,apkg:null};
+// Held outside the DOM as well: removing cards can take the duplicate banner
+// (and the dropdown inside it) away entirely, so a choice you already made
+// must survive the banner disappearing and coming back.
+let dupModePref={csv:'skip',apkg:'skip'};
 function dupMode(kind){
   const el=document.getElementById(kind+'-dup-mode');
-  return (el&&el.value)||'skip';
+  return (el&&el.value)||dupModePref[kind]||'skip';
 }
-function setDupMode(kind,v){ renderDupBox(kind); }
+function setDupMode(kind,v){ dupModePref[kind]=v||'skip'; renderDupBox(kind); }
 // The banner above the import preview. Silent when there's nothing to report.
 function renderDupBox(kind){
   const label=document.getElementById(kind==='csv'?'csv-preview-label':'apkg-preview-label');
@@ -4623,12 +4630,11 @@ function parseCSV(file){
     }
     pendingSrc.csv=file.name||'cards.csv';
     dupScan.csv=scanImportDupes('csv');
-    document.getElementById('csv-preview-label').textContent=`Preview: ${pendingCSV.length} cards`;
     populateCsvAreas();
     importPage.csv=0;
+    resetImportSel('csv');
     closeImportCard();
-    renderImportRows('csv');
-    document.getElementById('csv-preview').style.display='';
+    refreshCsvPreview();
   };
   reader.readAsText(file);
 }
@@ -4647,6 +4653,132 @@ const importPage={csv:0,apkg:0};
 let importView=null;                     // {kind,i} — card open in the viewer
 
 function pendingList(kind){ return kind==='csv'?pendingCSV:pendingApkg; }
+function setPendingList(kind,arr){ if(kind==='csv') pendingCSV=arr; else pendingApkg=arr; }
+
+// ── Dropping cards out of a batch before it lands ────────────────────
+// A deck rarely arrives exactly as you want it: notes from someone else's
+// deck, a rotation you have already finished, near-duplicates the scanner
+// can't recognise. Ticked cards are removed from the PENDING batch only —
+// nothing has been written to the collection at this point, so this can
+// never delete a card you already own or a review history you built up.
+//
+// Selection is by position, so anything that changes the list clears it,
+// and the duplicate scan (whose hits are positional too) is rebuilt rather
+// than spliced. One removal is stashed whole for undo.
+const importSel={csv:new Set(),apkg:new Set()};
+
+function resetImportSel(kind){ importSel[kind].clear(); importUndo=null; }
+
+function importPageBounds(kind){
+  const list=pendingList(kind);
+  const pages=Math.max(1,Math.ceil(list.length/IMPORT_PAGE));
+  importPage[kind]=Math.min(Math.max(0,importPage[kind]||0),pages-1);
+  const start=importPage[kind]*IMPORT_PAGE;
+  return {list,start,end:Math.min(list.length,start+IMPORT_PAGE)};
+}
+
+function toggleImportSel(kind,i,on){
+  const sel=importSel[kind];
+  if(on) sel.add(i); else sel.delete(i);
+  // Repaint just this row, so ticking boxes never yanks the table out from
+  // under the cursor mid-pass.
+  const tr=document.getElementById('imp-'+kind+'-'+i);
+  if(tr) tr.style.background=on?'#fef2f2':'';
+  renderImportPager(kind);
+  syncImportSelAll(kind);
+}
+function toggleImportSelPage(kind,on){
+  const {start,end}=importPageBounds(kind);
+  const sel=importSel[kind];
+  for(let i=start;i<end;i++){ if(on) sel.add(i); else sel.delete(i); }
+  renderImportRows(kind);
+}
+function selectAllImport(kind){
+  const sel=importSel[kind];
+  pendingList(kind).forEach((c,i)=>sel.add(i));
+  renderImportRows(kind);
+}
+function clearImportSel(kind){ importSel[kind].clear(); renderImportRows(kind); }
+
+// The header checkbox reflects the page it heads: all / some / none.
+function syncImportSelAll(kind){
+  const el=document.getElementById('imp-all-'+kind); if(!el) return;
+  const {start,end}=importPageBounds(kind);
+  let n=0; for(let i=start;i<end;i++) if(importSel[kind].has(i)) n++;
+  const span=end-start;
+  el.checked=span>0&&n===span;
+  el.indeterminate=n>0&&n<span;
+}
+
+function removeSelectedImport(kind){
+  const sel=importSel[kind];
+  if(!sel.size){ toast("Nothing ticked yet — tick the box on any card you don't want"); return; }
+  const list=pendingList(kind);
+  const keep=[]; let dropped=0;
+  list.forEach((c,i)=>{ if(sel.has(i)) dropped++; else keep.push(c); });
+  if(!dropped) return;
+  importUndo={kind,list:list.slice(),n:dropped};
+  setPendingList(kind,keep);
+  importSel[kind]=new Set();
+  afterImportListChanged(kind);
+  toastWithUndo(`Removed ${dropped} card${dropped===1?'':'s'} from this import`+
+    (keep.length?` — ${keep.length} left`:' — nothing left to import'),'undoImportRemove');
+}
+
+function undoImportRemove(){
+  if(!importUndo) return;
+  const {kind,list,n}=importUndo;
+  importUndo=null;
+  setPendingList(kind,list);
+  importSel[kind]=new Set();
+  afterImportListChanged(kind);
+  toast(`Put ${n} card${n===1?'':'s'} back — ${list.length} in this import again`);
+}
+
+// Drop the card you are currently reading. The viewer stays open on whatever
+// takes its place, so you can walk a deck and weed it in one pass.
+function removeViewedImportCard(){
+  if(!importView) return;
+  const kind=importView.kind;
+  importSel[kind]=new Set([importView.i]);
+  removeSelectedImport(kind);
+}
+
+// Re-derive everything that was keyed to the old positions.
+function afterImportListChanged(kind){
+  const list=pendingList(kind);
+  dupScan[kind]=list.length?scanImportDupes(kind):null;
+  if(kind==='apkg') apkgDetectedSubject=null;   // composition changed; detect again
+  if(!list.length){
+    closeImportCard();
+    const box=document.getElementById(kind+'-dup-box'); if(box) box.innerHTML='';
+    document.getElementById(kind==='csv'?'csv-preview':'apkg-preview').style.display='none';
+    return;
+  }
+  if(importView&&importView.kind===kind){
+    if(importView.i>=list.length) importView.i=list.length-1;
+    importPage[kind]=Math.floor(importView.i/IMPORT_PAGE);
+  }
+  if(kind==='csv') refreshCsvPreview(); else showApkgPreview();
+  if(importView&&importView.kind===kind) showImportCard();
+}
+
+function refreshCsvPreview(){
+  document.getElementById('csv-preview-label').textContent=`Preview: ${pendingCSV.length} cards`;
+  renderImportRows('csv');
+  document.getElementById('csv-preview').style.display='';
+}
+
+// Throw the whole batch away without importing any of it.
+function cancelImport(kind){
+  closeImportCard();
+  setPendingList(kind,[]);
+  pendingSrc[kind]=''; dupScan[kind]=null;
+  resetImportSel(kind);
+  if(kind==='apkg') apkgDetectedSubject=null;
+  const box=document.getElementById(kind+'-dup-box'); if(box) box.innerHTML='';
+  document.getElementById(kind==='csv'?'csv-preview':'apkg-preview').style.display='none';
+}
 
 // The subject a content area implies (an ABPN area makes the card Psych).
 function areaSubject(area,fallback){
@@ -4726,13 +4858,11 @@ function importSnippet(html,n){
 }
 
 function renderImportRows(kind){
-  const list=pendingList(kind);
   const tbody=document.getElementById(kind==='csv'?'csv-preview-tbody':'apkg-preview-tbody');
   if(!tbody) return;
-  const cols=kind==='csv'?6:5;
-  const pages=Math.max(1,Math.ceil(list.length/IMPORT_PAGE));
-  importPage[kind]=Math.min(Math.max(0,importPage[kind]||0),pages-1);
-  const start=importPage[kind]*IMPORT_PAGE, end=Math.min(list.length,start+IMPORT_PAGE);
+  const cols=kind==='csv'?7:6;
+  const {list,start,end}=importPageBounds(kind);
+  const sel=importSel[kind];
   const ctx=importCtx(kind);
   let html='';
   for(let i=start;i<end;i++){
@@ -4741,7 +4871,9 @@ function renderImportRows(kind){
     const uncat=r.area==='Uncategorized';
     const bd=r.origin==='user'?'#86efac':(uncat?'#f59e0b':'#e5e7eb');
     const bg=r.origin==='user'?'#f0fdf4':(uncat?'#fffbeb':'#fff');
-    html+=`<tr>
+    const picked=sel.has(i);
+    html+=`<tr id="imp-${kind}-${i}"${picked?' style="background:#fef2f2"':''}>
+      <td style="vertical-align:top"><input type="checkbox" ${picked?'checked':''} onclick="toggleImportSel('${kind}',${i},this.checked)" title="Tick to drop this card from the import" style="width:auto;cursor:pointer"></td>
       <td style="font-size:12px;color:var(--muted);vertical-align:top">${i+1}</td>
       <td style="max-width:230px;font-size:12.5px;vertical-align:top">${importSnippet(r.front,110)}</td>
       <td style="max-width:230px;font-size:12.5px;vertical-align:top">${importSnippet(r.back,110)}</td>
@@ -4755,14 +4887,29 @@ function renderImportRows(kind){
   }
   tbody.innerHTML=html||`<tr><td colspan="${cols}" style="padding:20px;text-align:center;color:var(--muted);font-size:13px">Nothing to preview</td></tr>`;
   renderDupBox(kind);
+  renderImportPager(kind);
+  syncImportSelAll(kind);
+}
+
+// Paging on the top line, the removal controls on their own line below —
+// redrawn on its own whenever a box is ticked, so the table stays put.
+function renderImportPager(kind){
   const pager=document.getElementById(kind==='csv'?'csv-preview-pager':'apkg-preview-pager');
   if(!pager) return;
+  const {list,start,end}=importPageBounds(kind);
   const hand=list.filter(c=>c.userArea).length;
+  const n=importSel[kind].size;
   pager.innerHTML=`<div style="display:flex;align-items:center;gap:8px;flex-wrap:wrap;margin-top:10px">
       <button class="btn-secondary" style="padding:5px 11px;font-size:12px" ${start<=0?'disabled':''} onclick="importPageBy('${kind}',-1)">← Prev</button>
       <button class="btn-secondary" style="padding:5px 11px;font-size:12px" ${end>=list.length?'disabled':''} onclick="importPageBy('${kind}',1)">Next →</button>
       <span style="font-size:12px;color:var(--muted)">Showing ${list.length?start+1:0}–${end} of ${list.length}${hand?` · <strong style="color:#166534">${hand} filed by hand</strong>`:''}</span>
       ${hand?`<button class="btn-secondary" style="padding:5px 11px;font-size:12px;margin-left:auto" onclick="clearImportAreas('${kind}')">Clear my picks</button>`:''}
+    </div>
+    <div style="display:flex;align-items:center;gap:8px;flex-wrap:wrap;margin-top:8px;padding-top:8px;border-top:1px solid #eef2f7">
+      <span style="font-size:12px;color:${n?'#b91c1c':'var(--muted)'};font-weight:${n?'700':'400'}">${n?`${n} of ${list.length} ticked to remove`:'Tick a box to drop a card from this import'}</span>
+      ${n<list.length?`<button class="btn-secondary" style="padding:5px 11px;font-size:12px" onclick="selectAllImport('${kind}')">Tick all ${list.length}</button>`:''}
+      ${n?`<button class="btn-secondary" style="padding:5px 11px;font-size:12px" onclick="clearImportSel('${kind}')">Untick all</button>`:''}
+      ${n?`<button class="btn-danger" style="padding:5px 11px;font-size:12px;margin-left:auto" onclick="removeSelectedImport('${kind}')">🗑 Remove ${n} card${n===1?'':'s'}</button>`:''}
     </div>`;
 }
 
@@ -4841,7 +4988,7 @@ function importCSV(){
   closeImportCard();
   document.getElementById('csv-preview').style.display='none';
   pendingCSV=[];
-  pendingSrc.csv=''; dupScan.csv=null;
+  pendingSrc.csv=''; dupScan.csv=null; resetImportSel('csv');
   const bits=[];
   if(skippedDup) bits.push(`${skippedDup} skipped as duplicates`);
   if(updated)    bits.push(`${updated} existing card${updated===1?'':'s'} updated`);
@@ -5298,6 +5445,7 @@ async function parseApkg(file){
     dupScan.apkg=scanImportDupes('apkg');
     apkgDetectedSubject=null;      // re-detect for this deck
     importPage.apkg=0;
+    resetImportSel('apkg');
     closeImportCard();
     status.innerHTML = imgCount ? `<div class="alert alert-success">Loaded ${imgCount} image${imgCount===1?'':'s'} from this deck.</div>` : '';
     showApkgPreview();
@@ -5440,7 +5588,7 @@ function importApkg(){
   closeImportCard();
   document.getElementById('apkg-preview').style.display='none';
   pendingApkg=[];
-  pendingSrc.apkg=''; dupScan.apkg=null;
+  pendingSrc.apkg=''; dupScan.apkg=null; resetImportSel('apkg');
   apkgDetectedSubject=null;
   const bits=[];
   if(skippedDup) bits.push(`${skippedDup} skipped as duplicates`);
