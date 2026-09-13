@@ -360,7 +360,7 @@ body[data-specialty="Psych"] .only-both{display:none!important}
 @keyframes lg-breathe{0%,100%{transform:translateY(0) scaleY(1)}50%{transform:translateY(-.4px) scaleY(1.014)}}
 .lg-blink{transform-box:fill-box;transform-origin:center;transform:scaleY(.02);animation:lg-blink 8s infinite}
 @keyframes lg-blink{0%,93%{transform:scaleY(.02)}94.5%,96.5%{transform:scaleY(1)}98%,100%{transform:scaleY(.02)}}
-.lg-perch:hover .lg-breathe{animation-duration:1.6s}
+.lg-perch:hover .lg-breathe,.dash-legend:hover .lg-breathe{animation-duration:1.6s}
 @media(prefers-reduced-motion:reduce){
   #legend-overlay *,.lg-breathe,.lg-blink{animation:none!important;transition:none!important}
   .lgo-color{clip-path:none!important}
@@ -392,7 +392,7 @@ body[data-specialty="Psych"] .only-both{display:none!important}
     <div class="nav-item" onclick="navigate('settings')"><span class="nav-icon">⚙️</span><span>Settings</span></div>
   </nav>
   <div id="sidebar-footer">
-    <div id="app-version" style="color:rgba(255,255,255,.4);font-size:11px" title="Read the whole card, file it, or drop it — all while importing">v4.1 · updated 2026-09-09</div>
+    <div id="app-version" style="color:rgba(255,255,255,.4);font-size:11px" title="Read the whole card, file it, or drop it — all while importing">v4.2 · updated 2026-09-12</div>
   </div>
 </div>
 
@@ -1643,8 +1643,8 @@ A: [answer]. Citation: Harrison's Principles of Internal Medicine, 21e, Ch. 245.
 // ═══════════════════════════════════════════════════════════
 // Bump this on every release. The sidebar renders from it, and it re-checks
 // for an optional sw.js after an update. The other copy lives in sw.js (CACHE).
-const APP_VERSION='4.1';
-const APP_UPDATED='2026-09-09';   // shown in the sidebar so users can see which build they have
+const APP_VERSION='4.2';
+const APP_UPDATED='2026-09-12';   // shown in the sidebar so users can see which build they have
 
 const ABIM_CATEGORIES = [
   {name:'Cardiovascular Disease',pct:14},
@@ -7424,6 +7424,7 @@ function closeLegendReveal(){
   setTimeout(()=>{ ov.innerHTML=''; ov.style.display=''; },450);
   if(document.getElementById('page-streak')&&document.getElementById('page-streak').classList.contains('active')) renderStreak();
   renderDashboardBirds();
+  renderDashWire();
 }
 
 // ── The roost ────────────────────────────────────────────────────────────
@@ -7541,7 +7542,65 @@ function renderLegends(){
 // seconds one of them hops along the wire or flies to a new spot. Purely
 // decorative: skipped under prefers-reduced-motion, paused off-dashboard.
 const DASH_WIRE={x0:14,x1:446,y:30,sag:20,W:460,H:74,scale:.62};
-let dashWireState={birds:[],timer:null,animating:false};
+let dashWireState={birds:[],legends:[],cragW:0,timer:null,animating:false};
+
+// ── DASHBOARD CRAG (v4.2) ────────────────────────────────────────────────
+// Earned legends stand on a little rocky outcrop to the left of the wire and
+// stir now and then, like the songbirds do. Three boulders, x as a fraction
+// of the crag's width; each has a flat top where a legend can stand. The crag
+// grows with the flock, up to the five most recent legends.
+const DASH_CRAG={scale:.34, max:5, gap:24, gapAcross:10, bottom:74};
+const DASH_CRAG_ROCKS=[            // drawn in this order: the tall one sits behind
+  {u0:.32,u1:.70,top:38,fill:'#6f675e'},
+  {u0:.02,u1:.38,top:46,fill:'#857b70'},
+  {u0:.62,u1:.98,top:50,fill:'#7d7368'}
+];
+function dashCragLedges(){
+  return DASH_CRAG_ROCKS.map(r=>{ const w=r.u1-r.u0; return {a:r.u0+w*.19, b:r.u1-w*.19, y:r.top}; })
+    .sort((p,q)=>p.a-q.a);
+}
+function dashCragWidth(n){ return n?100+32*Math.min(n,DASH_CRAG.max):0; }
+function dashCragY(u){
+  const L=dashCragLedges();
+  const hit=L.find(l=>u>=l.a-1e-6&&u<=l.b+1e-6);
+  if(hit) return hit.y;
+  return L.reduce((best,l)=>Math.min(Math.abs(u-l.a),Math.abs(u-l.b))<best.d?{d:Math.min(Math.abs(u-l.a),Math.abs(u-l.b)),y:l.y}:best,{d:9,y:L[0].y}).y;
+}
+// Position `f` (0..1) along the ledges laid end to end.
+function dashCragAlong(f){
+  const L=dashCragLedges(), total=L.reduce((a,l)=>a+(l.b-l.a),0);
+  let d=f*total;
+  for(const l of L){ const len=l.b-l.a; if(d<=len) return l.a+d; d-=len; }
+  return L[L.length-1].b;
+}
+function dashCragSvg(cw){
+  const B=DASH_CRAG.bottom;
+  let g='<g class="dash-crag">';
+  // soft ground shadow so the rocks sit on something
+  g+=`<ellipse cx="${cw/2}" cy="${B-1}" rx="${cw*.5}" ry="3.5" fill="#000" opacity=".10"/>`;
+  DASH_CRAG_ROCKS.forEach((r,k)=>{
+    const x0=r.u0*cw, x1=r.u1*cw, w=x1-x0, t=r.top;
+    const body=`M${x0.toFixed(1)} ${B} C${x0.toFixed(1)} ${t+14} ${(x0+w*.05).toFixed(1)} ${t+1} ${(x0+w*.16).toFixed(1)} ${t}`
+      +` L${(x0+w*.5).toFixed(1)} ${t-.6} L${(x1-w*.16).toFixed(1)} ${t}`
+      +` C${(x1-w*.04).toFixed(1)} ${t+1} ${x1.toFixed(1)} ${t+12} ${x1.toFixed(1)} ${B} Z`;
+    g+=`<path d="${body}" fill="${r.fill}"/>`;
+    // shaded right flank
+    g+=`<path d="M${(x1-w*.16).toFixed(1)} ${t} C${(x1-w*.04).toFixed(1)} ${t+1} ${x1.toFixed(1)} ${t+12} ${x1.toFixed(1)} ${B} L${(x1-w*.18).toFixed(1)} ${B} C${(x1-w*.1).toFixed(1)} ${t+16} ${(x1-w*.12).toFixed(1)} ${t+6} ${(x1-w*.16).toFixed(1)} ${t} Z" fill="#000" opacity=".16"/>`;
+    // sunlit lip along the top-left edge
+    g+=`<path d="M${(x0+w*.04).toFixed(1)} ${t+9} C${(x0+w*.1).toFixed(1)} ${t+1.5} ${(x0+w*.2).toFixed(1)} ${t+.6} ${(x0+w*.55).toFixed(1)} ${t}" stroke="#b3a898" stroke-width="2" fill="none" stroke-linecap="round" opacity=".8"/>`;
+    // a couple of cracks
+    g+=`<path d="M${(x0+w*.46).toFixed(1)} ${t+4} l${(-w*.05).toFixed(1)} 7 l${(w*.04).toFixed(1)} 6" stroke="#4f4841" stroke-width="1.1" fill="none" stroke-linecap="round" opacity=".55"/>`;
+    if(k!==2) g+=`<path d="M${(x0+w*.7).toFixed(1)} ${B-3} l${(w*.03).toFixed(1)} -8 l${(-w*.04).toFixed(1)} -5" stroke="#4f4841" stroke-width="1" fill="none" stroke-linecap="round" opacity=".45"/>`;
+  });
+  // moss tufts and pebbles at the foot
+  [[.05,'#6f8f4e'],[.36,'#7a9a55'],[.63,'#6f8f4e'],[.95,'#7a9a55']].forEach(([u,c])=>{
+    const x=u*cw;
+    g+=`<path d="M${(x-3).toFixed(1)} ${B} q1 -5 2 -6 M${x.toFixed(1)} ${B} q0 -6 1 -8 M${(x+3).toFixed(1)} ${B} q-.5 -4 1.5 -5" stroke="${c}" stroke-width="1.4" fill="none" stroke-linecap="round"/>`;
+  });
+  g+=`<ellipse cx="${(cw*.24).toFixed(1)}" cy="${B-1.5}" rx="3" ry="2" fill="#9a8f82"/>`
+    +`<ellipse cx="${(cw*.8).toFixed(1)}" cy="${B-1.2}" rx="2.2" ry="1.5" fill="#8f8478"/>`;
+  return g+'</g>';
+}
 function dashWirePoint(t){
   const {x0,x1,y,sag}=DASH_WIRE;
   return { x: x0+(x1-x0)*t,
@@ -7555,8 +7614,22 @@ function renderDashWire(){
   if(dashWireState.birds.length!==earned.length || dashWireState.birds.some((b,i)=>b.bi!==earned[i])){
     dashWireState.birds=earned.map((bi,i)=>({bi,t:(i+1)/(earned.length+1),flip:i%2===1}));
   }
+  // Legends for the crag — the most recent few, keyed by the run that earned them.
+  const legs=legendsEarned().slice(-DASH_CRAG.max);
+  const cw=dashCragWidth(legs.length);
+  if(dashWireState.legends.length!==legs.length || dashWireState.legends.some((l,i)=>l.days!==legs[i].days) || dashWireState.cragW!==cw){
+    dashWireState.legends=legs.map((rec,i)=>({li:rec.i, days:rec.days, u:dashCragAlong((i+.5)/legs.length), flip:i%2===1}));
+  }
+  dashWireState.cragW=cw;
   dashWireState.animating=false;
-  let svg=`<svg viewBox="0 0 ${W} ${H}" preserveAspectRatio="xMaxYMid meet" style="width:100%;height:100%;display:block;overflow:visible" aria-hidden="true">
+  let svg=`<svg viewBox="0 0 ${W+cw} ${H}" preserveAspectRatio="xMaxYMid meet" style="width:100%;height:100%;display:block;overflow:visible" aria-hidden="true">`;
+  if(cw){
+    svg+=dashCragSvg(cw);
+    dashWireState.legends.forEach((l,i)=>{
+      svg+=`<g class="dash-legend" data-i="${i}" transform="translate(${(l.u*cw).toFixed(1)},${dashCragY(l.u)}) scale(${DASH_CRAG.scale})" onclick="navigate('streak')" style="cursor:pointer">${legendInner(l.li,l.flip)}</g>`;
+    });
+  }
+  svg+=`<g transform="translate(${cw},0)">
     <path d="M ${x0} ${y} Q ${(x0+x1)/2} ${y+2*sag} ${x1} ${y}" stroke="#3a4149" stroke-width="2" fill="none" opacity=".8"/>
     <rect x="${x0-3}" y="${y-6}" width="5" height="9" rx="2" fill="#5f6b76"/>
     <rect x="${x1-2}" y="${y-6}" width="5" height="9" rx="2" fill="#5f6b76"/>`;
@@ -7564,9 +7637,9 @@ function renderDashWire(){
     const p=dashWirePoint(b.t);
     svg+=`<g class="dash-bird" data-i="${i}" transform="translate(${p.x},${p.y-1}) scale(${scale})" onclick="navigate('streak')" style="cursor:pointer">${perchedBirdInner(b.bi,b.flip)}</g>`;
   });
-  svg+='</svg>';
+  svg+='</g></svg>';
   host.innerHTML=svg;
-  host.style.display=earned.length?'':'none';   // hide the bare wire until a bird is earned
+  host.style.display=(earned.length||legs.length)?'':'none';   // hide the bare wire until something is earned
   startDashWireLoop();
 }
 function startDashWireLoop(){
@@ -7574,14 +7647,59 @@ function startDashWireLoop(){
   try{ if(window.matchMedia&&matchMedia('(prefers-reduced-motion: reduce)').matches) return; }catch(e){}
   dashWireState.timer=setInterval(()=>{
     const host=document.getElementById('dash-wire');
-    if(!host||!host.isConnected||!dashWireState.birds.length||dashWireState.animating) return;
+    const nb=dashWireState.birds.length, nl=dashWireState.legends.length;
+    if(!host||!host.isConnected||!(nb+nl)||dashWireState.animating) return;
     if(!document.getElementById('page-dashboard').classList.contains('active')) return;
     if(document.visibilityState==='hidden') return;
     // Birds are mostly still: each 9s tick has only a 25% chance of a move,
     // so on average one bird stirs every ~35-40 seconds.
     if(Math.random()>0.25) return;
-    moveDashBird();
+    // Pick uniformly across every creature, so each one stirs about as often.
+    if(Math.random()*(nb+nl)<nl) moveDashLegend(); else if(nb) moveDashBird();
   }, 9000);
+}
+// A legend on the crag: sometimes it just turns round where it stands; otherwise
+// it shuffles along its ledge or flaps up and over to another boulder.
+function moveDashLegend(){
+  const L=dashWireState.legends, cw=dashWireState.cragW;
+  if(!L.length||!cw) return;
+  const i=Math.floor(Math.random()*L.length), b=L[i];
+  const el=document.querySelector(`#dash-wire g.dash-legend[data-i="${i}"]`);
+  if(!el) return;
+  const face=el.querySelector('.lg-face');
+  const setFace=()=>{ if(face) face.setAttribute('transform',`scale(${b.flip?-1:1},1)`); };
+  if(Math.random()<0.35){ b.flip=!b.flip; setFace(); return; }
+  // Room to stand: a full body-width from a neighbour on the same ledge, but a
+  // legend on a higher or lower boulder only needs a little elbow room.
+  const ok=u=>L.every((o,j)=>j===i||Math.abs(o.u-u)*cw>(dashCragY(o.u)===dashCragY(u)?DASH_CRAG.gap:DASH_CRAG.gapAcross));
+  let u1=dashCragAlong(Math.random());
+  for(let tries=0;tries<8&&!ok(u1);tries++) u1=dashCragAlong(Math.random());
+  if(!ok(u1)) return;                                  // no room — stay put
+  const u0=b.u;
+  if(Math.abs(u1-u0)*cw<8) return;                     // not worth moving
+  const y0=dashCragY(u0), y1=dashCragY(u1);
+  const jump=y0!==y1;                                  // changing boulders
+  let peak=Math.min(y0,y1);
+  const lo=Math.min(u0,u1), hi=Math.max(u0,u1);
+  DASH_CRAG_ROCKS.forEach(r=>{ if(r.u1>lo&&r.u0<hi) peak=Math.min(peak,r.top); });
+  const dur=jump?1300:900;
+  const lift=jump?Math.max(y0,y1)-peak+10+Math.random()*6:4;
+  b.flip=u1>u0; setFace();                             // face the direction of travel
+  dashWireState.animating=true;
+  const sc=DASH_CRAG.scale;
+  const raf=window.requestAnimationFrame||(cb=>setTimeout(()=>cb(performance.now()),16));
+  const start=performance.now();
+  function frame(now){
+    const s=Math.min(1,(now-start)/dur);
+    const e=s<.5?2*s*s:1-Math.pow(-2*s+2,2)/2;         // easeInOutQuad
+    const x=(u0+(u1-u0)*e)*cw;
+    const yy=y0+(y1-y0)*e-lift*Math.sin(Math.PI*e);
+    const tilt=jump?Math.sin(s*Math.PI*4)*5:0;
+    el.setAttribute('transform',`translate(${x.toFixed(1)},${yy.toFixed(1)}) scale(${sc}) rotate(${tilt.toFixed(1)})`);
+    if(s<1) raf(frame);
+    else { b.u=u1; el.setAttribute('transform',`translate(${(u1*cw).toFixed(1)},${y1}) scale(${sc})`); dashWireState.animating=false; }
+  }
+  raf(frame);
 }
 function moveDashBird(){
   const birds=dashWireState.birds;
