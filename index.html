@@ -147,6 +147,16 @@ kbd{display:inline-block;background:#eef2f7;border:1px solid #cbd5e1;border-bott
 .form-group input,.form-group select,.form-group textarea{width:100%;padding:10px 12px;border:2px solid #e5e7eb;border-radius:8px;font-size:14px;color:var(--text);font-family:inherit;transition:border-color .15s;background:#fff}
 .form-group input:focus,.form-group select:focus,.form-group textarea:focus{outline:none;border-color:var(--blue)}
 .form-group textarea{min-height:100px;resize:vertical}
+/* v4.3: previously used tags offered as one-click buttons under a tag box */
+.tag-suggest{display:flex;flex-wrap:wrap;gap:6px;margin-top:8px}
+.tag-suggest:empty{display:none}
+.tag-suggest-label{width:100%;font-size:11px;color:var(--muted)}
+.tag-suggest{min-width:0}
+.tag-chip{border:1px solid #d5e3f7;background:#eef5ff;color:var(--navy);border-radius:14px;padding:4px 10px;font-size:12px;font-weight:600;font-family:inherit;line-height:1.35;text-align:left;cursor:pointer;max-width:100%;overflow-wrap:anywhere;word-break:break-word;transition:background .12s,border-color .12s}
+.tag-chip:hover,.tag-chip:focus-visible{background:#dbe9fb;border-color:var(--blue);outline:none}
+.tag-chip .n{opacity:.55;font-weight:500;margin-left:5px}
+.tag-more{border:none;background:none;color:var(--blue);font-size:12px;font-weight:600;font-family:inherit;cursor:pointer;padding:4px 6px}
+@media(max-width:640px){.tag-chip{padding:7px 12px;font-size:13px}}
 .btn-primary{background:var(--blue);color:#fff;border:none;padding:11px 24px;border-radius:8px;font-size:14px;font-weight:700;cursor:pointer;transition:all .15s}
 .btn-primary:hover{background:var(--navy)}
 .btn-secondary{background:#e5e7eb;color:var(--text);border:none;padding:11px 24px;border-radius:8px;font-size:14px;font-weight:700;cursor:pointer;transition:all .15s}
@@ -392,7 +402,7 @@ body[data-specialty="Psych"] .only-both{display:none!important}
     <div class="nav-item" onclick="navigate('settings')"><span class="nav-icon">⚙️</span><span>Settings</span></div>
   </nav>
   <div id="sidebar-footer">
-    <div id="app-version" style="color:rgba(255,255,255,.4);font-size:11px" title="Read the whole card, file it, or drop it — all while importing">v4.2 · updated 2026-09-12</div>
+    <div id="app-version" style="color:rgba(255,255,255,.4);font-size:11px" title="Read the whole card, file it, or drop it — all while importing">v4.3 · updated 2026-10-09</div>
   </div>
 </div>
 
@@ -582,7 +592,8 @@ body[data-specialty="Psych"] .only-both{display:none!important}
         </div>
         <div class="form-group">
           <label>Tags (optional, comma-separated)</label>
-          <input type="text" id="card-tags" placeholder="e.g. cardiology, high-yield, weak-area">
+          <input type="text" id="card-tags" placeholder="e.g. cardiology, high-yield, weak-area" autocomplete="off">
+          <div class="tag-suggest" id="card-tags-suggest"></div>
         </div>
         <div style="display:flex;gap:10px">
           <button class="btn-primary" onclick="createSingleCard()">Add Card</button>
@@ -1568,7 +1579,7 @@ A: [answer]. Citation: Harrison's Principles of Internal Medicine, 21e, Ch. 245.
       <div class="form-group"><label>Subject</label><select id="edit-subject" onchange="updateEditContentArea()"><option value="IM">Internal Medicine</option><option value="Psych">Psychiatry</option><option value="Both">Both</option></select></div>
       <div class="form-group"><label>Content Area</label><select id="edit-content-area"></select></div>
     </div>
-    <div class="form-group"><label>Tags</label><input type="text" id="edit-tags"></div>
+    <div class="form-group"><label>Tags</label><input type="text" id="edit-tags" autocomplete="off"><div class="tag-suggest" id="edit-tags-suggest"></div></div>
     <div style="display:flex;gap:10px;margin-top:8px">
       <button class="btn-primary" onclick="saveEditCard()">Save</button>
       <button class="btn-secondary" onclick="closeEditModal()">Cancel</button>
@@ -1643,8 +1654,8 @@ A: [answer]. Citation: Harrison's Principles of Internal Medicine, 21e, Ch. 245.
 // ═══════════════════════════════════════════════════════════
 // Bump this on every release. The sidebar renders from it, and it re-checks
 // for an optional sw.js after an update. The other copy lives in sw.js (CACHE).
-const APP_VERSION='4.2';
-const APP_UPDATED='2026-09-12';   // shown in the sidebar so users can see which build they have
+const APP_VERSION='4.3';
+const APP_UPDATED='2026-10-09';   // shown in the sidebar so users can see which build they have
 
 const ABIM_CATEGORIES = [
   {name:'Cardiovascular Disease',pct:14},
@@ -2123,7 +2134,53 @@ function deferImageSrc(html){
 }
 // The one way card content should reach the DOM: no stray fetches, scripts
 // stripped, stored pictures swapped in.
-function renderCardHtml(html){ return hydrateMedia(sanitizeHtml(deferImageSrc(html))); }
+// ── LINE BREAKS (v4.3) ─────────────────────────────────────────────────────
+// Display-only: the stored card text is never modified here.
+// Display-only. Decides, for each stored line break, whether to show it.
+//   shown   : a break the author typed (after a sentence, before a list item, short lines)
+//   hidden  : (a) inside an HTML tag, (b) right next to markup that already breaks the line,
+//             (c) a soft wrap from pasted PDF/OCR text — a long line that ends mid-sentence
+//                 and continues in lowercase.
+const BLOCK='(?:br|div|p|li|ul|ol|tr|td|th|table|h[1-6]|blockquote|pre|hr)';
+const INL='(?:\\s|<\\/?(?:b|i|u|em|strong|span|font|sup|sub|a)\\b[^>]*>)*';
+const RE_BEFORE=new RegExp('<\\/?'+BLOCK+'\\b[^>]*>'+INL+'$','i');
+const RE_AFTER=new RegExp('^'+INL+'<\\/?'+BLOCK+'\\b','i');
+const SOFT_WRAP_MIN=45;
+function nlToBr(html){
+  const s=String(html==null?'':html).replace(/\r\n?/g,'\n');
+  if(s.indexOf('\n')<0) return s;
+  let out='', inTag=false, q='', lineText='';
+  for(let i=0;i<s.length;i++){
+    const ch=s[i];
+    if(inTag){ out+=ch; if(q){ if(ch===q) q=''; } else if(ch==='"'||ch==="'") q=ch; else if(ch==='>') inTag=false; continue; }
+    if(ch==='<' && /[a-zA-Z\/!]/.test(s[i+1]||'')){
+      inTag=true; out+=ch;
+      if(/^<\s*\/?\s*(br|div|p|li|tr|h[1-6])\b/i.test(s.slice(i,i+6))) lineText='';
+      continue;
+    }
+    if(ch!=='\n'){ out+=ch; lineText+=ch; continue; }
+    const before=s.slice(Math.max(0,i-300),i), after=s.slice(i+1,i+301);
+    const keep = RE_BEFORE.test(before) || RE_AFTER.test(after) || isSoftWrap(lineText, after);
+    out += keep ? '\n' : '<br>';
+    lineText='';
+  }
+  return out;
+}
+// Words a sentence can't end on. A line ending in one of these was wrapped,
+// not finished ("the lifetime rates of\nAPD are…").
+const CONT_WORDS=/\b(of|the|a|an|in|into|to|and|or|nor|with|without|for|by|on|at|from|as|is|are|was|were|be|been|has|have|had|that|which|who|whose|than|but|if|via|per|vs|its|their|his|her|our|your|this|these|those|such|between|during|after|before|over|under|among|within|while|whether|not|no|can|may|will|should|would|could|most|more|less|least)$/i;
+function isSoftWrap(line, after){
+  const prev=line.replace(/&nbsp;/g,' ').replace(/<[^>]*>/g,'').replace(/\s+$/,'');
+  const nextTxt=after.replace(/<[^>]*>/g,'').replace(/^\s+/,'');
+  if(!prev || !nextTxt) return false;
+  if(/[.?!:;]$/.test(prev)) return false;                 // sentence/label ended → real break
+  if(/^[-•*–—→>\d]/.test(nextTxt)) return false;          // next line is a list item / arrow / number
+  if(prev.length>=15 && CONT_WORDS.test(prev) && /^[A-Za-z0-9(\[]/.test(nextTxt)) return true;
+  if(prev.length>=SOFT_WRAP_MIN && /[A-Za-z0-9,’'")\]]$/.test(prev) && /^[a-z0-9(]/.test(nextTxt)) return true;
+  if(prev.length>=25 && /[a-z]$/.test(prev) && /^\([A-Z]/.test(nextTxt)) return true;  // "…Scale\n(EPDS)"
+  return false;
+}
+function renderCardHtml(html){ return hydrateMedia(sanitizeHtml(deferImageSrc(nlToBr(html)))); }
 
 function hydrateMedia(html){
   if(!html || html.indexOf('<img')<0) return html||'';
@@ -2266,6 +2323,7 @@ async function loadDB(){
 function saveDB(){
   dbDirty=true;
   invalidateImageIndex();   // card text may have changed which images are referenced
+  invalidateTagIndex();     // tags may have been added or edited
   if(!dbFlushTimer) dbFlushTimer=setTimeout(flushDB,300);
 }
 function flushDB(){
@@ -2390,12 +2448,23 @@ function cleanHtml(h){
   const imgs=[];
   s=s.replace(/<img\b[^>]*>/gi, tag=>{ imgs.push(tag); return '@@IMG'+(imgs.length-1)+'@@'; });
   s=s.replace(/\[sound:[^\]]*\]/gi,'');            // drop audio references
-  s=s.replace(/<br\s*\/?>/gi,' ');
-  s=s.replace(/<\/(div|p|li|tr)>/gi,' ');
+  // v4.3: keep Anki's line breaks. They used to be flattened to spaces, which is
+  // why imported answers ran together as one paragraph. A raw newline in an
+  // Anki field is only HTML source formatting (Anki shows it as a space), so it
+  // stays a space; <br> and the end of a block element become a real break.
+  s=s.replace(/\r?\n/g,' ');
+  s=s.replace(/<br\s*\/?>/gi,'@@BR@@');
+  // Opening OR closing a block starts a new line; several in a row are one break,
+  // and a <br> right before a block boundary adds nothing (as in the browser).
+  s=s.replace(/<\/?(div|p|li|tr|h[1-6]|ul|ol|table|blockquote)\b[^>]*>/gi,'@@BLK@@');
   s=s.replace(/<[^>]+>/g,'');                       // strip remaining tags
   s=s.replace(/&nbsp;/gi,' ').replace(/&amp;/gi,'&').replace(/&lt;/gi,'<').replace(/&gt;/gi,'>').replace(/&#39;|&rsquo;/gi,"'").replace(/&quot;/gi,'"');
   s=s.replace(/@@IMG(\d+)@@/g,(_,i)=>imgs[+i]||'');
-  return s.replace(/[ \t]+/g,' ').replace(/ *\n */g,'\n').trim();
+  s=s.replace(/[ \t]+/g,' ');
+  s=s.replace(/(?:\s*@@BLK@@\s*)+/g,'@@BLK@@').replace(/@@BR@@\s*@@BLK@@/g,'@@BLK@@').replace(/@@BLK@@/g,'@@BR@@');
+  s=s.replace(/\s*(?:@@BR@@\s*){3,}/g,'@@BR@@@@BR@@');   // at most one blank line
+  s=s.replace(/^\s*(?:@@BR@@\s*)+|(?:\s*@@BR@@)+\s*$/g,'');
+  return s.replace(/\s*@@BR@@\s*/g,'<br>').trim();
 }
 
 // ═══════════════════════════════════════════════════════════
@@ -3209,6 +3278,7 @@ function navigate(page){
 
   if(page==='dashboard') renderDashboard();
   if(page==='study') initStudy();
+  if(page==='create') renderTagSuggest('card-tags');
   if(page==='browser') renderBrowser();
   if(page==='import') refreshMediaStatus();
   if(page==='practice') renderPractice();
@@ -3708,29 +3778,107 @@ function createSingleCard(){
   clearCreateForm();
 }
 
+// ── TAG SUGGESTIONS (v4.3) ─────────────────────────────────────────────────
+// Every tag already used in the collection, most-used first, offered as a button
+// under the tag box so the same tag gets reused instead of retyped (and
+// misspelled). Read-only: suggestions never rename, merge or delete stored tags.
+var _tagIndex=null;   // var, not let: saveDB() can run before this line is reached
+function tagIndex(){
+  if(_tagIndex) return _tagIndex;
+  const m=new Map();                 // lowercased tag → {n, spellings:Map}
+  (DB.cards||[]).forEach(c=>(c.tags||[]).forEach(t=>{
+    const tag=String(t==null?'':t).trim(); if(!tag) return;
+    const k=tag.toLowerCase();
+    let e=m.get(k); if(!e){ e={n:0,spellings:new Map()}; m.set(k,e); }
+    e.n++; e.spellings.set(tag,(e.spellings.get(tag)||0)+1);
+  }));
+  // Show each tag the way it is most often written.
+  _tagIndex=[...m.values()].map(e=>{
+    const tag=[...e.spellings.entries()].sort((a,b)=>b[1]-a[1])[0][0];
+    return {tag, key:tag.toLowerCase(), n:e.n};
+  }).sort((a,b)=>b.n-a.n || a.tag.localeCompare(b.tag));
+  return _tagIndex;
+}
+function invalidateTagIndex(){ _tagIndex=null; }
+const TAG_CHIP_LIMIT=12;
+function renderTagSuggest(inputId){
+  const input=document.getElementById(inputId), box=document.getElementById(inputId+'-suggest');
+  if(!input||!box) return;
+  const parts=input.value.split(',');
+  let partial=parts[parts.length-1].trim().toLowerCase();
+  // A finished tag at the end of the box isn't a search — show everything else.
+  if(partial && tagIndex().some(t=>t.key===partial)) partial='';
+  const have=new Set(parts.map(t=>t.trim().toLowerCase()).filter(Boolean));
+  let list=tagIndex().filter(t=>!have.has(t.key));
+  if(partial){
+    list=list.filter(t=>t.key.includes(partial));
+    // Tags that START with what you've typed come first.
+    list=list.slice().sort((a,b)=>(b.key.startsWith(partial)-a.key.startsWith(partial)) || b.n-a.n);
+  }
+  if(!list.length){ box.innerHTML=''; return; }
+  const expanded=box.dataset.expanded==='1';
+  const shown=expanded?list:list.slice(0,TAG_CHIP_LIMIT);
+  box.innerHTML=
+    `<span class="tag-suggest-label">${partial?'Matching tags':'Tags you\'ve used'} — click to add</span>`+
+    shown.map(t=>`<button type="button" class="tag-chip" data-tag="${escHtml(t.tag)}" title="${escHtml(t.tag)} · on ${t.n} card${t.n===1?'':'s'}">${escHtml(t.tag)}<span class="n">${t.n}</span></button>`).join('')+
+    (list.length>TAG_CHIP_LIMIT?`<button type="button" class="tag-more">${expanded?'Show fewer':'Show all '+list.length}</button>`:'');
+}
+// Put the clicked tag in place of whatever partial tag is being typed.
+function addSuggestedTag(inputId, tag){
+  const input=document.getElementById(inputId); if(!input) return;
+  const parts=input.value.split(',').map(t=>t.trim());
+  parts[parts.length-1]=tag;
+  input.value=parts.filter(Boolean).join(', ')+', ';
+  input.focus();
+  try{ input.setSelectionRange(input.value.length,input.value.length); }catch(e){}
+  renderTagSuggest(inputId);
+}
+function setupTagSuggest(){
+  ['card-tags','edit-tags'].forEach(id=>{
+    const input=document.getElementById(id), box=document.getElementById(id+'-suggest');
+    if(!input||!box) return;
+    input.addEventListener('input',()=>renderTagSuggest(id));
+    input.addEventListener('focus',()=>renderTagSuggest(id));
+    // mousedown keeps focus in the tag box so typing can carry on after a click
+    box.addEventListener('mousedown',e=>{ if(e.target.closest('button')) e.preventDefault(); });
+    box.addEventListener('click',e=>{
+      const chip=e.target.closest('.tag-chip');
+      if(chip){ addSuggestedTag(id, chip.dataset.tag); return; }
+      if(e.target.closest('.tag-more')){ box.dataset.expanded=box.dataset.expanded==='1'?'':'1'; renderTagSuggest(id); }
+    });
+  });
+}
+
 function clearCreateForm(){
   document.getElementById('card-front').value='';
   document.getElementById('card-back').value='';
   document.getElementById('card-tags').value='';
+  renderTagSuggest('card-tags');
   document.getElementById('preview-front').textContent='—';
   document.getElementById('preview-back').textContent='—';
 }
 
+// v4.3: a card runs from its "Q:" line to the next "Q:" line, so answers can
+// span several lines (and blank lines). The old parser kept only the first line
+// after "A:" and silently dropped the rest of a multi-line answer.
+function parseBatchQA(text){
+  const out=[]; let cur=null, field=null;
+  String(text||'').replace(/\r\n?/g,'\n').split('\n').forEach(line=>{
+    const qm=line.match(/^\s*Q:\s?(.*)$/), am=line.match(/^\s*A:\s?(.*)$/);
+    if(qm){ if(cur) out.push(cur); cur={q:[qm[1]],a:[]}; field='q'; }
+    else if(am && cur && field==='q'){ cur.a.push(am[1]); field='a'; }
+    else if(cur && field){ cur[field].push(line); }
+  });
+  if(cur) out.push(cur);
+  const tidy=lines=>lines.join('\n').replace(/[ \t]+$/gm,'').replace(/\n{3,}/g,'\n\n').trim();
+  return out.map(c=>({q:tidy(c.q), a:tidy(c.a)})).filter(c=>c.q&&c.a);
+}
 function createBatchCards(){
   const text=document.getElementById('batch-text').value.trim();
   const subject=document.getElementById('batch-subject').value;
   const contentArea=document.getElementById('batch-content-area').value;
-  const pairs=text.split(/\n\s*\n/).filter(Boolean);
   let added=0;
-  pairs.forEach(pair=>{
-    const lines=pair.trim().split('\n');
-    let q='',a='';
-    lines.forEach(l=>{
-      if(l.startsWith('Q:')) q=l.slice(2).trim();
-      else if(l.startsWith('A:')) a=l.slice(2).trim();
-    });
-    if(q&&a){DB.cards.push(newCard(q,a,subject,contentArea));added++;}
-  });
+  parseBatchQA(text).forEach(({q,a})=>{ DB.cards.push(newCard(q,a,subject,contentArea)); added++; });
   saveDB();
   document.getElementById('batch-result').innerHTML=added>0?
     `<div class="alert alert-success">✅ Added ${added} cards</div>`:
@@ -4404,7 +4552,10 @@ function openEditModal(id){
   document.getElementById('edit-back').value=card.back;
   document.getElementById('edit-subject').value=card.subject;
   populateContentAreas('edit-content-area', card.subject, card.contentArea||'');
-  document.getElementById('edit-tags').value=(card.tags||[]).join(', ');
+  // Trailing ", " so the cursor lands ready for the next tag (saving ignores it).
+  document.getElementById('edit-tags').value=(card.tags||[]).length?(card.tags||[]).join(', ')+', ':'';
+  const ets=document.getElementById('edit-tags-suggest'); if(ets) ets.dataset.expanded='';
+  renderTagSuggest('edit-tags');
   document.getElementById('edit-modal').style.display='flex';
 }
 function closeEditModal(){document.getElementById('edit-modal').style.display='none';editingCardId=null;}
@@ -4920,8 +5071,8 @@ function importCardBody(raw){
   const s=String(raw||'');
   const inner=renderCardHtml(s);
   if(!inner.trim()) return '<span style="color:var(--muted);font-style:italic">(empty)</span>';
-  // Plain-text cards (CSV) keep their line breaks; HTML cards render as-is.
-  return /<[a-z!\/][^>]*>/i.test(s) ? inner : '<div style="white-space:pre-wrap">'+inner+'</div>';
+  // Line breaks are handled inside renderCardHtml (nlToBr), exactly as on the study screen.
+  return inner;
 }
 function openImportCard(kind,i){
   importView={kind,i};
@@ -5249,7 +5400,7 @@ function parseSQLiteAnki(ab){
 
     if(flds.includes(SEP)){
       const front = cleanHtml(parts[0]||'').trim();
-      const back  = cleanHtml(parts.slice(1).filter(Boolean).join('\n')).trim();
+      const back  = cleanHtml(parts.slice(1).filter(Boolean).join('<br>')).trim();
       if(front && back) cards.push({front, back, tags, guid, sched:schedFor(0)});
       else if(front)    cards.push({front, back:'(no back field in this note)', tags, guid, sched:schedFor(0)});
     } else {
@@ -6672,10 +6823,10 @@ function confirmReset(){
 // ═══════════════════════════════════════════════════════════
 function setupPreviewListeners(){
   document.getElementById('card-front').addEventListener('input',function(){
-    document.getElementById('preview-front').textContent=this.value||'—';
+    setCardHtml(document.getElementById('preview-front'), this.value ? renderCardHtml(this.value) : '—');
   });
   document.getElementById('card-back').addEventListener('input',function(){
-    document.getElementById('preview-back').textContent=this.value||'—';
+    setCardHtml(document.getElementById('preview-back'), this.value ? renderCardHtml(this.value) : '—');
   });
 }
 
@@ -9131,6 +9282,7 @@ async function init(){
   updateBatchContentArea();
   populateContentAreas('edit-content-area','IM');
   setupPreviewListeners();
+  setupTagSuggest();
   setupKeyboardShortcuts();
   setupITEDrop();
   setupMKSAPDrop();
