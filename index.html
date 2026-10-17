@@ -402,7 +402,7 @@ body[data-specialty="Psych"] .only-both{display:none!important}
     <div class="nav-item" onclick="navigate('settings')"><span class="nav-icon">⚙️</span><span>Settings</span></div>
   </nav>
   <div id="sidebar-footer">
-    <div id="app-version" style="color:rgba(255,255,255,.4);font-size:11px" title="Read the whole card, file it, or drop it — all while importing">v4.3 · updated 2026-10-09</div>
+    <div id="app-version" style="color:rgba(255,255,255,.4);font-size:11px" title="Recency-weighted weak areas, smarter new-card mix, exam-aware scheduling">v4.4 · updated 2026-10-17</div>
   </div>
 </div>
 
@@ -648,12 +648,13 @@ A: SSRI (e.g., sertraline or escitalopram)"></textarea>
       <p style="color:var(--muted);font-size:14px;line-height:1.6;margin-bottom:16px">Paste this prompt into a Claude conversation to generate Q&amp;A pairs you can import here:</p>
       <div style="background:#f8faff;border-radius:8px;padding:16px;font-family:monospace;font-size:13px;color:var(--navy);white-space:pre-wrap;line-height:1.6;border:1px solid #e5e7eb" id="ai-prompt-template">Create Anki-style flashcards from the following medical notes. Format each card exactly as:
 
-Q: [question or clinical vignette prompt]
-A: [concise answer with key teaching point]
+Q: [short clinical vignette or direct question]
+A: [concise answer]
+Why: [one line of reasoning or the distinguishing feature]
 
-[blank line between each card]
+[blank line between each card — none inside a card]
 
-Focus on high-yield facts, mechanisms, and clinical pearls. Generate 10-15 cards.
+One idea per card. Where it fits, phrase the question as a vignette asking for the diagnosis, next step or mechanism. Focus on high-yield facts, mechanisms, and clinical pearls. Generate 10-15 cards.
 
 NOTES:
 [paste your notes or topic here]</div>
@@ -1007,7 +1008,7 @@ front,back,subject,content_area,tags<br>
       <div class="stat-card"><div class="label">Years Loaded</div><div class="value" id="ite-stat-years">0</div><div class="sub" id="ite-stat-range">—</div></div>
       <div class="stat-card"><div class="label">Latest Total Score</div><div class="value" id="ite-stat-total">—</div><div class="sub" id="ite-stat-total-sub">percent correct</div></div>
       <div class="stat-card"><div class="label">Latest Percentile</div><div class="value" id="ite-stat-pct">—</div><div class="sub" id="ite-stat-pct-sub">within PGY level</div></div>
-      <div class="stat-card"><div class="label">Recurrent Weak Areas</div><div class="value" id="ite-stat-weak">0</div><div class="sub">flagged in 2+ years</div></div>
+      <div class="stat-card"><div class="label">Weak Areas Now</div><div class="value" id="ite-stat-weak">0</div><div class="sub">on latest ITE</div></div>
     </div>
 
     <div class="panel" id="ite-trend-wrap" style="margin-top:16px;display:none">
@@ -1024,13 +1025,13 @@ front,back,subject,content_area,tags<br>
         <span><span class="legend-dot" style="background:#fee2e2"></span>&lt;30th pctile</span>
         <span><span class="legend-dot" style="background:#fecaca"></span>&lt;10th pctile</span>
       </div>
-      <p style="font-size:11.5px;color:var(--muted);margin-bottom:10px">Each cell shows <strong>your %</strong> with the <strong>PGY mean</strong> beneath, plus your percentile. An area is flagged weak when your score is below the PGY mean <em>or</em> your percentile is under 30. 🔴 = weak in 2+ years, 🟠 = weak once.</p>
+      <p style="font-size:11.5px;color:var(--muted);margin-bottom:10px">Each cell shows <strong>your %</strong> with the <strong>PGY mean</strong> beneath, plus your percentile. An area is flagged weak when your score is below the PGY mean <em>or</em> your percentile is under 30. 🔴 = weak in 2+ years, 🟠 = weak once, ⚠ new = weak on the latest ITE but not the year before, ↗ improving = better on the latest ITE.</p>
       <div class="table-wrap"><table class="ite-matrix" id="ite-matrix"></table></div>
     </div>
 
     <div class="panel" style="margin-top:16px">
-      <div style="font-weight:700;color:var(--navy);margin-bottom:4px">Recurrent Weaknesses — Priority List</div>
-      <div style="font-size:12px;color:var(--muted);margin-bottom:12px">Ranked worst-first. Each links straight into the Weak Areas practice generator, and lists the educational objectives you missed.</div>
+      <div style="font-weight:700;color:var(--navy);margin-bottom:4px">Weaknesses — Priority List</div>
+      <div style="font-size:12px;color:var(--muted);margin-bottom:12px">Areas weak on your latest ITE or in 2+ years, ranked worst-first with recent years counting more (newest year full weight, a year older half, two years a quarter). Each links into the Weak Areas practice generator and lists the educational objectives you missed.</div>
       <div id="ite-weak-list"></div>
     </div>
 
@@ -1237,11 +1238,10 @@ front,back,subject,content_area,tags<br>
         <input type="number" id="set-daily-goal" min="1" max="500" onchange="saveSetting('dailyGoal',this.value)">
       </div>
       <div class="setting-row only-both" id="row-newmix">
-        <div><div class="setting-label">New-card mix (IM &amp; Psych)</div><div class="setting-desc">How new cards are chosen when both subjects have cards waiting. <strong>Balanced</strong> alternates IM and Psych so one specialty can't dominate, and within each subject it introduces your weakest, most heavily-tested areas first (the same ranking as "Study next"); <strong>By deck proportion</strong> matches each subject's share of your deck (also weakest-area-first within each subject); <strong>Creation order</strong> introduces oldest-made cards first.</div></div>
+        <div><div class="setting-label">New-card mix (IM &amp; Psych)</div><div class="setting-desc"><strong>Weighted</strong> gives more new cards to whichever subject is weaker overall — based on your exam scores and recent recall — mixed card by card, and never less than a third for either subject. <strong>Even 50/50</strong> alternates the two. Either way, within each subject the weakest, most heavily-tested areas come first, no more than 2 new cards come from one area a day, and cloze siblings are never introduced on the same day.</div></div>
         <select id="set-newmix" onchange="saveSetting('newCardMix',this.value)" style="padding:6px 10px;border:2px solid #e5e7eb;border-radius:6px;font-size:14px">
-          <option value="balanced">Balanced (alternate)</option>
-          <option value="proportional">By deck proportion</option>
-          <option value="sequential">Creation order</option>
+          <option value="weighted">Weighted toward weaker subject</option>
+          <option value="even">Even 50/50</option>
         </select>
       </div>
       <div class="setting-row">
@@ -1308,12 +1308,12 @@ front,back,subject,content_area,tags<br>
 <div id="page-practice" class="page">
   <div class="page-header">
     <h2>🎯 Study Next — Your Priority Order</h2>
-    <p>One ranked list across every signal: board exam weight, your card mastery, ITE, and MKSAP</p>
+    <p>One ranked list across every signal: board exam weight, recent recall on your cards, ITE, MKSAP and PRITE</p>
   </div>
 
   <div class="panel" id="study-next-panel" style="margin-bottom:16px;display:none">
     <div style="font-weight:700;color:var(--navy);margin-bottom:4px">What to study next</div>
-    <div style="font-size:12px;color:var(--muted);margin-bottom:8px">Ranked by how much each area is tested <em>and</em> how weak you are on it. 🔥 means you missed it on both the ITE and MKSAP. Click any area to generate cards targeting your actual misses.</div>
+    <div style="font-size:12px;color:var(--muted);margin-bottom:8px">Ranked by how much each area is tested <em>and</em> how weak you are on it. Recent exam years and recent reviews count more than old ones; areas with many cards you haven't seen yet get a smaller boost so they stay in rotation without being called weak. 🔥 means you missed it on both the ITE and MKSAP. This same ranking decides which new cards you get each day. Click any area to generate cards targeting your actual misses.</div>
     <div id="study-next-list"></div>
   </div>
 
@@ -1357,6 +1357,7 @@ A: [answer]. Citation: Harrison's Principles of Internal Medicine, 21e, Ch. 245.
       <div class="setting-row only-im"><div><div class="setting-label">ABIM (Internal Medicine)</div><div class="setting-desc">Set your IM board date</div></div><input type="date" id="exam-date-IM" onchange="saveExamDate('IM',this.value)" style="padding:6px 10px;border:2px solid #e5e7eb;border-radius:6px;font-size:14px"></div>
       <div class="setting-row only-psych"><div><div class="setting-label">ABPN (Psychiatry)</div><div class="setting-desc">Set your Psych board / PRITE date</div></div><input type="date" id="exam-date-Psych" onchange="saveExamDate('Psych',this.value)" style="padding:6px 10px;border:2px solid #e5e7eb;border-radius:6px;font-size:14px"></div>
     </div>
+    <div id="exam-cap-note" style="font-size:12px;color:var(--muted);margin-top:10px;line-height:1.55"></div>
   </div>
   <div class="panel" id="readiness-trend-panel-big" style="display:none;margin-bottom:16px">
     <div style="display:flex;justify-content:space-between;align-items:baseline;flex-wrap:wrap;gap:8px">
@@ -1654,8 +1655,8 @@ A: [answer]. Citation: Harrison's Principles of Internal Medicine, 21e, Ch. 245.
 // ═══════════════════════════════════════════════════════════
 // Bump this on every release. The sidebar renders from it, and it re-checks
 // for an optional sw.js after an update. The other copy lives in sw.js (CACHE).
-const APP_VERSION='4.3';
-const APP_UPDATED='2026-10-09';   // shown in the sidebar so users can see which build they have
+const APP_VERSION='4.4';
+const APP_UPDATED='2026-10-17';   // shown in the sidebar so users can see which build they have
 
 const ABIM_CATEGORIES = [
   {name:'Cardiovascular Disease',pct:14},
@@ -2298,8 +2299,11 @@ async function loadDB(){
   // Ask the browser not to evict our storage under disk pressure.
   try{ if(navigator.storage&&navigator.storage.persist) navigator.storage.persist(); }catch(e){}
   DB.cards=DB.cards||[];
-  DB.settings=Object.assign({name:'',newPerDay:10,dailyGoal:50,examDates:{},scheduler:'fsrs',targetRetention:90,newCardMix:'balanced',studyFilter:'all'},DB.settings);
+  DB.settings=Object.assign({name:'',newPerDay:10,dailyGoal:50,examDates:{},scheduler:'fsrs',targetRetention:90,newCardMix:'weighted',studyFilter:'all'},DB.settings);
   DB.settings.examDates=DB.settings.examDates||{};
+  // v4.4: "Creation order", "Balanced" and "By deck proportion" are retired.
+  // Every older choice moves to the new default; "Even 50/50" is the other option.
+  if(DB.settings.newCardMix!=='weighted' && DB.settings.newCardMix!=='even') DB.settings.newCardMix='weighted';
   DB.dailyLog=DB.dailyLog||{};
   DB.streak=DB.streak||{current:0,longest:0,lastDate:null};
   DB.aviary=DB.aviary||{revealed:0,current:0,earned:[],lastDate:null};
@@ -2324,6 +2328,7 @@ function saveDB(){
   dbDirty=true;
   invalidateImageIndex();   // card text may have changed which images are referenced
   invalidateTagIndex();     // tags may have been added or edited
+  invalidatePriorityCache(); // reports, imports and edits can all shift the rankings
   if(!dbFlushTimer) dbFlushTimer=setTimeout(flushDB,300);
 }
 function flushDB(){
@@ -2601,7 +2606,7 @@ function reviewCard(card, grade){
   card.totalReviews=(card.totalReviews||0)+1;
   if(grade>0) card.correctReviews=(card.correctReviews||0)+1;
   card.lastReview=t;
-  card.dueDate=addDays(t,card.interval);
+  card.dueDate=examCappedDue(card, addDays(t,card.interval));   // v4.4: never skip the final month before the exam
   // First time this card is ever seen counts against today's new-card allowance.
   if(wasNew&&!card.introducedDate) card.introducedDate=t;
   // Record the grade distribution so analytics can weight difficulty (Hard/Again
@@ -2694,7 +2699,8 @@ REWRITE RULES
 - Split any card that asks for several answers into one card per answer. Two to five replacements for one overloaded card is normal and good.
 - Keep every fact from the original — nothing should be lost, just separated.
 - If the original is a list, make one card per item, or use a card that asks for the list's organising principle rather than the whole list.
-- Keep the clinical framing. Prefer the version that would be tested: the threshold, the next step, the distinguishing feature.
+- Keep the clinical framing: where it fits, phrase the question as a short vignette asking for the diagnosis, next step or mechanism. Prefer the version that would be tested: the threshold, the next step, the distinguishing feature.
+- End every answer with a new line starting "Why:" — one line of reasoning or the discriminating feature. No blank line inside a card.
 - Where the original card is already simple and just hard, don't split it — instead rewrite it to be more concrete, or add a mnemonic or discriminating clue to the answer.
 - Preserve any citation already present; do not invent new ones.
 
@@ -2705,6 +2711,7 @@ OUTPUT — exactly this, one blank line between cards, no numbering, no commenta
 
 Q: <question>
 A: <answer>
+Why: <one line>
 
 Begin.`;
   document.getElementById('health-prompt').textContent=prompt;
@@ -3137,6 +3144,8 @@ function renderDupBox(kind){
 // (newPerDay - already-introduced-today) brand-new cards. This is what enforces
 // the "new cards per day" setting so a freshly imported deck doesn't dump
 // hundreds of cards on you at once.
+// v4.4: review siblings are buried (one card per Anki note per day), and new
+// cards come from selectNewCards() — the single path every new card takes.
 function getDueCards(filter='all'){
   const t=today();
   const match=c=>{
@@ -3145,105 +3154,151 @@ function getDueCards(filter='all'){
     if(filter==='Psych' && c.subject==='IM')    return false;
     return true;                       // 'all', matching subject, or 'Both'
   };
-  const reviewDue = DB.cards.filter(c=>match(c) && (c.totalReviews||0)>0 && c.dueDate<=t);
+  // Most overdue first, so when two siblings are due the older one is kept.
+  const dueAll = DB.cards.filter(c=>match(c) && (c.totalReviews||0)>0 && c.dueDate<=t)
+    .sort((a,b)=>String(a.dueDate).localeCompare(String(b.dueDate)));
+  const notes=todayBusyNotes();
+  const reviewDue=[];
+  dueAll.forEach(c=>{ const k=noteKey(c); if(k){ if(notes.has(k)) return; notes.add(k); } reviewDue.push(c); });
   const introducedToday = DB.cards.filter(c=>c.introducedDate===t).length;
   const remainingNew = Math.max(0, (DB.settings.newPerDay||10) - introducedToday);
   const newPool = DB.cards
     .filter(c=>match(c) && (c.totalReviews||0)===0 && c.dueDate<=t)
     .sort((a,b)=>String(a.createdDate||'').localeCompare(String(b.createdDate||'')));
-  const newCards = pickNewCards(newPool, remainingNew);
+  const newCards = selectNewCards(newPool, remainingNew, {countToday:true, busyNotes:notes, single:filter!=='all'});
   return [...reviewDue, ...newCards];
 }
 
-// Choose which new cards to introduce today. The default interleaves IM and
-// Psych so a deck that happens to be built one-subject-first (as many are)
-// doesn't feed you weeks of a single specialty before the other appears.
-//   'balanced'     — round-robin across subjects (equal footing)
-//   'proportional' — mix matching each subject's share of the new-card pool,
-//                    weakest areas first within each subject
-//   'sequential'   — oldest-created first, regardless of subject (old behaviour)
-function pickNewCards(pool, limit){
+// ── NEW-CARD SELECTION (v4.4) ─────────────────────────────────────────────
+// One function picks every new card — the daily queue and "Keep studying"
+// alike — so no setting or button can skip the rules below:
+//   • Subject split: tilted toward the weaker subject (or an even 50/50 if
+//     chosen in Settings), mixed card by card rather than in blocks, and never
+//     below a third for either subject.
+//   • Areas: each pick goes to the area with the best priority ÷ (cards
+//     already taken + 1). At most 2 new cards per area per day, and the first
+//     picks go to 4 different areas when that many have cards waiting.
+//   • Siblings: never two cards from the same Anki note on the same day.
+//   • Within an area, cards keep the order they were created, so a deck built
+//     foundational-to-advanced still reads that way inside each topic.
+const NEW_PER_AREA_CAP=2, MIN_DISTINCT_AREAS=4, SUBJECT_FLOOR=1/3, DEFAULT_AREA_PRIORITY=40;
+
+// Cloze cards from one Anki note share a guid prefix ("guid::0", "guid::1").
+// Other cards have no siblings in this app, so they return null.
+function noteKey(c){
+  const g=c&&c.guid; if(!g) return null;
+  const i=String(g).indexOf('::');
+  return i>0?String(g).slice(0,i):null;
+}
+// Notes already seen today (reviewed or introduced) — their siblings wait.
+function todayBusyNotes(){
+  const t=today(), s=new Set();
+  (DB.cards||[]).forEach(c=>{ if(c.lastReview===t||c.introducedDate===t){ const k=noteKey(c); if(k) s.add(k); } });
+  return s;
+}
+function newCardSubject(c){
+  if(c.subject==='IM'||c.subject==='Psych') return c.subject;
+  return areaSubject(c.contentArea,'IM');
+}
+// Share of new cards per subject. Weighted mode squares each subject's
+// weakness so a real difference produces a visible tilt (0.55 vs 0.45
+// weakness → about 60/40), then applies the one-third floor.
+function subjectShares(subjects, model){
+  const sh={};
+  if(subjects.length===1){ sh[subjects[0]]=1; return sh; }
+  const even=(DB.settings.newCardMix==='even');
+  const sw=(model&&model.subjectWeak)||{};
+  let tot=0;
+  subjects.forEach(s=>{ const w=sw[s]!=null?sw[s]:0.5; sh[s]=even?1:Math.max(0.01,w*w); tot+=sh[s]; });
+  subjects.forEach(s=>sh[s]/=tot);
+  if(!even && subjects.length===2){
+    const [a,b]=subjects;
+    if(sh[a]<SUBJECT_FLOOR){ sh[a]=SUBJECT_FLOOR; sh[b]=1-SUBJECT_FLOOR; }
+    else if(sh[b]<SUBJECT_FLOOR){ sh[b]=SUBJECT_FLOOR; sh[a]=1-SUBJECT_FLOOR; }
+  }
+  return sh;
+}
+// pool: unseen cards already filtered by subject/suspension, oldest first.
+// opts.countToday — count cards introduced earlier today toward each area's cap
+//                   (daily queue). "Keep studying" leaves it off and instead
+//                   spreads the requested number evenly across areas.
+// opts.busyNotes  — notes whose siblings must not be introduced today.
+// opts.single     — the study filter is one subject; don't split.
+function selectNewCards(pool, limit, opts){
+  opts=opts||{};
   if(limit<=0 || !pool.length) return [];
-  const mix=DB.settings.newCardMix||'balanced';
-  if(mix==='sequential') return pool.slice(0,limit);
-  const groups={IM:[],Psych:[],Both:[]};
-  pool.forEach(c=>{ (groups[c.subject]||groups.IM).push(c); });
-  const order=['IM','Psych','Both'].filter(k=>groups[k].length);
-  // Single subject (categorical resident, or the Study page filtered to one
-  // specialty) → no mixing to do, but still introduce weakest areas first.
-  if(order.length<=1) return orderByPriority(pool).slice(0,limit);
-  const out=[];
-  if(mix==='proportional'){
-    // Fill by largest remaining share (Largest Remainder–style), so a 70/30
-    // pool yields roughly 70/30 among today's new cards.
-    // Within each subject, same weakest-most-tested-first ordering as
-    // 'balanced'; only the IM:Psych ratio differs between the two modes.
-    order.forEach(k=>groups[k]=orderByPriority(groups[k]));
-    const quota={}; order.forEach(k=>quota[k]=limit*groups[k].length/pool.length);
-    const idx={}; order.forEach(k=>idx[k]=0);
-    while(out.length<limit && order.some(k=>idx[k]<groups[k].length)){
-      let pick=null,best=-1;
-      for(const k of order){ if(idx[k]>=groups[k].length) continue; const rem=quota[k]-(idx[k]); if(rem>best){best=rem;pick=k;} }
-      if(pick===null) break;
-      out.push(groups[pick][idx[pick]++]);
+  const t=today();
+  const model=getPriorityModel();
+  const pri=model.byArea;
+  const busy=opts.busyNotes||todayBusyNotes();
+  const bySubj={};
+  pool.forEach(c=>{
+    const s=opts.single?'one':newCardSubject(c), a=c.contentArea||'Uncategorized';
+    const m=(bySubj[s]=bySubj[s]||new Map());
+    if(!m.has(a)) m.set(a,[]);
+    m.get(a).push(c);
+  });
+  const subjects=Object.keys(bySubj);
+  const usedToday={};
+  if(opts.countToday) (DB.cards||[]).forEach(c=>{ if(c.introducedDate===t){ const a=c.contentArea||'Uncategorized'; usedToday[a]=(usedToday[a]||0)+1; } });
+  const areasAvail=subjects.reduce((n,s)=>n+bySubj[s].size,0);
+  const cap=opts.countToday?NEW_PER_AREA_CAP:Math.max(NEW_PER_AREA_CAP,Math.ceil(limit/Math.max(1,areasAvail)));
+  const targetDistinct=Math.min(MIN_DISTINCT_AREAS,areasAvail,limit);
+  const shares=subjectShares(subjects,model);
+  const state={};
+  subjects.forEach(s=>{ state[s]=[...bySubj[s].entries()].map(([a,cards])=>({a,cards,idx:0,taken:0,p:(pri[a]!=null?pri[a]:DEFAULT_AREA_PRIORITY)})); });
+  const out=[], distinct=new Set(), chosen=new Set();
+  const tryPick=(s,curCap)=>{
+    let best=null, bestScore=-1;
+    for(const ar of state[s]){
+      if((usedToday[ar.a]||0)+ar.taken>=curCap) continue;
+      while(ar.idx<ar.cards.length){ const k=noteKey(ar.cards[ar.idx]); if(k&&(busy.has(k)||chosen.has(k))) ar.idx++; else break; }
+      if(ar.idx>=ar.cards.length) continue;
+      const score=ar.p/(1+ar.taken);
+      if(score>bestScore){ bestScore=score; best=ar; }
     }
-  } else {
-    // 'balanced' — round-robin across subjects, but WITHIN each subject take
-    // the weakest, most heavily-tested areas first (v3.4). Alternation between
-    // IM and Psych is unchanged; this only decides which IM card and which
-    // Psych card gets pulled, which was previously just "oldest created".
-    order.forEach(k=>groups[k]=orderByPriority(groups[k]));
-    const idx={}; order.forEach(k=>idx[k]=0);
-    while(out.length<limit && order.some(k=>idx[k]<groups[k].length)){
-      for(const k of order){ if(out.length>=limit) break; if(idx[k]<groups[k].length) out.push(groups[k][idx[k]++]); }
-    }
+    if(!best) return null;
+    const c=best.cards[best.idx++]; best.taken++;
+    const k=noteKey(c); if(k) chosen.add(k);
+    distinct.add(best.a);
+    return c;
+  };
+  const pickFrom=s=>{
+    // Until enough different areas are represented, one card per area.
+    if(distinct.size<targetDistinct){ const c=tryPick(s,1); if(c) return c; }
+    return tryPick(s,cap);
+  };
+  const credit={}; subjects.forEach(s=>credit[s]=0);
+  while(out.length<limit){
+    // Smooth weighted round-robin: the subject owed the most picks goes next.
+    subjects.forEach(s=>credit[s]+=shares[s]);
+    const order=subjects.slice().sort((a,b)=>credit[b]-credit[a]);
+    let got=null;
+    for(const s of order){ got=pickFrom(s); if(got){ credit[s]-=1; break; } }
+    if(!got) break;
+    out.push(got);
   }
   return out;
 }
 
-// Sort a pool of new cards so higher-priority content areas come first, using
-// the same ranking that drives "Study next" (blueprint weight × your command ×
-// ITE/MKSAP/PRITE gaps). Ties keep creation order, so behaviour is stable and
-// an unranked area still gets its turn rather than being starved.
-let _priorityCache=null, _priorityCacheDay=null;
-function priorityByArea(){
+// Ranking model shared by new-card selection, Study Next and the dashboard.
+// Cached for the day; cleared on every save so reviews, report uploads and
+// imports are reflected the next time cards are picked.
+var _priorityModel=null, _priorityModelDay=null;
+function getPriorityModel(){
   const t=today();
-  if(_priorityCache && _priorityCacheDay===t) return _priorityCache;
-  const map={};
-  try{ computeStudyPriorities().forEach(r=>{ map[r.area]=r.priority; }); }catch(e){}
-  _priorityCache=map; _priorityCacheDay=t;
-  return map;
+  if(_priorityModel && _priorityModelDay===t) return _priorityModel;
+  let rows=[];
+  try{ rows=computeStudyPriorities(); }catch(e){ console.warn('priority model failed',e); rows=[]; }
+  const byArea={}; rows.forEach(r=>{ byArea[r.area]=r.priority; });
+  const acc={};
+  rows.forEach(r=>{ const a=(acc[r.subject]=acc[r.subject]||{s:0,w:0}); a.s+=r.examPct*r.weakness; a.w+=r.examPct; });
+  const subjectWeak={}; for(const k in acc) subjectWeak[k]=acc[k].w?acc[k].s/acc[k].w:0.5;
+  _priorityModel={rows,byArea,subjectWeak}; _priorityModelDay=t;
+  return _priorityModel;
 }
-function invalidatePriorityCache(){ _priorityCache=null; }
-function orderByPriority(list){
-  if(list.length<2) return list;
-  const pri=priorityByArea();
-  // Unranked areas (no cards reviewed there yet, so no signal) sit mid-pack
-  // rather than last — they're unknown, not known-strong.
-  const DEFAULT=55;
-  // Group by content area, keeping creation order inside each group.
-  const byArea=new Map();
-  list.forEach(c=>{ const k=c.contentArea||'Uncategorized'; if(!byArea.has(k)) byArea.set(k,[]); byArea.get(k).push(c); });
-  if(byArea.size<2) return list;
-  const areas=[...byArea.keys()].map(k=>({k, p:(pri[k]!=null?pri[k]:DEFAULT), taken:0, cards:byArea.get(k)}));
-  // Weighted rotation rather than a strict sort: each pick goes to the area
-  // with the best priority-per-card-already-taken. A top area comes up most
-  // often but others still appear, so a day's new cards span several areas
-  // instead of 20 straight from one — blocked introduction would undercut the
-  // interleaving that makes similar diagnoses distinguishable.
-  const out=[];
-  while(out.length<list.length){
-    let best=null, bestScore=-1;
-    for(const a of areas){
-      if(a.taken>=a.cards.length) continue;
-      const score=a.p/(1+a.taken);
-      if(score>bestScore){ bestScore=score; best=a; }
-    }
-    if(!best) break;
-    out.push(best.cards[best.taken++]);
-  }
-  return out;
-}
+function priorityByArea(){ return getPriorityModel().byArea; }
+function invalidatePriorityCache(){ _priorityModel=null; }
 
 // Total NEW cards still waiting (ignores the daily cap) — for informational UI.
 function countNewWaiting(filter='all'){
@@ -3359,7 +3414,7 @@ function renderDashboard(){
 
   // Study Next — unified priority across board weight, card command, ITE & MKSAP.
   const weakEl=document.getElementById('weak-areas-list');
-  const pri=computeStudyPriorities().slice(0,5);
+  const pri=getPriorityModel().rows.slice(0,5);
   if(pri.length){
     weakEl.innerHTML=pri.map((r,i)=>{
       const bits=r.reasons.map(x=>x.t).join(' · ')+(r.overlaps?` · 🔥${r.overlaps}`:'');
@@ -3422,6 +3477,25 @@ function syncStudyFilterUI(){
   });
 }
 
+// v4.4: a true (Fisher–Yates) shuffle. The old sort-with-random-comparator
+// method is biased — cards appended last (new cards) drifted toward the end.
+function shuffleArr(arr){
+  const a=arr.slice();
+  for(let i=a.length-1;i>0;i--){ const j=Math.floor(Math.random()*(i+1)); [a[i],a[j]]=[a[j],a[i]]; }
+  return a;
+}
+// Shuffle, then a light pass so two cards from the same content area don't sit
+// back to back when another area is available to swap in.
+function spreadShuffle(cards){
+  const a=shuffleArr(cards);
+  const key=c=>(c&&c.contentArea)||'Uncategorized';
+  for(let i=1;i<a.length;i++){
+    if(key(a[i])!==key(a[i-1])) continue;
+    let j=i+1; while(j<a.length && key(a[j])===key(a[i-1])) j++;
+    if(j<a.length){ const tmp=a[i]; a[i]=a[j]; a[j]=tmp; }
+  }
+  return a;
+}
 function initStudy(){
   const algoNote=document.getElementById('study-algo-note');
   if(algoNote) algoNote.textContent=(DB.settings.scheduler||'fsrs')==='fsrs'
@@ -3438,7 +3512,7 @@ function initStudy(){
     document.getElementById('no-cards-msg').style.display='block';
     return;
   }
-  studyState.queue=[...due].sort(()=>Math.random()-0.5);
+  studyState.queue=spreadShuffle(due);
   studyState.idx=0;
   studyState.sessionCorrect=0;
   studyState.sessionTotal=0;
@@ -3467,7 +3541,7 @@ function extraMatch(c, subject){
 }
 // Weakest content areas from the same ranking that powers "Study next".
 function extraFocusAreas(subject){
-  let rows=computeStudyPriorities();
+  let rows=getPriorityModel().rows;
   if(subject!=='all') rows=rows.filter(r=>r.subject===subject);
   return rows.slice(0,5).map(r=>r.area);
 }
@@ -3487,10 +3561,18 @@ function buildExtraQueue(source, subject, limit, focus){
     // Only narrow to the focus areas if they actually have material.
     if(ff.length||fa.length){ fresh=ff; ahead=fa; }
   }
+  // v4.4: new cards go through the same selector as the daily queue (weak-area
+  // rotation, per-area spread, subject tilt, no siblings) instead of being
+  // taken oldest-first, which could hand over 20 cards from one topic.
+  const notes=todayBusyNotes();
+  const freshPick=(source==='ahead')?[]:selectNewCards(fresh,limit,{countToday:false,busyNotes:notes,single:subject!=='all'});
+  freshPick.forEach(c=>{ const k=noteKey(c); if(k) notes.add(k); });
+  const aheadPick=[];
+  ahead.forEach(c=>{ const k=noteKey(c); if(k){ if(notes.has(k)) return; notes.add(k); } aheadPick.push(c); });
   let pool;
-  if(source==='new') pool=fresh;
-  else if(source==='ahead') pool=ahead;
-  else pool=[...fresh,...ahead];          // 'auto' — cheapest cards first
+  if(source==='new') pool=freshPick;
+  else if(source==='ahead') pool=aheadPick;
+  else pool=[...freshPick,...aheadPick];  // 'auto' — cheapest cards first
   return {queue:pool.slice(0,limit), freshN:fresh.length, aheadN:ahead.length};
 }
 function openExtraStudy(){
@@ -3544,7 +3626,7 @@ function startExtraSession(){
   document.getElementById('session-complete').style.display='none';
   document.getElementById('no-cards-msg').style.display='none';
   document.getElementById('study-card-wrap').style.display='';
-  studyState.queue=[...queue].sort(()=>Math.random()-0.5);
+  studyState.queue=spreadShuffle(queue);
   studyState.idx=0;
   studyState.sessionCorrect=0;
   studyState.sessionTotal=0;
@@ -5749,6 +5831,7 @@ function importApkg(){
   if(fresh&&kept) bits.push(`${fresh} start fresh`);
   if(susp)  bits.push(`${susp} suspended`);
   if(uncat) bits.push(`${uncat} Uncategorized`);
+  applyExamCaps();     // kept Anki due dates may fall after an exam
   toast(`Imported ${added} cards${bits.length?' · '+bits.join(' · '):''}`);
 }
 
@@ -5983,10 +6066,75 @@ function renderTrends(){
 // Weighted by official exam blueprint %: readiness = Σ(weight × command) / Σ weight.
 // Areas with no cards count as 0 command (you haven't covered them).
 // ═══════════════════════════════════════════════════════════
+// ── EXAM-DATE-AWARE SCHEDULING (v4.4) ──────────────────────────────────────
+// The best gap between reviews shrinks as a share of the time left before a
+// test (Cepeda et al., 2008), and FSRS knows nothing about exam dates — a card
+// reviewed in spring could get an interval that carries it past the exam.
+// Rule: if a card's next review would land after the exam (or in its last
+// 3 days), it is pulled into the final 30 days instead, spread across that
+// month by card so the reviews don't pile up on the last few days. Only the due
+// date moves; the card's interval, stability and maturity are untouched. A
+// review that already happens inside the final month counts, so nothing is
+// pulled back twice.
+const EXAM_WINDOW_DAYS=30, EXAM_BUFFER_DAYS=3;
+function examDateForCard(c){
+  const ex=(DB.settings&&DB.settings.examDates)||{}, t=today();
+  const fut=d=>(d&&d>t)?d:null;
+  const im=fut(ex.IM), ps=fut(ex.Psych);
+  if(c.subject==='IM') return im;
+  if(c.subject==='Psych') return ps;
+  if(im&&ps) return im<ps?im:ps;          // 'Both' → whichever exam comes first
+  return im||ps;
+}
+function hashSpread(id, span){
+  let h=0; const str=String(id);
+  for(let i=0;i<str.length;i++) h=(h*31+str.charCodeAt(i))|0;
+  return span>0?Math.abs(h)%span:0;
+}
+function examCappedDue(c, due){
+  const exam=examDateForCard(c); if(!exam) return due;
+  const t=today();
+  if(diffDays(exam,t)<=EXAM_WINDOW_DAYS) return due;       // this review is already in the final month
+  if(due<=addDays(exam,-EXAM_BUFFER_DAYS)) return due;      // comes up before the exam anyway
+  return addDays(addDays(exam,-EXAM_WINDOW_DAYS), hashSpread(c.id, EXAM_WINDOW_DAYS-EXAM_BUFFER_DAYS));
+}
+// Applies the same rule to cards scheduled before an exam date was set (or
+// imported from Anki): anything due after the exam that hasn't been reviewed in
+// the final month is brought into it. Returns how many cards moved.
+function applyExamCaps(){
+  const t=today(); let moved=0;
+  (DB.cards||[]).forEach(c=>{
+    if(c.suspended||!((c.totalReviews||0)>0)) return;
+    const exam=examDateForCard(c); if(!exam) return;
+    const lastOk=addDays(exam,-EXAM_BUFFER_DAYS);
+    if(!c.dueDate||c.dueDate<=lastOk) return;
+    const winStart=addDays(exam,-EXAM_WINDOW_DAYS);
+    if(c.lastReview && c.lastReview>=winStart) return;       // already reviewed in the final month
+    let nd;
+    if(t<winStart) nd=addDays(winStart, hashSpread(c.id, EXAM_WINDOW_DAYS-EXAM_BUFFER_DAYS));
+    else { const left=diffDays(lastOk,t); if(left<1) return; nd=addDays(t, 1+hashSpread(c.id, left)); }
+    if(nd<c.dueDate){ c.dueDate=nd; moved++; }
+  });
+  if(moved) saveDB();
+  return moved;
+}
+function examCapSummary(){
+  const ex=(DB.settings&&DB.settings.examDates)||{}, t=today(), out=[];
+  ['IM','Psych'].forEach(k=>{
+    const d=ex[k]; if(!d||d<=t) return;
+    const winStart=addDays(d,-EXAM_WINDOW_DAYS);
+    const n=(DB.cards||[]).filter(c=>!c.suspended&&(c.totalReviews||0)>0&&examDateForCard(c)===d&&c.dueDate>=winStart&&c.dueDate<=d).length;
+    out.push({k,d,n});
+  });
+  return out;
+}
+
 function saveExamDate(subject, val){
   // a new/changed exam date changes what the trend chart tracks
   DB.settings.examDates=DB.settings.examDates||{};
   DB.settings.examDates[subject]=val||null;
+  const moved=applyExamCaps();
+  if(moved) toast(`${moved} card${moved===1?'':'s'} would have skipped the final month — brought back before the exam`);
   saveDB();
   renderReadiness();
   recordReadinessSnapshot();      // start (or stop) tracking immediately
@@ -6017,7 +6165,14 @@ function computeReadiness(subject){
 
 function readinessColor(pct){ return pct>=75?'#16a34a':pct>=50?'#2d6a9f':pct>=30?'#d97706':'#dc2626'; }
 
+function renderExamCapNote(){
+  const el=document.getElementById('exam-cap-note'); if(!el) return;
+  const sum=examCapSummary().filter(x=>currentSpecialty()==='both'||currentSpecialty()===x.k);
+  const base='Exam-aware scheduling: no card\'s next review is allowed to skip the final '+EXAM_WINDOW_DAYS+' days before its exam — anything that would come due after the exam is brought back once in that last month, spread out so it doesn\'t pile up.';
+  el.innerHTML=base+(sum.length?' '+sum.map(x=>`<strong>${x.k==='IM'?'IM':'Psych'}</strong>: ${x.n.toLocaleString()} card${x.n===1?'':'s'} currently due in the month before ${x.d}.`).join(' '):'');
+}
 function renderReadiness(){
+  renderExamCapNote();
   const t=today();
   ['IM','Psych'].forEach(s=>{ const el=document.getElementById('exam-date-'+s); if(el) el.value=(DB.settings.examDates&&DB.settings.examDates[s])||''; });
   const sp=currentSpecialty();
@@ -6440,7 +6595,7 @@ Every card must belong to "${area}". Several of these topics involve other organ
 
 CARD REQUIREMENTS
 - One idea per card. Prefer the decision, threshold or next step that actually gets tested over background trivia.
-- Front: a short clinical stem or direct question. Back: the key fact plus the one-line "why" that makes it stick.
+- Front: a short clinical vignette (age/sex, presentation, the key finding) that asks for the diagnosis, next step or mechanism — or a direct question where a vignette doesn't fit. Back: the answer, then a new line starting "Why:" with one line of reasoning or the feature that distinguishes it from the look-alike. Practising the reasoning, in the format the exam uses, is what carries a card over to new questions.
 - Where a number matters (dose, cutoff, timing, score), put the number on the card.
 - End every answer with a citation: guideline or reference plus year — e.g. "Citation: IDSA 2023" or "Citation: Harrison's 21e Ch. 245".
 
@@ -6531,11 +6686,10 @@ function parseCoverageCards(text){
              || all.find(a=>raw.toLowerCase().includes(a.toLowerCase()));
       if(hit) curArea=hit;
     }
-    const qm=bl.match(/Q\s*[:\.]\s*([\s\S]*?)(?:\n\s*A\s*[:\.]|$)/i);
-    const bm=bl.match(/A\s*[:\.]\s*([\s\S]*)$/i);
-    if(qm&&bm){
-      const q=qm[1].replace(/^\s*AREA\s*[:\-].*$/im,'').trim();
-      let a=bm[1].trim();
+    const qa=splitQA(bl);
+    if(qa){
+      const q=qa.q.replace(/^\s*AREA\s*[:\-].*$/im,'').trim();
+      let a=qa.a;
       const verify=/\[VERIFY\]/i.test(a);
       a=a.replace(/\[VERIFY\]/ig,'').trim();
       if(q&&a) out.push({q,a,area:curArea,verify});
@@ -6578,7 +6732,7 @@ function renderSettings(){
   document.getElementById('set-retention').value=DB.settings.targetRetention||90;
   document.getElementById('row-retention').style.display=(DB.settings.scheduler||'fsrs')==='fsrs'?'':'none';
   const spSel=document.getElementById('set-specialty'); if(spSel) spSel.value=currentSpecialty();
-  const mixSel=document.getElementById('set-newmix'); if(mixSel) mixSel.value=DB.settings.newCardMix||'balanced';
+  const mixSel=document.getElementById('set-newmix'); if(mixSel) mixSel.value=DB.settings.newCardMix||'weighted';
 }
 function saveScheduler(v){
   DB.settings.scheduler=(v==='sm2')?'sm2':'fsrs';
@@ -6675,6 +6829,7 @@ function restoreBackup(incoming, mode){
     if(!confirm(`Replace ALL current data with this backup (${inCards.length} cards)? Your current cards will be deleted.`)) return;
     DB.cards=inCards.map(normalizeCard);
     DB.settings=Object.assign({newPerDay:10,dailyGoal:50}, incoming.settings||{});
+    if(DB.settings.newCardMix!=='weighted' && DB.settings.newCardMix!=='even') DB.settings.newCardMix='weighted';
     DB.dailyLog=incoming.dailyLog||{};
     DB.streak=incoming.streak||{current:0,longest:0,lastDate:null};
     DB.aviary=incoming.aviary||{revealed:0,current:0,earned:[],lastDate:null};
@@ -6756,12 +6911,14 @@ function restoreBackup(incoming, mode){
     const repBits=[];
     if(repAdded) repBits.push(`${repAdded} report${repAdded===1?'':'s'} added`);
     if(repUpdated) repBits.push(`${repUpdated} updated`);
+    applyExamCaps();
     toast(`Merged — ${addedN} new card${addedN===1?'':'s'}${repBits.length?' · '+repBits.join(', '):''}`);
     return;
   }
   saveDB();
   renderSettings();
   navigate('dashboard');
+  applyExamCaps();
   toast(`Restored ${DB.cards.length} cards from backup`);
 }
 
@@ -7949,51 +8106,208 @@ function renderDashboardBirds(){
 // ═══════════════════════════════════════════════════════════
 let practiceArea=null, practiceObjectives=null, practiceTag='weak-area-practice';
 
-// ── Unified "Study Next" priority ranking ──
-// Blends four signals per content area into one score: board blueprint weight,
-// your flashcard command, ITE percentile, MKSAP running %, plus an ITE∩MKSAP
-// overlap boost. Weakness × how-heavily-tested = what to open first.
+// ── Unified "Study Next" priority ranking (v4.4) ──────────────────────────
+// Each content area gets a WEAKNESS score (0 strong … 1 weak) from whatever
+// evidence exists, every source on the same 0.5-is-average scale:
+//   • ITE percentile and PRITE standard score — recent years count more
+//     (newest 1, a year older ½, two years ¼).
+//   • MKSAP — a real per-area score from older reports, or, for the current
+//     question bank (misses only), an estimate: your share of misses in an area
+//     against that area's share of the blueprint. Relative, not absolute.
+//   • Cards — recall over the last 90 days on cards already learned (first
+//     sightings and same-day relearning steps don't count).
+// Sources are averaged with a neutral 0.5 prior, so missing evidence neither
+// helps nor hurts an area. A separate, smaller COVERAGE term (share of the
+// area's cards not seen yet) keeps untouched areas in rotation without
+// letting them pose as weak.
+//   priority = (0.8·weakness + 0.2·coverage) × exam-weight factor × 100
 function ordSuffix(n){ const s=['th','st','nd','rd'], v=n%100; return n+(s[(v-20)%10]||s[v]||s[0]); }
+const SIG_PRIOR=0.5, SIG_PRIOR_W=0.5;
+const W_ITE=1, W_PRITE=1, W_MKSAP_REAL=1, W_MKSAP_EST=0.6, W_CARDS_RECENT=0.8, W_CARDS_LIFETIME=0.4;
+const RECALL_WINDOW_DAYS=90, RECALL_HALF_LIFE=45, RECALL_MIN_REVIEWS=8;
+// MKSAP areas with their own question-bank section, which map one-to-one to an
+// ABIM area. The catch-all books (General IM, Interdisciplinary, Foundations)
+// all land on "Miscellaneous", whose 2% blueprint share would make it look
+// wildly over-missed, so they are left out of the estimate.
+const MKSAP_EST_AREAS=['Cardiovascular Disease','Dermatology','Endocrinology, Diabetes & Metabolism','Gastroenterology','Hematology','Medical Oncology','Infectious Disease','Nephrology & Urology','Neurology','Pulmonary Disease','Rheumatology & Orthopedics'];
+
+function catPct(name){ const c=[...ABIM_CATEGORIES,...ABPN_CATEGORIES].find(x=>x.name===name); return c?c.pct:2; }
+function clamp01(x){ return Math.max(0,Math.min(1,x)); }
+function normCdf(z){
+  const t=1/(1+0.2316419*Math.abs(z)), d=0.3989423*Math.exp(-z*z/2);
+  const p=d*t*(0.3193815+t*(-0.3565638+t*(1.781478+t*(-1.821256+t*1.330274))));
+  return z>0?1-p:p;
+}
+// Weight per report by age. Items must be ordered oldest → newest; when a year
+// is missing the order itself is used.
+function recencyWeights(items, yearOf){
+  const ys=items.map(yearOf);
+  if(ys.length && ys.every(y=>typeof y==='number'&&y>1900)){ const top=Math.max(...ys); return ys.map(y=>Math.pow(0.5,top-y)); }
+  return items.map((_,i)=>Math.pow(0.5,items.length-1-i));
+}
+function iteYearWeightFn(){
+  const ys=(DB.iteReports||[]).map(r=>r.year).filter(y=>typeof y==='number'&&y>1900);
+  const top=ys.length?Math.max(...ys):null;
+  return y=>(top!=null&&typeof y==='number'&&y>1900)?Math.pow(0.5,Math.max(0,top-y)):1;
+}
+function trendArrow(cur,prev,thr){
+  if(cur==null||prev==null) return '';
+  return cur-prev>=thr?' ↑':(prev-cur>=thr?' ↓':'');
+}
+function iteSignals(){
+  const reps=(DB.iteReports||[]).slice().sort((a,b)=>(a.year||0)-(b.year||0));
+  const w=recencyWeights(reps,r=>r.year), acc={};
+  reps.forEach((r,i)=>{ (r.areas||[]).forEach(a=>{
+    if(a.hvc) return; const abim=ITE_TO_ABIM[a.name]; if(!abim) return;
+    const s=(acc[abim]=acc[abim]||{sw:0,sg:0,hist:[]});
+    s.sw+=w[i]; s.sg+=w[i]*clamp01((100-(a.percentile==null?50:a.percentile))/100);
+    s.hist.push({pct:a.percentile,weak:(a.your<a.mean||a.percentile<30)});
+  }); });
+  const out={};
+  for(const k in acc){ const s=acc[k], last=s.hist[s.hist.length-1], prev=s.hist.length>1?s.hist[s.hist.length-2]:null;
+    out[k]={g:s.sg/s.sw, latest:last.pct, prev:prev?prev.pct:null, weak:last.weak, years:s.hist.length}; }
+  return out;
+}
+// PRITE standard scores (SD ≈ 100) are turned into an approximate percentile
+// against the peer mean, so they sit on the same scale as ITE percentiles.
+function priteSignals(){
+  const reps=priteReportsSorted(), w=recencyWeights(reps,r=>r.year), acc={};
+  reps.forEach((r,i)=>{
+    const worst={};
+    (r.rows||[]).forEach(row=>{ const abpn=priteAreaToABPN(row.name); if(!abpn) return;
+      const mean=row.peerMean!=null?row.peerMean:500;
+      const g=clamp01(1-normCdf((row.standard-mean)/100));
+      if(!worst[abpn]||g>worst[abpn].g) worst[abpn]={g,std:row.standard,below:row.standard<mean};
+    });
+    for(const k in worst){ const s=(acc[k]=acc[k]||{sw:0,sg:0,hist:[]}); s.sw+=w[i]; s.sg+=w[i]*worst[k].g; s.hist.push(worst[k]); }
+  });
+  const out={};
+  for(const k in acc){ const s=acc[k], last=s.hist[s.hist.length-1], prev=s.hist.length>1?s.hist[s.hist.length-2]:null;
+    out[k]={g:s.sg/s.sw, std:last.std, prevStd:prev?prev.std:null, weak:last.below}; }
+  return out;
+}
+// "April 14th, 2026" → "2026-04-14" (dates from current-bank printouts).
+function parseMKSAPDate(s){
+  const m=String(s||'').trim().match(/^([A-Za-z]+)\s+(\d{1,2})(?:st|nd|rd|th)?,\s+(\d{4})$/);
+  if(!m) return null;
+  const mi=['january','february','march','april','may','june','july','august','september','october','november','december'].indexOf(m[1].toLowerCase());
+  return mi<0?null:fmtLocalDate(new Date(+m[3],mi,+m[2]));
+}
+// Per-area MKSAP signal. Real scores (older Documentation of Learning reports)
+// are compared with your own average across those reports. Current-bank
+// printouts only list misses, so each area's share of your misses is compared
+// with its share of the blueprint — among the sections you have misses in, so
+// working through only a few books doesn't make those look disastrous — and
+// smoothed toward average when counts are small. The result is relative ("you
+// miss about 1.6× as often here as your average"), not a percent correct.
+// Misses are dated in printouts imported since v4.4; a miss a year old counts
+// half. Areas with no misses get no MKSAP signal: zero misses can mean
+// "strong" or "never practised", and the printout can't tell which.
+function mksapSignals(){
+  const reps=DB.mksapReports||[], t=today();
+  const real={}, misses={}, rawMisses={};
+  let M=0;
+  reps.forEach(r=>{
+    const abim=mksapAreaMap(r.activity).abim;
+    if(r._new){
+      if(!abim || !MKSAP_EST_AREAS.includes(abim)) return;
+      (r.objectives||[]).forEach(o=>{
+        const w=o.date?Math.pow(0.5,Math.max(0,diffDays(t,o.date))/365):1;
+        misses[abim]=(misses[abim]||0)+w; M+=w; rawMisses[abim]=(rawMisses[abim]||0)+1;
+      });
+    } else if(abim){
+      let pct=r.runningPct;
+      if(pct==null && r.completed) pct=Math.round(100*(r.correct||0)/r.completed);
+      if(pct==null) return;
+      const n=r.completed||1, cur=real[abim];
+      if(!cur) real[abim]={sum:pct*n,n,missed:(r.objectives||[]).length};
+      else { cur.sum+=pct*n; cur.n+=n; cur.missed+=(r.objectives||[]).length; }
+    }
+  });
+  const out={};
+  const realKeys=Object.keys(real);
+  if(realKeys.length){
+    let s=0,n=0; realKeys.forEach(a=>{ s+=real[a].sum; n+=real[a].n; });
+    const mean=s/n;
+    realKeys.forEach(a=>{ const pct=Math.round(real[a].sum/real[a].n);
+      out[a]={g:clamp01(0.5+(mean-pct)/40), pct, est:false, missed:real[a].missed}; });
+  }
+  if(M>0){
+    const practiced=Object.keys(misses);
+    const tot=practiced.reduce((s,a)=>s+catPct(a),0), K=4;
+    for(const a of practiced){
+      if(out[a]) continue;                     // a real per-area score wins
+      const e=catPct(a)/tot;
+      const ratio=Math.min(3,((misses[a]+K*e)/(M+K))/e);   // 1 = your average miss rate
+      out[a]={g:clamp01(0.5*ratio), ratio, est:true, missed:rawMisses[a], areas:practiced.length};
+    }
+  }
+  return out;
+}
+// Recall per area on cards already learned, from the review log.
+function areaCardRecall(){
+  const t=today(), cutoff=addDays(t,-RECALL_WINDOW_DAYS), target=(DB.settings.targetRetention||90)/100;
+  const areaOf=new Map();
+  (DB.cards||[]).forEach(c=>{ if(!c.suspended) areaOf.set(c.id,c.contentArea||'Uncategorized'); });
+  const rec={}, log=DB.reviewLog||[];
+  for(let i=log.length-1;i>=0;i--){
+    const x=log[i]; if(!x||!x.d) continue;
+    if(x.d<cutoff) break;                       // the log is kept in date order
+    if(x.n===1 || !(x.e>=1)) continue;          // first sighting, or same-day relearning step
+    const a=areaOf.get(x.c); if(!a) continue;
+    const w=Math.pow(0.5,diffDays(t,x.d)/RECALL_HALF_LIFE);
+    const s=(rec[a]=rec[a]||{w:0,hit:0,n:0}); s.w+=w; if(x.g>0) s.hit+=w; s.n++;
+  }
+  // All-time pass rate (it includes first sightings, so it reads low) serves
+  // as the prior when recent data is thin.
+  const life={};
+  (DB.cards||[]).forEach(c=>{ if(c.suspended||!(c.totalReviews>0)) return;
+    const a=c.contentArea||'Uncategorized', l=(life[a]=life[a]||{tr:0,cr:0}); l.tr+=c.totalReviews; l.cr+=(c.correctReviews||0); });
+  const out={}, K=6;
+  new Set([...Object.keys(rec),...Object.keys(life)]).forEach(a=>{
+    const r=rec[a], l=life[a], prior=(l&&l.tr>0)?l.cr/l.tr:target;
+    let recall;
+    if(r) recall=(r.hit+K*prior)/(r.w+K); else if(l) recall=prior; else return;
+    const recent=!!(r&&r.n>=RECALL_MIN_REVIEWS);
+    out[a]={recall, g:clamp01(0.5+3*(target-recall)), recent, n:r?r.n:0, target};
+  });
+  return out;
+}
 function computeStudyPriorities(){
   const stats=getContentAreaStats();
-  const cmd={}; stats.forEach(s=>{ if(s.name) cmd[s.name]={command:s.command,total:s.total,subject:s.subject}; });
-  const iteSig={};
-  (DB.iteReports||[]).slice().sort((a,b)=>(b.year||0)-(a.year||0)).forEach(r=>{
-    (r.areas||[]).forEach(a=>{ if(a.hvc) return; const abim=ITE_TO_ABIM[a.name]; if(!abim||iteSig[abim]) return;
-      iteSig[abim]={percentile:a.percentile,weak:(a.your<a.mean||a.percentile<30)}; });
-  });
-  const mkSig={};
-  (DB.mksapReports||[]).forEach(r=>{ const abim=mksapAreaMap(r.activity).abim; if(!abim) return;
-    const pct=r.runningPct, cur=mkSig[abim];
-    if(!cur||(pct!=null&&(cur.runningPct==null||pct<cur.runningPct))) mkSig[abim]={runningPct:pct,missed:(r.objectives||[]).length}; });
-  const overlaps={};
-  crossRefITEMKSAP().forEach(o=>{ const abim=ITE_TO_ABIM[o.area]; if(abim) overlaps[abim]=(overlaps[abim]||0)+1; });
-  // PRITE (Psychiatry) signal — latest report, worst gap per mapped ABPN area.
-  const priteSig={};
-  const latestPrite=priteReportsSorted().slice(-1)[0];
-  if(latestPrite){ (latestPrite.rows||[]).forEach(row=>{ const abpn=priteAreaToABPN(row.name); if(!abpn) return;
-    const gap=row.peerMean!=null?(row.peerMean-row.standard):(500-row.standard);
-    const g=Math.max(0,Math.min(1,gap/100)); const cur=priteSig[abpn];
-    if(!cur||g>cur.g) priteSig[abpn]={g,std:row.standard}; }); }
+  const statBy={}; stats.forEach(s=>{ if(s.name) statBy[s.name]=s; });
+  const iteSig=iteSignals(), mkSig=mksapSignals(), priteSig=priteSignals(), recall=areaCardRecall();
+  const iteW=iteYearWeightFn();
+  const overlapN={}, overlapW={};
+  crossRefITEMKSAP().forEach(o=>{ const abim=ITE_TO_ABIM[o.area]; if(!abim) return;
+    overlapN[abim]=(overlapN[abim]||0)+1; overlapW[abim]=(overlapW[abim]||0)+iteW(o.year); });
 
   const catByName={}; [...ABIM_CATEGORIES,...ABPN_CATEGORIES].forEach(c=>catByName[c.name]=c);
   const areaSet=new Set([...Object.keys(iteSig),...Object.keys(mkSig),...Object.keys(priteSig)]);
-  stats.forEach(s=>{ if(s.name&&s.name!=='Uncategorized'&&s.total>0&&s.command!=null) areaSet.add(s.name); });
+  stats.forEach(s=>{ if(s.name&&s.name!=='Uncategorized'&&s.total>0) areaSet.add(s.name); });
+  areaSet.delete('Uncategorized');
 
   const rows=[];
   areaSet.forEach(area=>{
     const cat=catByName[area], examPct=cat?cat.pct:2;
     const subject=ABIM_CATEGORIES.some(c=>c.name===area)?'IM':(ABPN_CATEGORIES.some(c=>c.name===area)?'Psych':'IM');
-    const ite=iteSig[area], mk=mkSig[area], pr=priteSig[area], ov=overlaps[area]||0, command=cmd[area]?cmd[area].command:null;
-    let gapSum=0,wSum=0; const reasons=[];
-    if(pr){ gapSum+=pr.g; wSum+=1; reasons.push({t:`PRITE ${pr.std}`,weak:pr.g>0.02}); }
-    if(ite){ const g=Math.max(0,(100-(ite.percentile==null?50:ite.percentile))/100); gapSum+=g; wSum+=1; reasons.push({t:`ITE ${ite.percentile==null?'?':ordSuffix(ite.percentile)}`,weak:ite.weak}); }
-    if(mk){ const g=mk.runningPct==null?0.5:Math.max(0,(100-mk.runningPct)/100); gapSum+=g; wSum+=1; reasons.push({t:`MKSAP ${mk.runningPct==null?'?':mk.runningPct+'%'}`,weak:(mk.runningPct==null||mk.runningPct<70)}); }
-    if(command!=null){ const g=Math.max(0,(100-command)/100); gapSum+=g*0.8; wSum+=0.8; reasons.push({t:`Cards ${command}%`,weak:command<70}); }
-    if(!wSum) return;
-    let gap=gapSum/wSum; if(ov>0) gap=Math.min(1,gap+0.08*Math.min(ov,5));
-    const priority=Math.round(gap*(0.6+0.4*(examPct/14))*100);
-    rows.push({area,subject,examPct,command,ite,mk,overlaps:ov,priority,reasons,objN:objectivesForABIM(area).length});
+    const ite=iteSig[area], mk=mkSig[area], pr=priteSig[area], rc=recall[area], st=statBy[area];
+    let sw=SIG_PRIOR_W, sg=SIG_PRIOR*SIG_PRIOR_W; const reasons=[];
+    const add=(g,w)=>{ sg+=g*w; sw+=w; };
+    if(pr){ add(pr.g,W_PRITE); reasons.push({t:`PRITE ${pr.std}${trendArrow(pr.std,pr.prevStd,25)}`,weak:pr.weak}); }
+    if(ite){ add(ite.g,W_ITE); reasons.push({t:`ITE ${ite.latest==null?'?':ordSuffix(ite.latest)}${trendArrow(ite.latest,ite.prev,10)}`,weak:ite.weak}); }
+    if(mk){ add(mk.g,mk.est?W_MKSAP_EST:W_MKSAP_REAL);
+      reasons.push({t:mk.est?`MKSAP misses ${mk.ratio.toFixed(1)}× avg`:`MKSAP ${mk.pct}%`,weak:mk.g>0.6}); }
+    if(rc){ add(rc.g,rc.recent?W_CARDS_RECENT:W_CARDS_LIFETIME);
+      reasons.push({t:`Recall ${Math.round(rc.recall*100)}%${rc.recent?'':' (thin data)'}`,weak:rc.recall<rc.target-0.03}); }
+    let weakness=sg/sw;
+    const ovw=overlapW[area]||0;
+    if(ovw>0) weakness=Math.min(1,weakness+0.08*Math.min(ovw,5));
+    const coverage=(st&&st.total>0)?(st.total-st.studied)/st.total:0;
+    if(st&&coverage>=0.25) reasons.push({t:`${Math.round(coverage*100)}% unseen`,weak:false});
+    const priority=Math.round((0.8*weakness+0.2*coverage)*(0.6+0.4*(examPct/14))*100);
+    rows.push({area,subject,examPct,command:st?st.command:null,ite,mk,pr,recall:rc,weakness,coverage,
+      overlaps:overlapN[area]||0,priority,reasons,objN:objectivesForABIM(area).length});
   });
   rows.sort((a,b)=> b.priority-a.priority || b.examPct-a.examPct);
   const sp=currentSpecialty();
@@ -8006,7 +8320,7 @@ function sendAreaToPractice(area,subject){
 }
 function renderStudyNext(containerId, limit){
   const el=document.getElementById(containerId); if(!el) return false;
-  const rows=computeStudyPriorities();
+  const rows=getPriorityModel().rows;
   if(!rows.length){ el.innerHTML='<p style="color:var(--muted);font-size:13px">Add an ITE report, MKSAP subcategory, or study some cards and your priority order builds here.</p>'; return false; }
   const show=limit?rows.slice(0,limit):rows;
   el.innerHTML=show.map((r,i)=>{
@@ -8031,20 +8345,25 @@ function renderStudyNext(containerId, limit){
 function renderPractice(){
   const hasPri=renderStudyNext('study-next-list');
   document.getElementById('study-next-panel').style.display=hasPri?'':'none';
-  const stats=getContentAreaStats();
-  const weak=stats.filter(s=>s.total>0 && s.command!==null && s.command<80 && s.name!=='Uncategorized').sort((a,b)=>a.command-b.command);
+  // v4.4: card-based weak areas come from recent recall on cards you've already
+  // learned — not "command", which fell whenever an area still had unseen cards.
+  const rec=areaCardRecall(), sp=currentSpecialty();
+  const weak=Object.keys(rec).filter(a=>a!=='Uncategorized' && rec[a].recent && rec[a].recall<rec[a].target)
+    .map(a=>({name:a, subject:areaSubject(a,'IM'), ...rec[a]}))
+    .filter(x=>sp==='both'||x.subject===sp)
+    .sort((a,b)=>a.recall-b.recall);
   const el=document.getElementById('practice-weak-list');
   if(!weak.length){
-    el.innerHTML='<div class="panel"><p style="color:var(--muted);font-size:14px">No card-based weak areas yet — study some cards so data can build. Areas where your command is under 80% (low accuracy or lots left to learn) will show up here for targeted practice.</p></div>';
+    el.innerHTML='<div class="panel"><p style="color:var(--muted);font-size:14px">No area is below your target recall right now. An area shows up here once you have about '+RECALL_MIN_REVIEWS+' reviews of already-learned cards in it within the last '+RECALL_WINDOW_DAYS+' days and your recall there is under '+Math.round(((DB.settings.targetRetention||90)))+'%.</p></div>';
     if(!hasPri) document.getElementById('practice-generator').style.display='none';
     return;
   }
-  el.innerHTML='<div style="font-weight:700;color:var(--navy);font-size:13px;margin-bottom:8px">By flashcard mastery</div><div class="category-grid">'+weak.map(s=>{
-    const cls=s.command<40?'cat-bad':s.command<60?'cat-warn':'cat-good';
-    const nm=s.name.replace(/'/g,"\\'");
-    const reason = s.masteryPct!==null && s.masteryPct<70 ? `${s.masteryPct}% accuracy` : `${s.studied}/${s.total} studied`;
-    return `<div class="cat-tile ${cls}" style="cursor:pointer" onclick="openPractice('${nm}','${s.subject}')">
-      <div class="cat-name">${s.name}</div><div class="cat-acc">${s.command}%</div><div class="cat-count">${reason} · ${s.subject}</div>
+  el.innerHTML='<div style="font-weight:700;color:var(--navy);font-size:13px;margin-bottom:8px">By recent recall (last '+RECALL_WINDOW_DAYS+' days, cards already learned)</div><div class="category-grid">'+weak.map(x=>{
+    const pct=Math.round(x.recall*100), gap=Math.round((x.target-x.recall)*100);
+    const cls=gap>=15?'cat-bad':gap>=7?'cat-warn':'cat-good';
+    const nm=x.name.replace(/'/g,"\\'");
+    return `<div class="cat-tile ${cls}" style="cursor:pointer" onclick="openPractice('${nm}','${x.subject}')">
+      <div class="cat-name">${escHtml(x.name)}</div><div class="cat-acc">${pct}%</div><div class="cat-count">recall · ${x.n} reviews · target ${Math.round(x.target*100)}%</div>
       <div style="margin-top:6px;font-size:11px;font-weight:700;color:var(--blue)">Generate practice →</div></div>`;
   }).join('')+'</div>';
 }
@@ -8081,12 +8400,14 @@ Objectives:
 ${practiceObjectives.map((o,i)=>`${i+1}. ${o}`).join('\n')}
 
 Requirements:
-- One single-best-answer clinical vignette (or high-yield fact) per objective, teaching exactly that point.
+- One single-best-answer clinical vignette per objective (age/sex, presentation, key finding → diagnosis, next step or mechanism), teaching exactly that point. Use a direct question only where a vignette doesn't fit.
+- Under every answer, add one line starting "Why:" — the reasoning or the feature that rules out the look-alike.
 - After every answer, add a citation to a reputable source (textbook chapter, clinical guideline, or peer-reviewed article with year — e.g., "UpToDate 2024", "Harrison's 21e, Ch. 245", "APA Practice Guideline 2020", or a PMID).
 - Format EXACTLY like this, with ONE blank line between pairs and no numbering:
 
-Q: [question / vignette]
-A: [concise answer with the key teaching point]. Citation: [source]`;
+Q: [vignette / question]
+A: [answer]. Citation: [source]
+Why: [one line — no blank line inside a card]`;
     document.getElementById('practice-prompt-box').textContent=prompt;
     return;
   }
@@ -8094,12 +8415,14 @@ A: [concise answer with the key teaching point]. Citation: [source]`;
 `You are a board-exam question writer. Generate ${n} high-yield, board-style practice questions for the ${subjName} content area "${practiceArea.name}".
 
 Requirements:
-- Each should be a realistic single-best-answer clinical vignette or a high-yield fact tested on ${subjName} boards.
+- Each should be a realistic single-best-answer clinical vignette (age/sex, presentation, key finding → diagnosis, next step or mechanism) on a concept tested on ${subjName} boards. Use a direct question only where a vignette doesn't fit.
+- Under every answer, add one line starting "Why:" — the reasoning or the feature that rules out the look-alike.
 - After every answer, add a citation to a reputable source (textbook chapter, clinical guideline, or peer-reviewed article with year — e.g., "UpToDate 2024", "Harrison's 21e, Ch. 245", "APA Practice Guideline 2020", or a PMID).
 - Format EXACTLY like this, with ONE blank line between pairs and no numbering:
 
-Q: [question / vignette]
-A: [concise answer with the key teaching point]. Citation: [source]
+Q: [vignette / question]
+A: [answer]. Citation: [source]
+Why: [one line — no blank line inside a card]
 
 Cover the most frequently tested concepts in "${practiceArea.name}".`;
   document.getElementById('practice-prompt-box').textContent=prompt;
@@ -8109,12 +8432,23 @@ function copyPracticePrompt(){
   if(navigator.clipboard&&navigator.clipboard.writeText){ navigator.clipboard.writeText(txt); }
   toast('Prompt copied — paste it into Claude');
 }
+// v4.4: split one pasted card into question and answer. Both markers must start
+// a line — the old pattern took the first "a." anywhere, so a question like
+// "…with pneumonia. Next step?" put half the question into the answer. "A:" is
+// preferred over "A." so answer-choice lines ("A. Metoprolol") aren't mistaken
+// for the answer.
+function splitQA(bl){
+  const qs=bl.match(/^[ \t]*Q[ \t]*[:.][ \t]*/im); if(!qs) return null;
+  const rest=bl.slice(qs.index+qs[0].length);
+  const am=rest.match(/\n[ \t]*A[ \t]*:[ \t]*/i)||rest.match(/\n[ \t]*A[ \t]*\.[ \t]*/i);
+  if(!am) return null;
+  return {q:rest.slice(0,am.index).trim(), a:rest.slice(am.index+am[0].length).trim()};
+}
 function parseQAPairs(text){
   const out=[];
   (text||'').split(/\n\s*\n/).forEach(bl=>{
-    const qm=bl.match(/Q\s*[:\.]\s*([\s\S]*?)(?:\n\s*A\s*[:\.]|$)/i);
-    const am=bl.match(/A\s*[:\.]\s*([\s\S]*)$/i);
-    if(qm&&am){ const q=qm[1].trim(); const a=am[1].trim(); if(q&&a) out.push({q,a}); }
+    const qa=splitQA(bl);
+    if(qa&&qa.q&&qa.a) out.push(qa);
   });
   return out;
 }
@@ -8277,6 +8611,7 @@ function setupITEDrop(){
 
 function analyzeITE(){
   const reps=(DB.iteReports||[]).slice().sort((a,b)=>(a.year||0)-(b.year||0));
+  const iteW=iteYearWeightFn();
   const years=reps.map(r=>r.year);
   const order=[]; const seen=new Set();
   reps.forEach(r=>r.areas.forEach(a=>{ if(!seen.has(a.name)){seen.add(a.name);order.push({name:a.name,hvc:a.hvc});} }));
@@ -8291,8 +8626,15 @@ function analyzeITE(){
     const present=cells.filter(Boolean);
     const weakYears=present.filter(c=>c.weak).map(c=>c.year);
     const avgGap=present.length?present.reduce((s,c)=>s+Math.max(0,c.mean-c.your),0)/present.length:0;
-    const sev=present.reduce((s,c)=>s+Math.max(0,c.mean-c.your)+Math.max(0,30-c.percentile)*0.5,0);
-    return {name:o.name,hvc:o.hvc,cells,weakYears,recurrent:weakYears.length>=2,everWeak:weakYears.length>=1,avgGap,sev};
+    // v4.4: severity is recency-weighted (newest year 1, a year older ½, …) so
+    // an area you've since improved in sinks, and one that just slipped rises.
+    const sev=present.reduce((s,c)=>s+iteW(c.year)*(Math.max(0,c.mean-c.your)+Math.max(0,30-c.percentile)*0.5),0);
+    const last=present[present.length-1], prev=present.length>1?present[present.length-2]:null;
+    const latestWeak=!!(last&&last.weak);
+    const newlyWeak=!!(prev&&latestWeak&&!prev.weak);
+    const improving=!!(prev&&!latestWeak&&(prev.weak||last.percentile-prev.percentile>=15));
+    return {name:o.name,hvc:o.hvc,cells,weakYears,recurrent:weakYears.length>=2,everWeak:weakYears.length>=1,
+      latestWeak,newlyWeak,improving,avgGap,sev};
   });
   const objMap={};
   reps.forEach(r=>{ if(!r.objectives) return;
@@ -8338,7 +8680,12 @@ function renderITE(){
   document.getElementById('ite-stat-pct').textContent=latest.percentile!=null?latest.percentile:'—';
   const weakCard=document.getElementById('ite-stat-weak');
   const weakSub=weakCard.parentElement.querySelector('.sub');
-  if(multi){ weakCard.textContent=an.areas.filter(a=>!a.hvc&&a.recurrent).length; weakSub.textContent='flagged in 2+ years'; }
+  if(multi){
+    const now=an.areas.filter(a=>!a.hvc&&a.latestWeak);
+    weakCard.textContent=now.length;
+    const nw=now.filter(a=>a.newlyWeak).length, imp=an.areas.filter(a=>!a.hvc&&a.improving).length;
+    weakSub.textContent=`on latest ITE${nw?` · ${nw} new`:''}${imp?` · ${imp} improving`:''}`;
+  }
   else { weakCard.textContent=an.areas.filter(a=>!a.hvc&&a.everWeak).length; weakSub.textContent='weak this year — add more years for trends'; }
   renderITETrend(an); renderITEMatrix(an); renderITEWeakList(an); renderITETopics(an);
 }
@@ -8383,15 +8730,17 @@ function renderITEMatrix(an){
     else if(multi&&a.recurrent) flag='<span class="ite-flag flag-rec">🔴 ×'+a.weakYears.length+'</span>';
     else if(a.everWeak) flag='<span class="ite-flag flag-once">🟠</span>';
     else flag='<span class="ite-flag flag-ok">✓</span>';
+    if(multi&&!a.hvc&&a.newlyWeak) flag+=' <span class="ite-flag" style="background:#fee2e2;color:#b91c1c" title="Weak on the latest ITE, not the year before">⚠ new</span>';
+    else if(multi&&!a.hvc&&a.improving) flag+=' <span class="ite-flag flag-ok" title="Better on the latest ITE than the year before">↗ improving</span>';
     return `<tr><td class="area">${a.name}</td>${cells}<td>${flag}</td></tr>`;
   }).join('')+'</tbody>';
   document.getElementById('ite-matrix').innerHTML=head+body;
 }
 function renderITEWeakList(an){
   const multi=an.reps.length>=2;
-  const weak=an.areas.filter(a=>!a.hvc&&(multi?a.recurrent:a.everWeak)).sort((x,y)=>y.sev-x.sev);
+  const weak=an.areas.filter(a=>!a.hvc&&(multi?(a.recurrent||a.latestWeak):a.everWeak)).sort((x,y)=>y.sev-x.sev);
   const el=document.getElementById('ite-weak-list');
-  if(!weak.length){ el.innerHTML='<p style="color:var(--muted);font-size:13px">No content areas fall below the weakness threshold'+(multi?' in 2+ years':'')+'. Strong work.</p>'; return; }
+  if(!weak.length){ el.innerHTML='<p style="color:var(--muted);font-size:13px">No content areas fall below the weakness threshold'+(multi?' on your latest ITE or in 2+ years':'')+'. Strong work.</p>'; return; }
   el.innerHTML=weak.map((a,i)=>{
     const abim=ITE_TO_ABIM[a.name];
     const latest=a.cells.filter(Boolean).slice(-1)[0];
@@ -8403,7 +8752,7 @@ function renderITEWeakList(an){
     return `<div class="ite-wk">
       <div style="display:flex;justify-content:space-between;align-items:center;flex-wrap:wrap;gap:8px">
         <div><span style="font-weight:800;color:var(--navy)">${i+1}. ${a.name}</span>
-          <span class="ite-flag ${multi&&a.recurrent?'flag-rec':'flag-once'}" style="margin-left:8px">weak in ${a.weakYears.length} year${a.weakYears.length>1?'s':''} (${a.weakYears.join(', ')})</span></div>
+          <span class="ite-flag ${multi&&a.recurrent?'flag-rec':'flag-once'}" style="margin-left:8px">weak in ${a.weakYears.length} year${a.weakYears.length>1?'s':''} (${a.weakYears.join(', ')})</span>${multi&&a.newlyWeak?' <span class="ite-flag" style="background:#fee2e2;color:#b91c1c">⚠ newly weak</span>':''}${multi&&a.improving?' <span class="ite-flag flag-ok">↗ improving</span>':''}</div>
         <div style="display:flex;gap:8px;flex-wrap:wrap">${objBtn}${prBtn}</div>
       </div>
       <div style="font-size:12.5px;color:#42506a;margin-top:6px">Latest: <strong>${latest.your}%</strong> vs PGY mean ${latest.mean}% · ${latest.percentile}th percentile · avg ${a.avgGap.toFixed(1)} pts below mean${abim?` · practice maps to <strong>${abim}</strong>`:''}</div>
@@ -8597,16 +8946,22 @@ function sharedConcepts(a,b){
 function crossRefITEMKSAP(){
   const mkReps=DB.mksapReports||[], iteReps=DB.iteReports||[];
   if(!mkReps.length||!iteReps.length) return [];
+  // area → Map(objective → newest ITE year it was missed)
   const iteByArea={};
-  iteReps.forEach(r=>{ if(!r.objectives)return; for(const area in r.objectives){ (iteByArea[area]=iteByArea[area]||new Set()); r.objectives[area].forEach(o=>iteByArea[area].add(o)); } });
-  const results=[], seen=new Set();
+  iteReps.forEach(r=>{ if(!r.objectives)return; for(const area in r.objectives){
+    const m=(iteByArea[area]=iteByArea[area]||new Map());
+    r.objectives[area].forEach(o=>{ const y=r.year||0; if(!m.has(o)||m.get(o)<y) m.set(o,y); });
+  } });
+  const results=[], byKey=new Map();
   mkReps.forEach(mr=>{
     const iteArea=mksapAreaMap(mr.activity).ite; if(!iteArea) return;
-    const iteObjs=[...(iteByArea[iteArea]||[])];
-    mr.objectives.forEach(mo=>iteObjs.forEach(io=>{
+    const iteObjs=[...(iteByArea[iteArea]||new Map()).entries()];
+    mr.objectives.forEach(mo=>iteObjs.forEach(([io,yr])=>{
       sharedConcepts(mo.text,io).forEach(c=>{
-        const key=iteArea+'|'+c; if(seen.has(key))return; seen.add(key);
-        results.push({concept:c,area:iteArea,activity:mr.activity,ite:io,mksap:mo.text});
+        const key=iteArea+'|'+c;
+        if(byKey.has(key)){ const ex=byKey.get(key); if(yr>(ex.year||0)) ex.year=yr; return; }
+        const rec={concept:c,area:iteArea,activity:mr.activity,ite:io,mksap:mo.text,year:yr||null};
+        byKey.set(key,rec); results.push(rec);
       });
     }));
   });
@@ -8650,7 +9005,7 @@ async function ingestMKSAPFiles(files){
         total:newStats?newStats.total:null, completed:list.length,
         correct:null, incorrect:list.length,
         runningPct:newStats?newStats.runningPct:null,
-        objectives:list.map((e,i)=>({q:i+1,text:e.text})),
+        objectives:list.map((e,i)=>({q:i+1,text:e.text,date:parseMKSAPDate(e.date)})),
         _new:true
       });
       areasAdded++;
@@ -8686,8 +9041,16 @@ function setupMKSAPDrop(){
 function analyzeMKSAP(){
   const reps=(DB.mksapReports||[]).slice().sort((a,b)=>(a.runningPct==null?999:a.runningPct)-(b.runningPct==null?999:b.runningPct));
   const totalTopics=reps.reduce((s,r)=>s+r.objectives.length,0);
-  let corr=0,comp=0; reps.forEach(r=>{ if(r.correct!=null)corr+=r.correct; if(r.completed!=null)comp+=r.completed; });
-  return {reps,totalTopics,overall:comp>0?Math.round(corr/comp*100):null};
+  // Older reports carry correct/completed per subcategory. Current-bank
+  // printouts list misses only (correct is null), so their "completed" count is
+  // really a miss count — use the bank's own overall % correct for those.
+  let corr=0,comp=0, bankPct=null, bankFrom=null;
+  reps.forEach(r=>{
+    if(r._new){ const c=String(r.created||''); if(r.runningPct!=null&&(bankFrom===null||c>=bankFrom)){ bankPct=r.runningPct; bankFrom=c; } return; }
+    if(r.correct!=null)corr+=r.correct; if(r.completed!=null)comp+=r.completed;
+  });
+  const overall=comp>0?Math.round(corr/comp*100):bankPct;
+  return {reps,totalTopics,overall};
 }
 function mksapWeakMappedAreas(){
   const out=[],seen=new Set();
@@ -8717,13 +9080,26 @@ function renderMKSAP(){
   renderMKSAPBoth(both);
   renderMKSAPSubcats(an);
 }
+// What to show as a subcategory's score: the real one for older reports, an
+// estimate (see mksapSignals) for current-bank printouts.
+// sort: lower = weaker. Real scores sort by percent; estimates by miss ratio.
+function mksapAreaLabel(r, sig){
+  if(!r._new) return {sort:r.runningPct!=null?r.runningPct:999, pct:r.runningPct, txt:r.runningPct!=null?r.runningPct+'% correct':'score n/a'};
+  const abim=mksapAreaMap(r.activity).abim, m=abim&&sig?sig[abim]:null;
+  if(m&&m.est){
+    const band=m.ratio>=1.3?40:m.ratio>=0.9?70:90;   // for the badge colour only
+    return {sort:100-m.ratio*30, pct:band, txt:'misses '+m.ratio.toFixed(1)+'× your avg (est.)'};
+  }
+  return {sort:999, pct:null, txt:'no per-area estimate'};
+}
 function renderMKSAPSaved(){
   const wrap=document.getElementById('mk-saved-wrap');
   const reps=(DB.mksapReports||[]).slice().sort((a,b)=>(a.runningPct==null?999:a.runningPct)-(b.runningPct==null?999:b.runningPct));
   if(!reps.length){ wrap.style.display='none'; return; }
   wrap.style.display='';
+  const sig=mksapSignals();
   document.getElementById('mk-saved').innerHTML=reps.map(r=>
-    `<span class="ite-chip">${(r.activity||'?')} · ${r.runningPct!=null?r.runningPct+'%':'—'} · ${r.objectives.length} to review<button title="Remove" onclick="removeMKSAP('${(r.activity||'').replace(/'/g,"\\'")}')">×</button></span>`).join('');
+    `<span class="ite-chip">${(r.activity||'?')} · ${mksapAreaLabel(r,sig).txt} · ${r.objectives.length} to review<button title="Remove" onclick="removeMKSAP('${(r.activity||'').replace(/'/g,"\\'")}')">×</button></span>`).join('');
 }
 function renderMKSAPBoth(both){
   const wrap=document.getElementById('mk-both-wrap');
@@ -8735,8 +9111,12 @@ function renderMKSAPBoth(both){
       <div class="src"><strong>MKSAP:</strong> ${b.mksap.replace(/</g,'&lt;')}</div></div>`).join('');
 }
 function renderMKSAPSubcats(an){
-  document.getElementById('mk-subcat-list').innerHTML=an.reps.map((r,i)=>{
-    const map=mksapAreaMap(r.activity), pct=r.runningPct;
+  const sig=mksapSignals();
+  const rows=an.reps.map(r=>({r,lab:mksapAreaLabel(r,sig)}))
+    .sort((a,b)=>a.lab.sort-b.lab.sort);
+  const estNote=an.reps.some(r=>r._new)?`<div class="alert alert-info" style="margin-bottom:10px">Current-bank printouts list only the questions you missed, not how many you answered in each area, so areas marked <strong>est.</strong> show a relative miss rate: your share of misses there compared with the area's share of the ABIM blueprint, among the sections you have misses in. 1.0× is your average; 2× means you miss there about twice as often. It assumes you answered questions roughly in blueprint proportion across those sections — an area you practised much more or less than that will read too weak or too strong. General IM, interdisciplinary and similar catch-all sections get no estimate.</div>`:'';
+  document.getElementById('mk-subcat-list').innerHTML=estNote+rows.map(({r,lab},i)=>{
+    const map=mksapAreaMap(r.activity), pct=lab.pct;
     const band=pct==null?'flag-once':pct<60?'flag-rec':pct<75?'flag-once':'flag-ok';
     const objs=r.objectives.slice().sort((a,b)=>a.q-b.q);
     const id='mkobj-'+i, openDefault=(pct!=null&&pct<70);
@@ -8744,8 +9124,8 @@ function renderMKSAPSubcats(an){
     return `<div class="ite-wk">
       <div style="display:flex;justify-content:space-between;align-items:center;flex-wrap:wrap;gap:8px">
         <div><span style="font-weight:800;color:var(--navy)">${r.activity||'MKSAP'}</span>
-          <span class="ite-flag ${band}" style="margin-left:8px">${pct!=null?pct+'% correct':'score n/a'}</span>
-          <span style="font-size:12px;color:var(--muted);margin-left:6px">${r.objectives.length} to review${r.completed!=null?` · ${r.correct}/${r.completed} done`:''}</span></div>
+          <span class="ite-flag ${band}" style="margin-left:8px">${lab.txt}</span>
+          <span style="font-size:12px;color:var(--muted);margin-left:6px">${r.objectives.length} to review${(!r._new&&r.completed!=null)?` · ${r.correct}/${r.completed} done`:''}</span></div>
         <div style="display:flex;gap:8px;flex-wrap:wrap">
           <button class="btn-secondary" style="padding:5px 12px;font-size:12px" onclick="var o=document.getElementById('${id}');o.style.display=o.style.display==='none'?'':'none'">Toggle topics</button>${prBtn}
         </div>
@@ -9195,7 +9575,7 @@ const TUTORIAL_STEPS=[
     return `<p>Drop your ${which} PDF score report${sp==='Psych'?'':'s'} into their pages. They're parsed on-device into a weakness map: which content areas are below the national mean, trending down, or missed repeatedly.</p>`;
   }},
   {icon:'🎯',title:'Weak Areas — study what matters',body:`
-    <p>The app blends four signals — exam blueprint weight, your flashcard command, ITE percentile, and MKSAP % — into one ranked <strong>"study next"</strong> list.</p>
+    <p>The app blends your exam scores (ITE, MKSAP, PRITE — recent years count more), your recent recall on cards you've learned, and how heavily each area is tested into one ranked <strong>"study next"</strong> list. The same ranking picks your new cards each day, tilted toward your weaker subject and spread across several areas.</p>
     <p style="margin-top:8px">Each weak area generates a Claude prompt for cited, board-style practice questions; paste the output back and it becomes cards auto-tagged to that area.</p>`},
   {icon:'🎓',title:'Exam Readiness',body:`
     <p>Set your exam dates and get a weighted <strong>readiness %</strong> per exam, a pacing check (are you learning new cards fast enough to finish in time?), and a list of <strong>tested topics you have no card for</strong> — pulled from objectives you actually missed on the ITE and MKSAP.</p>`},
@@ -9278,6 +9658,7 @@ async function init(){
   const vEl=document.getElementById('app-version');
   if(vEl) vEl.textContent=`v${APP_VERSION} · updated ${APP_UPDATED}`;
   await loadDB();
+  try{ applyExamCaps(); }catch(e){}   // v4.4: keep reviews from skipping the final month before an exam
   updateContentAreaOptions();
   updateBatchContentArea();
   populateContentAreas('edit-content-area','IM');
