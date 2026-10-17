@@ -403,7 +403,7 @@ body[data-specialty="Psych"] .only-both{display:none!important}
     <div class="nav-item" onclick="navigate('settings')"><span class="nav-icon">⚙️</span><span>Settings</span></div>
   </nav>
   <div id="sidebar-footer">
-    <div id="app-version" style="color:rgba(255,255,255,.4);font-size:11px" title="Captured Concepts: capture what you miss on UWorld/MKSAP with the MedBoard Capture Chrome extension, then re-check it on a schedule">v4.5 · last updated 2026-10-17</div>
+    <div id="app-version" style="color:rgba(255,255,255,.4);font-size:11px" title="Captured Concepts: import captures from Downloads › MedBoard Inbox (button or drag the folder) — works with MedBoard in Safari">v4.7 · last updated 2026-10-17</div>
   </div>
 </div>
 
@@ -1347,27 +1347,33 @@ A: [answer]. Citation: Harrison's Principles of Internal Medicine, 21e, Ch. 245.
   </div>
 </div>
 
-<!-- CAPTURED CONCEPTS (v4.5) -->
+<!-- CAPTURED CONCEPTS (v4.6) -->
 <style>
+.mc-drop{display:flex;align-items:center;gap:16px;flex-wrap:wrap;border:2.5px dashed #b9c6da;border-radius:12px;padding:16px 18px;margin-bottom:16px;background:#f8faff;transition:all .15s}
+.mc-drop.drag{border-color:var(--blue);background:#eef5ff}
+.mc-import-btn{padding:12px 18px;font-size:14px;flex:0 0 auto}
+.mc-drop-text{flex:1 1 260px;font-size:13px;color:#42506a;line-height:1.55}
+.mc-import-status{margin-top:4px;font-size:12px;color:var(--muted)}
+.mc-import-status strong{color:var(--green)}
 .mc-ext{display:flex;align-items:center;gap:10px;flex-wrap:wrap;font-size:13px;line-height:1.5;border-radius:9px;padding:10px 14px;margin-bottom:16px;background:#f8faff;border:1px solid #e5e7eb;color:#42506a}
 .mc-ext.on{background:#ecfdf3;border-color:#bbf7d0;color:#166534}
-.mc-item{padding:13px 0;border-bottom:1px solid #eef2f7}
+.mc-item{display:flex;gap:12px;padding:13px 10px;margin:0 -10px;border-bottom:1px solid #eef2f7;border-radius:8px}
 .mc-item:last-child{border-bottom:0}
+.mc-item.mc-sel{background:#eef5ff}
+.mc-pick{flex:0 0 auto;padding-top:1px;cursor:pointer}
+.mc-check{width:18px;height:18px;accent-color:var(--navy);cursor:pointer}
+.mc-main{flex:1;min-width:0}
 .mc-text{font-size:13.5px;color:var(--text);line-height:1.5;white-space:pre-wrap;word-break:break-word}
-.mc-text.clamp{display:-webkit-box;-webkit-line-clamp:3;-webkit-box-orient:vertical;overflow:hidden;cursor:pointer}
-.mc-take{font-size:13.5px;color:var(--navy);font-weight:700;margin-top:5px;line-height:1.45}
-.mc-take::before{content:'→ ';color:var(--blue)}
+.mc-text.clamp{display:-webkit-box;-webkit-line-clamp:4;-webkit-box-orient:vertical;overflow:hidden;cursor:pointer}
 .mc-chips{display:flex;flex-wrap:wrap;gap:5px;margin-top:8px}
 .mc-actions{display:flex;flex-wrap:wrap;gap:7px;margin-top:10px}
 .mc-actions button{padding:6px 12px;font-size:12px;min-height:34px}
 .mc-actions .mc-del{color:#b91c1c}
 .sn-chip.mc-done{background:#ecfdf3;color:#166534;border-color:#bbf7d0}
-.mc-row{display:flex;align-items:center;gap:10px;flex-wrap:wrap;padding:9px 0;border-bottom:1px solid #eef2f7;font-size:13px}
-.mc-row:last-of-type{border-bottom:0}
 .mc-area{padding:9px 0;border-bottom:1px solid #eef2f7}
 .mc-area:last-child{border-bottom:0}
-.mc-area-top{display:flex;justify-content:space-between;align-items:baseline;gap:10px;font-size:13px;font-weight:700;color:var(--navy)}
-.mc-area-n{font-size:12px;font-weight:400;color:var(--muted);white-space:nowrap}
+.mc-area-top{display:flex;justify-content:space-between;align-items:baseline;gap:10px;flex-wrap:wrap;font-size:13px;font-weight:700;color:var(--navy)}
+.mc-area-n{font-size:12px;font-weight:400;color:var(--muted)}
 .mc-area-n strong{color:var(--red)}
 .mc-area-bot{display:flex;align-items:center;gap:10px;margin-top:6px;min-height:28px}
 .mc-area-bot button{padding:5px 10px;font-size:12px;flex:0 0 auto}
@@ -1376,36 +1382,51 @@ A: [answer]. Citation: Harrison's Principles of Internal Medicine, 21e, Ch. 245.
 .mc-filters{display:flex;gap:8px;flex-wrap:wrap;align-items:center;margin-bottom:6px}
 .mc-filters select,.mc-filters input{padding:7px 9px;border:2px solid #e5e7eb;border-radius:6px;font-size:13px;background:#fff;font-family:inherit}
 .mc-filters input{flex:1 1 160px;min-width:0}
-.mc-edit{display:grid;gap:9px;background:#f8faff;border:1px solid #e5e7eb;border-radius:8px;padding:12px}
+.mc-link{background:none;border:0;padding:4px 2px;color:var(--blue);font-weight:600;font-size:12.5px;cursor:pointer;font-family:inherit}
+.mc-edit{display:grid;gap:9px;background:#f8faff;border:1px solid #e5e7eb;border-radius:8px;padding:12px;flex:1}
 .mc-edit label{display:grid;gap:4px;font-size:12px;font-weight:700;color:var(--navy)}
-.mc-edit input,.mc-edit select,.mc-edit textarea{padding:7px 9px;border:2px solid #e5e7eb;border-radius:6px;font-size:13px;font-family:inherit;font-weight:400;background:#fff;width:100%}
-.mc-edit-row{display:grid;grid-template-columns:2fr 1fr 1fr;gap:9px}
+.mc-edit select,.mc-edit textarea{padding:7px 9px;border:2px solid #e5e7eb;border-radius:6px;font-size:13px;font-family:inherit;font-weight:400;background:#fff;width:100%}
 .mc-dash-list{margin:10px 0 0 18px;padding:0;font-size:12.5px;color:#3a475e;line-height:1.6}
 .mc-steps{margin:8px 0 0 18px;padding:0;font-size:13px;color:#42506a;line-height:1.7}
 .mc-steps code{background:#eef2f7;border-radius:4px;padding:1px 5px;font-size:12px}
+.mc-selbar{position:sticky;bottom:16px;z-index:20;display:flex;align-items:center;gap:8px;flex-wrap:wrap;margin-top:16px;background:var(--navy);color:#fff;border-radius:12px;padding:10px 12px 10px 16px;box-shadow:0 8px 28px rgba(15,30,60,.28)}
+.mc-selbar #mc-sel-n{font-weight:700;font-size:13.5px;margin-right:auto}
+.mc-selbar .btn-secondary{padding:7px 12px;font-size:12.5px;background:rgba(255,255,255,.14);color:#fff;border:0}
+.mc-selbar .btn-primary{padding:8px 14px;font-size:13px;background:#fff;color:var(--navy)}
 @media(max-width:640px){
+  .mc-import-btn{width:100%;min-height:48px}
   .mc-actions button{min-height:44px;padding:8px 14px}
-  .mc-edit-row{grid-template-columns:1fr}
+  .mc-check{width:22px;height:22px}
   .mc-filters select,.mc-filters input{min-height:44px}
+  .mc-selbar{bottom:calc(78px + env(safe-area-inset-bottom))}
+  .mc-selbar button{min-height:40px}
+  .mc-selbar .btn-primary{flex:1 1 100%}
 }
 </style>
 <div id="page-concepts" class="page">
   <div class="page-header">
     <h2>🧩 Captured Concepts</h2>
-    <p>Concepts you flagged while doing questions, re-checked on a schedule until they stick</p>
+    <p>Concepts you flagged as not knowing while doing questions, re-checked on a schedule until they stick</p>
   </div>
 
-  <div id="mc-ext" class="mc-ext"></div>
+  <div id="mc-drop" class="mc-drop">
+    <button class="btn-primary mc-import-btn" onclick="document.getElementById('mc-folder').click()">📥 Import new captures</button>
+    <div class="mc-drop-text">Choose your <strong>Downloads › MedBoard Inbox</strong> folder, or drag it (or any capture files) onto this box. Captures already imported are skipped, so you never need to empty the folder.
+      <div id="mc-import-status" class="mc-import-status"></div></div>
+  </div>
+  <input type="file" id="mc-folder" webkitdirectory multiple style="display:none" onchange="handleConceptFiles(event)">
+  <input type="file" id="mc-files" accept=".json,application/json" multiple style="display:none" onchange="handleConceptFiles(event)">
+  <div id="mc-ext" class="mc-ext" style="display:none"></div>
 
   <div class="stat-grid">
     <div class="stat-card"><div class="label">Due to Re-check</div><div class="value" id="mc-stat-due">0</div><div class="sub">today</div></div>
     <div class="stat-card"><div class="label">Open</div><div class="value" id="mc-stat-open">0</div><div class="sub">still on the ladder</div></div>
-    <div class="stat-card"><div class="label">Gaps Without a Card</div><div class="value" id="mc-stat-gaps">0</div><div class="sub">knowledge gaps</div></div>
+    <div class="stat-card"><div class="label">No Card Yet</div><div class="value" id="mc-stat-nocard">0</div><div class="sub">open concepts</div></div>
     <div class="stat-card"><div class="label">Mastered</div><div class="value" id="mc-stat-mastered">0</div><div class="sub">passed every re-check</div></div>
   </div>
 
   <div id="mc-empty" class="panel">
-    <p style="color:var(--muted);font-size:14px;line-height:1.6">Nothing captured yet. While you do UWorld, MKSAP or any question bank in Chrome, highlight the concept you missed and press <strong>Option&nbsp;+&nbsp;Shift&nbsp;+&nbsp;M</strong> (or right-click → <em>Send to MedBoard…</em>). It lands here automatically with a re-check date. No extension? Add one by hand below.</p>
+    <p style="color:var(--muted);font-size:14px;line-height:1.6">Nothing imported yet. While you do UWorld, MKSAP or any question bank in Chrome, highlight the concept you don't know and press <strong>Option&nbsp;+&nbsp;Shift&nbsp;+&nbsp;M</strong>. The extension saves it to <strong>Downloads › MedBoard Inbox</strong>; click <strong>Import new captures</strong> above to bring it in with a re-check date. No extension? Add one by hand below.</p>
   </div>
 
   <div id="mc-body" style="display:none">
@@ -1415,72 +1436,58 @@ A: [answer]. Citation: Harrison's Principles of Internal Medicine, 21e, Ch. 245.
       <div id="mc-due-list"></div>
     </div>
 
-    <div class="grid-2" style="margin-bottom:16px">
-      <div class="panel">
-        <div style="font-weight:700;color:var(--navy);margin-bottom:2px">Open concepts by area</div>
-        <div style="font-size:12px;color:var(--muted);margin-bottom:6px">Knowledge gaps here also feed Study Next and Tested-Topic Coverage. <strong>Practice →</strong> builds a Claude prompt from them.</div>
-        <div id="mc-area-list"></div>
-      </div>
-      <div class="panel">
-        <div style="font-weight:700;color:var(--navy);margin-bottom:2px">Why you missed</div>
-        <div style="font-size:12px;color:var(--muted);margin-bottom:6px">Every missed or guessed question you've logged</div>
-        <div id="mc-reason-list"></div>
-      </div>
+    <div class="panel" style="margin-bottom:16px">
+      <div style="font-weight:700;color:var(--navy);margin-bottom:2px">Open concepts by area</div>
+      <div style="font-size:12px;color:var(--muted);margin-bottom:6px">These also feed Study Next and Tested-Topic Coverage. <strong>Select</strong> ticks an area's concepts that don't have a card yet, ready for a flashcard prompt.</div>
+      <div id="mc-area-list"></div>
     </div>
 
-    <div class="panel" style="margin-bottom:16px">
-      <div style="display:flex;justify-content:space-between;align-items:baseline;gap:8px;margin-bottom:8px">
+    <div class="panel">
+      <div style="display:flex;justify-content:space-between;align-items:baseline;gap:8px;flex-wrap:wrap;margin-bottom:4px">
         <div style="font-weight:700;color:var(--navy)">All concepts</div>
-        <div id="mc-all-count" style="font-size:12px;color:var(--muted)"></div>
+        <div style="font-size:12px;color:var(--muted)"><span id="mc-all-count"></span> · <button class="mc-link" onclick="mcSelectIds(mcShownIds)">Select all shown</button></div>
       </div>
+      <div style="font-size:12px;color:var(--muted);margin-bottom:8px">Tick concepts, then <strong>Make flashcards</strong> to get a ready-to-paste Claude prompt.</div>
       <div class="mc-filters">
-        <select onchange="setConceptFilter('view',this.value)" aria-label="Show">
-          <option value="open">Open</option><option value="gaps">Knowledge gaps</option><option value="mastered">Mastered</option><option value="all">All</option>
+        <select id="mc-filter-view" onchange="setConceptFilter('view',this.value)" aria-label="Show">
+          <option value="open">Open</option><option value="due">Due now</option><option value="nocard">No card yet</option><option value="mastered">Mastered</option><option value="all">All</option>
         </select>
         <select id="mc-filter-area" onchange="setConceptFilter('area',this.value)" aria-label="Area"></select>
-        <input type="search" placeholder="Search text, takeaway, source, question ID" oninput="setConceptFilter('q',this.value)" aria-label="Search concepts">
+        <input type="search" placeholder="Search concepts" oninput="setConceptFilter('q',this.value)" aria-label="Search concepts">
       </div>
       <div id="mc-all-list"></div>
     </div>
   </div>
 
-  <details class="panel" style="margin-bottom:16px">
+  <details class="panel" style="margin-top:16px">
     <summary style="cursor:pointer;font-weight:700;color:var(--navy)">➕ Add a concept by hand</summary>
     <div style="margin-top:14px">
-      <div class="form-group"><label for="mc-add-text">Concept</label><textarea id="mc-add-text" style="min-height:70px" placeholder="What you missed"></textarea></div>
-      <div class="form-group"><label for="mc-add-takeaway">Your takeaway (optional)</label><input id="mc-add-takeaway" placeholder="The one-line rule to remember"></div>
-      <div class="grid-2" style="gap:12px">
-        <div class="form-group"><label for="mc-add-status">What happened</label><select id="mc-add-status"><option value="missed">Missed it</option><option value="guessed">Guessed right</option><option value="retest">Re-test later</option></select></div>
-        <div class="form-group"><label for="mc-add-reason">Why</label><select id="mc-add-reason"><option value="knowledge">Didn't know it</option><option value="misread">Misread</option><option value="changed">Changed answer</option><option value="time">Out of time</option></select></div>
-        <div class="form-group"><label for="mc-add-area">Area</label><select id="mc-add-area"></select></div>
-        <div class="form-group" style="display:grid;grid-template-columns:1fr 1fr;gap:8px">
-          <div><label for="mc-add-source">Source</label><input id="mc-add-source" placeholder="UWorld"></div>
-          <div><label for="mc-add-qid">Question ID</label><input id="mc-add-qid" placeholder="optional"></div>
-        </div>
-      </div>
+      <div class="form-group"><label for="mc-add-text">Concept</label><textarea id="mc-add-text" style="min-height:110px" placeholder="The concept you don't know"></textarea></div>
+      <div class="form-group"><label for="mc-add-area">Area</label><select id="mc-add-area"></select></div>
       <button class="btn-primary" onclick="conceptAddManual()">Add concept</button>
     </div>
   </details>
 
-  <details class="panel">
+  <details class="panel" style="margin-top:16px">
     <summary style="cursor:pointer;font-weight:700;color:var(--navy)">🧷 Set up the MedBoard Capture extension (Chrome on your Mac)</summary>
     <ol class="mc-steps">
       <li>In Chrome, open <code>chrome://extensions</code> and switch on <strong>Developer mode</strong> (top right).</li>
       <li>Click <strong>Load unpacked</strong> and choose the <code>medboard-capture</code> folder in your Downloads.</li>
-      <li>Pin it from the puzzle-piece menu so you can see its badge (how many captures are waiting).</li>
-      <li>On a question page, highlight text and press <strong>Option + Shift + M</strong>, right-click → <em>Send to MedBoard…</em>, or click the icon. Tag it and press <strong>⌘ + Enter</strong>.</li>
-      <li>Keep MedBoard open in a tab and captures appear here within a second. If it's closed, they wait in the extension and import the next time you open MedBoard.</li>
-      <li>Opening MedBoard from a file instead of the website? On the extension's <strong>Details</strong> page, turn on <strong>Allow access to file URLs</strong>.</li>
+      <li>On a question page, highlight text and press <strong>Option + Shift + M</strong> (or right-click → <em>Send to MedBoard…</em>, or click the icon). Check the area, then <strong>Send to MedBoard</strong> (⌘ + Enter) — the panel closes. <strong>Send &amp; keep open</strong> (⇧ + ⌘ + Enter) clears it for the next concept.</li>
+      <li>Each capture is saved as a small file in <strong>Downloads › MedBoard Inbox</strong>. Here in MedBoard, click <strong>Import new captures</strong> and choose that folder (or drag it onto the box). Tip: drag the folder into Finder's sidebar so it's one click away.</li>
+      <li>Use MedBoard in Chrome instead? In the extension's ⚙ settings choose <strong>This Chrome</strong> and captures arrive here automatically while MedBoard is open.</li>
     </ol>
-    <div style="margin-top:12px;font-size:13px;color:#42506a;line-height:1.6">The extension also saves each capture as a small file in <strong>Downloads › MedBoard Inbox</strong> (you can turn that off in its ⚙ settings). To bring those in on another browser, or after clearing data:</div>
-    <div style="display:flex;gap:8px;flex-wrap:wrap;margin-top:10px">
-      <button class="btn-secondary" onclick="document.getElementById('mc-folder').click()">Import from folder…</button>
-      <button class="btn-secondary" onclick="document.getElementById('mc-files').click()">Import files…</button>
+    <div style="display:flex;gap:8px;flex-wrap:wrap;margin-top:12px">
+      <button class="btn-secondary" onclick="document.getElementById('mc-files').click()">Import individual files…</button>
     </div>
-    <input type="file" id="mc-folder" webkitdirectory multiple style="display:none" onchange="handleConceptFiles(event)">
-    <input type="file" id="mc-files" accept=".json,application/json" multiple style="display:none" onchange="handleConceptFiles(event)">
-    <div style="font-size:11.5px;color:var(--muted);margin-top:8px">Files already imported are skipped, so importing the same folder twice is safe.</div>
   </details>
+
+  <div id="mc-selbar" class="mc-selbar" style="display:none">
+    <span id="mc-sel-n">0 selected</span>
+    <button class="btn-secondary" onclick="mcSelectIds(mcShownIds)">Select all shown</button>
+    <button class="btn-secondary" onclick="mcClearSelection()">Clear</button>
+    <button class="btn-primary" onclick="conceptsMakeCards()">🃏 Make flashcards →</button>
+  </div>
 </div>
 
 <!-- EXAM READINESS -->
@@ -1793,7 +1800,7 @@ A: [answer]. Citation: Harrison's Principles of Internal Medicine, 21e, Ch. 245.
 // ═══════════════════════════════════════════════════════════
 // Bump this on every release. The sidebar renders from it, and it re-checks
 // for an optional sw.js after an update. The other copy lives in sw.js (CACHE).
-const APP_VERSION='4.5';
+const APP_VERSION='4.7';
 const APP_UPDATED='2026-10-17';   // shown in the sidebar so users can see which build they have
 
 const ABIM_CATEGORIES = [
@@ -6405,7 +6412,7 @@ function objectiveCoverage(){
   };
   (DB.iteReports||[]).forEach(r=>{ if(!r.objectives) return; for(const area in r.objectives){ const abim=ITE_TO_ABIM[area]||area; r.objectives[area].forEach(o=>add(o,abim,'ITE'+(r.year?' '+r.year:''))); } });
   (DB.mksapReports||[]).forEach(r=>{ const abim=mksapAreaMap(r.activity).abim||r.activity; (r.objectives||[]).forEach(o=>add(o.text,abim,'MKSAP')); });
-  conceptGaps().forEach(c=>add(conceptObjectiveText(c),c.area||null,c.source||'Captured'));   // v4.5
+  conceptGaps().forEach(c=>add(conceptObjectiveText(c),c.area||null,'Captured'));   // v4.5
   const areas={};
   Object.values(map).forEach(o=>{ const a=o.abim||'Other'; (areas[a]=areas[a]||{area:a,objectives:[]}).objectives.push(o); });
   const areaRows=Object.values(areas).map(g=>{
@@ -6703,11 +6710,38 @@ function recheckCoverage(){
 // finished flashcards, with an explicit verification pass — a wrong card here
 // gets memorised, so the cost of an error is higher than usual.
 // ═══════════════════════════════════════════════════════════
-let coverageMode='tested'; // 'tested' (ITE/MKSAP misses) or 'blueprint' (ABPN spec)
+let coverageMode='tested'; // 'tested' (ITE/MKSAP misses), 'blueprint' (ABPN spec) or 'captured' (ticked Captured Concepts)
 let coverageTargets=[];    // [{area, objectives:[text]}] — current batch
 let coverageAllAreas=[];   // every area in the full gap set (for AREA matching)
 function subjectForArea(area){ return ABIM_CATEGORIES.some(c=>c.name===area)?'IM':(ABPN_CATEGORIES.some(c=>c.name===area)?'Psych':defaultSubject()); }
+// The card and accuracy rules every deck prompt shares. `tag` is the tag the
+// deck already uses, repeated in the [VERIFY] instruction.
+function cardRulesText(tag){
+  return `CARD REQUIREMENTS
+- One idea per card. Prefer the decision, threshold or next step that actually gets tested over background trivia.
+- Front: a short clinical vignette (age/sex, presentation, the key finding) that asks for the diagnosis, next step or mechanism — or a direct question where a vignette doesn't fit. Back: the answer, then a new line starting "Why:" with one line of reasoning or the feature that distinguishes it from the look-alike. Practising the reasoning, in the format the exam uses, is what carries a card over to new questions.
+- Where a number matters (dose, cutoff, timing, score), put the number on the card.
+- End every answer with a citation: guideline or reference plus year — e.g. "Citation: IDSA 2023" or "Citation: Harrison's 21e Ch. 245".
+
+ACCURACY REQUIREMENTS — read carefully
+These cards get memorised by spaced repetition, so an error becomes a memorised error that is hard to unlearn. Therefore:
+1. Only assert what you are confident is current standard of care. If guidance genuinely changed recently or is contested, say so ON the card instead of silently picking a side.
+2. Do NOT invent citations. If you cannot name a real, specific source, write "Citation: general reference" rather than fabricating a guideline, year, chapter, or PMID.
+3. Do not build cards around a single institution's local protocol or a region-specific formulary.
+4. If an objective is ambiguous or you cannot cover it accurately, write one plain card stating the core concept rather than guessing at specifics.
+5. AFTER drafting every card, do a separate verification pass over your own work BEFORE building the file:
+   - re-check every dose, threshold, timeframe and first-line agent;
+   - correct anything that overstates certainty;
+   - delete duplicates and any card whose answer you cannot stand behind;
+   - confirm each objective above actually ended up with a card.
+   Build the file from the corrected set only.
+6. If a card remains one you are less than fully confident in, add the extra tag \`verify\` to that note (in addition to \`${tag}\`) and end its answer with [VERIFY], so I know to check it.
+7. When you're done, tell me in one line how many cards the file contains and how many you tagged \`verify\`.
+
+Begin.`;
+}
 function buildCoveragePrompt(groups){
+  if(coverageMode==='captured') return buildCapturedPrompt(groups);
   const area=groups[0].area;
   const subject=subjectForArea(area);
   const subjName=subject==='Psych'?'psychiatry':'internal medicine';
@@ -6735,28 +6769,7 @@ Every card must belong to "${area}". Several of these topics involve other organ
   front,back,subject,content_area,tags
   …where subject is \`${subject}\` and content_area is \`${area}\` on every row. Quote any field containing a comma.
 
-CARD REQUIREMENTS
-- One idea per card. Prefer the decision, threshold or next step that actually gets tested over background trivia.
-- Front: a short clinical vignette (age/sex, presentation, the key finding) that asks for the diagnosis, next step or mechanism — or a direct question where a vignette doesn't fit. Back: the answer, then a new line starting "Why:" with one line of reasoning or the feature that distinguishes it from the look-alike. Practising the reasoning, in the format the exam uses, is what carries a card over to new questions.
-- Where a number matters (dose, cutoff, timing, score), put the number on the card.
-- End every answer with a citation: guideline or reference plus year — e.g. "Citation: IDSA 2023" or "Citation: Harrison's 21e Ch. 245".
-
-ACCURACY REQUIREMENTS — read carefully
-These cards get memorised by spaced repetition, so an error becomes a memorised error that is hard to unlearn. Therefore:
-1. Only assert what you are confident is current standard of care. If guidance genuinely changed recently or is contested, say so ON the card instead of silently picking a side.
-2. Do NOT invent citations. If you cannot name a real, specific source, write "Citation: general reference" rather than fabricating a guideline, year, chapter, or PMID.
-3. Do not build cards around a single institution's local protocol or a region-specific formulary.
-4. If an objective is ambiguous or you cannot cover it accurately, write one plain card stating the core concept rather than guessing at specifics.
-5. AFTER drafting every card, do a separate verification pass over your own work BEFORE building the file:
-   - re-check every dose, threshold, timeframe and first-line agent;
-   - correct anything that overstates certainty;
-   - delete duplicates and any card whose answer you cannot stand behind;
-   - confirm each objective above actually ended up with a card.
-   Build the file from the corrected set only.
-6. If a card remains one you are less than fully confident in, add the extra tag \`verify\` to that note (in addition to \`tested-topic-coverage\`) and end its answer with [VERIFY], so I know to check it.
-7. When you're done, tell me in one line how many cards the file contains and how many you tagged \`verify\`.
-
-Begin.`;
+${cardRulesText('tested-topic-coverage')}`;
 }
 function openCoveragePrompt(area){
   coverageMode='tested';
@@ -6778,7 +6791,7 @@ function openCoveragePrompt(area){
   renderCoveragePrompt(0);
   document.getElementById('coverage-modal').style.display='flex';
 }
-let coverageItems=[], coverageBatch=0;
+let coverageItems=[], coverageBatch=0, coverageBatchIds=[];
 function coverageBatchSize(){ return +(document.getElementById('coverage-batch-size')||{}).value||25; }
 function renderCoveragePrompt(batch){
   coverageBatch=batch||0;
@@ -6787,6 +6800,7 @@ function renderCoveragePrompt(batch){
   if(coverageBatch>=nBatches) coverageBatch=nBatches-1;
   if(coverageBatch<0) coverageBatch=0;
   const slice=coverageItems.slice(coverageBatch*size,(coverageBatch+1)*size);
+  coverageBatchIds=slice.map(it=>it.id).filter(Boolean);    // captured concepts in this batch
   // Regroup this batch by area so the prompt keeps its headings.
   const byArea={}; slice.forEach(it=>{ (byArea[it.area]=byArea[it.area]||[]).push(it.text); });
   const groups=Object.keys(byArea).map(a=>({area:a,objectives:byArea[a]}));
@@ -6803,6 +6817,7 @@ function stepCoverageBatch(d){ renderCoveragePrompt(coverageBatch+d); }
 function closeCoveragePrompt(){ document.getElementById('coverage-modal').style.display='none'; }
 function copyCoveragePrompt(){
   const txt=document.getElementById('coverage-prompt-box').textContent;
+  if(coverageMode==='captured') markConceptsPrompted(coverageBatchIds);
   const done=()=>toast('Prompt copied — paste it into Claude');
   if(navigator.clipboard&&navigator.clipboard.writeText) navigator.clipboard.writeText(txt).then(done).catch(()=>fallbackCopy(txt,done));
   else fallbackCopy(txt,done);
@@ -6847,13 +6862,13 @@ function importCoverageCards(){
   pairs.forEach(p=>{
     const area=p.area||coverageTargets[0].area;
     if(!p.area) unfiled++;
-    const c=newCard(p.q,p.a,subjectForArea(area),area,'tested-topic-coverage');
+    const c=newCard(p.q,p.a,subjectForArea(area),area,coverageMode==='captured'?'captured-concepts':'tested-topic-coverage');
     if(p.verify){ c.flagged=true; flagged++; }
     DB.cards.push(c); added++;
   });
   saveDB();
   document.getElementById('coverage-paste').value='';
-  res.innerHTML=`<div class="alert alert-success">Imported <strong>${added}</strong> card${added===1?'':'s'}, tagged <em>tested-topic-coverage</em>.`+
+  res.innerHTML=`<div class="alert alert-success">Imported <strong>${added}</strong> card${added===1?'':'s'}, tagged <em>${coverageMode==='captured'?'captured-concepts':'tested-topic-coverage'}</em>.`+
     (flagged?` <strong>${flagged}</strong> came back marked [VERIFY] and ${flagged===1?'has':'have'} been flagged 🚩 for you to check.`:'')+
     (unfiled?` ${unfiled} had no AREA line and went to "${coverageTargets[0].area}".`:'')+
     ` Reopen this panel to see coverage update.</div>`;
@@ -8260,29 +8275,29 @@ function renderDashboardBirds(){
 }
 
 // ═══════════════════════════════════════════════════════════
-// CAPTURED CONCEPTS (v4.5) — captured with the MedBoard Capture extension
+// CAPTURED CONCEPTS (v4.6) — captured with the MedBoard Capture extension
 // ═══════════════════════════════════════════════════════════
-// One entry per thing you flagged while doing questions (UWorld, MKSAP,
-// anywhere): the highlighted text, your takeaway, what happened and why. Each
-// one is re-checked on a fixed ladder until you've got it five times running.
-// Knowledge gaps (not misreads, changed answers or timing) also feed Study
-// Next, Tested-Topic Coverage and the practice builder, like MKSAP misses do.
+// One entry per concept you flagged as not knowing while doing questions
+// (UWorld, MKSAP, anywhere): the text and its content area. Each is re-checked
+// on a fixed ladder until you've got it five times running. Every open concept
+// is a knowledge gap, so it also feeds Study Next, Tested-Topic Coverage and
+// the flashcard prompt you build by ticking concepts on the page.
 const RECHECK_STEPS=[1,3,7,21,60];    // days to each re-check; passing the last one = mastered
 const CONCEPT_HALF_LIFE=120;          // a capture this many days old counts half in Study Next
 const W_CAPTURED=0.6;                 // Study Next weight — same as estimated MKSAP misses
-const CONCEPT_REASONS={knowledge:"Didn't know it",misread:'Misread',changed:'Changed answer',time:'Out of time'};
-const CONCEPT_STATUS={missed:'Missed',guessed:'Guessed right',retest:'Re-test'};
 let mcFilter={view:'open',area:'*',q:''}, mcShow=40, mcEditing=null;   // area '*' = all, '' = no area yet
+const mcSelected=new Set();           // concept ids ticked for the flashcard prompt
 
 function conceptAreaNames(){ return [...ABIM_CATEGORIES,...ABPN_CATEGORIES].map(c=>c.name); }
-function conceptKey(c){ return String(c.text||c.takeaway||'').toLowerCase().replace(/[^a-z0-9]+/g,' ').trim().slice(0,200); }
+function conceptKey(c){ return String(c.text||'').toLowerCase().replace(/[^a-z0-9]+/g,' ').trim().slice(0,200); }
 function conceptDue(c, step, from){
   const days=RECHECK_STEPS[Math.min(step||0,RECHECK_STEPS.length-1)];
   return examCappedDue({id:c.id,subject:c.subject}, addDays(from||today(), days));
 }
-function isConceptGap(c){ return !c.resolved && (c.reason==='knowledge'||!c.reason); }
+function isConceptGap(c){ return !c.resolved; }
 function conceptGaps(){ return (DB.concepts||[]).filter(isConceptGap); }
-function conceptObjectiveText(c){ return String(c.takeaway||c.text||'').replace(/\s+/g,' ').trim().slice(0,300); }
+function conceptObjectiveText(c){ return String(c.text||'').replace(/\s+/g,' ').trim().slice(0,300); }
+function conceptPromptText(c){ return String(c.text||'').replace(/\s+/g,' ').trim().slice(0,700); }
 function conceptsDue(){
   const t=today();
   return (DB.concepts||[]).filter(c=>!c.resolved&&c.due&&c.due<=t)
@@ -8302,18 +8317,16 @@ function conceptAreaOptions(selected){
 function normalizeConcept(raw){
   if(!raw||typeof raw!=='object') return null;
   const s=(v,n)=>String(v==null?'':v).replace(/\u0000/g,'').trim().slice(0,n);
-  const text=s(raw.text,4000), takeaway=s(raw.takeaway,600);
-  if(!text&&!takeaway) return null;
+  const text=s(raw.text,4000)||s(raw.takeaway,600);    // takeaway: captures from extension v1.0
+  if(!text) return null;
   const created=!isNaN(Date.parse(raw.created))?new Date(raw.created).toISOString():new Date().toISOString();
   // A malformed id gets a stable stand-in (hash of the text and time), so the
   // same file imported twice is still recognised as already here.
-  const id=/^[A-Za-z0-9_-]{4,64}$/.test(String(raw.id||''))?String(raw.id):('cap_h'+(hashSpread(text+'|'+takeaway+'|'+created,2147483647)).toString(36));
-  const status=['missed','guessed','retest'].includes(raw.status)?raw.status:'missed';
-  const reason=status==='retest'?'':(['knowledge','misread','changed','time'].includes(raw.reason)?raw.reason:'');
+  const id=/^[A-Za-z0-9_-]{4,64}$/.test(String(raw.id||''))?String(raw.id):('cap_h'+(hashSpread(text+'|'+created,2147483647)).toString(36));
   const area=conceptAreaNames().includes(raw.area)?raw.area:'';
-  const c={id,ids:[id],created,date:fmtLocalDate(new Date(created)),text,takeaway,status,reason,area,
-    subject:areaSubject(area||'Uncategorized',defaultSubject()),source:s(raw.source,80),qid:s(raw.qid,40),host:s(raw.host,120),
-    misses:status==='retest'?0:1,step:0,lapses:0,history:[],resolved:false,resolvedAt:null,updated:new Date().toISOString()};
+  const c={id,ids:[id],created,date:fmtLocalDate(new Date(created)),text,area,
+    subject:areaSubject(area||'Uncategorized',defaultSubject()),
+    misses:1,step:0,lapses:0,history:[],resolved:false,resolvedAt:null,promptedAt:null,updated:new Date().toISOString()};
   c.due=conceptDue(c,0,c.date);
   return c;
 }
@@ -8334,10 +8347,9 @@ function importCaptures(items){
     const same=byKey.get(conceptKey(c));
     if(same){
       same.ids=(same.ids||[same.id]).concat(c.id);
-      if(c.status!=='retest') same.misses=(same.misses||0)+1;
+      same.misses=(same.misses||1)+1;
       same.step=0; same.resolved=false; same.resolvedAt=null; same.due=conceptDue(same,0);
       same.history=(same.history||[]).concat({d:today(),r:'again'});
-      if(!same.takeaway&&c.takeaway) same.takeaway=c.takeaway;
       if(!same.area&&c.area){ same.area=c.area; same.subject=c.subject; }
       same.updated=new Date().toISOString();
       byId.set(c.id,same); res.merged++; return;
@@ -8373,6 +8385,8 @@ window.addEventListener('message',e=>{
     if(!conceptsReady) captureQueue.push(items); else receiveCaptures(items);
   }
 });
+// Coming back to the tab is a natural moment to collect anything new.
+document.addEventListener('visibilitychange',()=>{ if(conceptsReady&&document.visibilityState==='visible') captureHello(); });
 async function receiveCaptures(items){
   if(!items.length){ renderConceptExtStatus(); return; }
   const r=importCaptures(items);
@@ -8414,43 +8428,132 @@ function conceptReopen(id){
 function conceptDelete(id){
   if(!confirm('Delete this concept? This cannot be undone.')) return;
   DB.concepts=(DB.concepts||[]).filter(c=>c.id!==id);
+  mcSelected.delete(id);
   saveDB(); invalidatePriorityCache(); refreshConceptViews();
 }
 function conceptEdit(id){ mcEditing=id; renderConcepts(); }
 function conceptEditSave(id){
   const c=conceptById(id); if(!c) return;
-  const val=k=>{ const el=document.getElementById('mc-ed-'+k); return el?el.value:''; };
-  const area=val('area');
+  const text=(document.getElementById('mc-ed-text')||{}).value||'';
+  const area=(document.getElementById('mc-ed-area')||{}).value||'';
+  if(text.trim()) c.text=text.trim().slice(0,4000);
   c.area=conceptAreaNames().includes(area)?area:'';
   c.subject=areaSubject(c.area||'Uncategorized',defaultSubject());
-  c.takeaway=val('takeaway').trim().slice(0,600);
-  const text=val('text').trim().slice(0,4000); if(text||c.takeaway) c.text=text;
-  c.status=['missed','guessed','retest'].includes(val('status'))?val('status'):c.status;
-  c.reason=c.status==='retest'?'':(['knowledge','misread','changed','time'].includes(val('reason'))?val('reason'):'');
   c.updated=new Date().toISOString();
   mcEditing=null;
   saveDB(); invalidatePriorityCache(); refreshConceptViews();
 }
 function conceptAddManual(){
-  const g=id=>document.getElementById(id);
-  const r=importCaptures([{text:g('mc-add-text').value,takeaway:g('mc-add-takeaway').value,status:g('mc-add-status').value,
-    reason:g('mc-add-reason').value,area:g('mc-add-area').value,source:g('mc-add-source').value,qid:g('mc-add-qid').value,created:new Date().toISOString()}]);
-  if(!r.added&&!r.merged){ toast('Type the concept or a takeaway first'); return; }
-  ['mc-add-text','mc-add-takeaway','mc-add-qid'].forEach(id=>{ g(id).value=''; });
+  const t=document.getElementById('mc-add-text'), a=document.getElementById('mc-add-area');
+  const r=importCaptures([{text:t.value,area:a.value,created:new Date().toISOString()}]);
+  if(!r.added&&!r.merged){ toast('Type the concept first'); return; }
+  t.value='';
   toast(r.merged?'Already on your list — counted as missed again':'Added — first re-check tomorrow');
 }
-function sendConceptsToPractice(area){
-  const list=conceptGaps().filter(c=>(c.area||'')===area).map(conceptObjectiveText);
-  if(!list.length){ toast('No open knowledge gaps in this area'); return; }
-  navigate('practice');
-  openPractice(area||'Captured concepts', areaSubject(area||'Uncategorized',defaultSubject()), list, 'captured-concepts');
+
+// ── Selection → flashcard prompt ──────────────────────────────────────────
+function mcToggle(id, on){ if(on) mcSelected.add(id); else mcSelected.delete(id); renderConceptSelBar(); syncConceptChecks(); }
+function mcSelectIds(ids){ ids.forEach(id=>mcSelected.add(id)); renderConceptSelBar(); syncConceptChecks(); }
+function mcClearSelection(){ mcSelected.clear(); renderConceptSelBar(); syncConceptChecks(); }
+function mcSelectArea(area){
+  const idx=conceptCardIndex();
+  const ids=conceptGaps().filter(c=>(c.area||'')===area&&!idx(c)).map(c=>c.id);
+  if(!ids.length){ toast('Every open concept in this area already has a card'); return; }
+  mcSelectIds(ids);
+  toast(`Selected ${ids.length} concept${ids.length===1?'':'s'} without a card`);
+}
+function syncConceptChecks(){
+  document.querySelectorAll('#page-concepts input.mc-check').forEach(cb=>{
+    cb.checked=mcSelected.has(cb.dataset.id);
+    const row=cb.closest('.mc-item'); if(row) row.classList.toggle('mc-sel',cb.checked);
+  });
+}
+function renderConceptSelBar(){
+  const bar=document.getElementById('mc-selbar'); if(!bar) return;
+  // Drop ids for concepts deleted elsewhere (another tab, a restore).
+  [...mcSelected].forEach(id=>{ if(!conceptById(id)) mcSelected.delete(id); });
+  const n=mcSelected.size;
+  bar.style.display=n?'':'none';
+  const lbl=document.getElementById('mc-sel-n'); if(lbl) lbl.textContent=`${n} selected`;
+}
+// Opens the same "Build an Anki deck" prompt the coverage page uses, for the
+// ticked concepts. Long selections split into batches there, as usual.
+function conceptsMakeCards(){
+  const list=[...mcSelected].map(conceptById).filter(Boolean);
+  if(!list.length){ toast('Tick some concepts first'); return; }
+  coverageMode='captured';
+  const byArea={};
+  list.forEach(c=>{ (byArea[c.area||'']=byArea[c.area||'']||[]).push(c); });
+  // Keep each area's concepts together so a batch boundary splits as few areas as possible.
+  const areas=Object.keys(byArea).sort((a,b)=>(a===''?1:0)-(b===''?1:0)||a.localeCompare(b));
+  coverageItems=[]; areas.forEach(a=>byArea[a].forEach(c=>coverageItems.push({area:a,text:conceptPromptText(c),id:c.id})));
+  coverageAllAreas=areas.filter(Boolean);
+  const nA=areas.length;
+  document.getElementById('coverage-modal-title').textContent=`Build an Anki deck — ${nA===1?(areas[0]||'captured concepts'):'captured concepts'}`;
+  document.getElementById('coverage-modal-sub').textContent=
+    `${list.length} captured concept${list.length===1?'':'s'}${nA>1?` across ${nA} areas`:''}. The prompt asks Claude to build a ready-to-import deck file and to verify its own cards before packaging them. Copying a prompt marks its concepts "sent to Claude".`;
+  document.getElementById('coverage-paste').value='';
+  document.getElementById('coverage-import-result').innerHTML='';
+  renderCoveragePrompt(0);
+  document.getElementById('coverage-modal').style.display='flex';
+  mcSelected.clear(); renderConceptSelBar();
+}
+function markConceptsPrompted(ids){
+  const t=today(); let n=0;
+  ids.forEach(id=>{ const c=conceptById(id); if(c){ c.promptedAt=t; c.updated=new Date().toISOString(); n++; } });
+  if(n){ saveDB(); refreshConceptViews(); }
+}
+// Prompt text for ticked concepts: the same task, card and accuracy rules as
+// the coverage deck, with the concepts listed under their content areas.
+function buildCapturedPrompt(groups){
+  const named=groups.filter(g=>g.area);
+  const subjects=new Set(named.map(g=>subjectForArea(g.area)));
+  const subjName=subjects.size>1?'internal medicine and psychiatry':(subjects.has('Psych')?'psychiatry':'internal medicine');
+  const n=groups.reduce((k,g)=>k+g.objectives.length,0);
+  const slug=a=>a.replace(/[^A-Za-z0-9]+/g,'_').replace(/^_|_$/g,'');
+  const single=groups.length===1&&groups[0].area;
+  const deck=single?groups[0].area:'Captured concepts';
+  const file=single?slug(groups[0].area)+'_captured':'captured_concepts';
+  const headings=groups.map(g=>{
+    const head=g.area?`## ${g.area}  (subject: ${subjectForArea(g.area)} · content_area: ${g.area} · tag: ${slug(g.area)})`
+                     :`## Area not set  (subject: ${subjectForArea('')} · content_area: leave blank so MedBoard sorts it · tag: no-area)`;
+    return head+'\n'+g.objectives.map(o=>`- ${o}`).join('\n');
+  }).join('\n\n');
+  return `You are helping ${/^[aeiou]/i.test(subjName)?'an':'a'} ${subjName} resident build board-prep flashcards.
+
+Below are ${n} concept${n===1?'':'s'} they flagged while doing practice questions as something they do NOT know, grouped by board content area. Many are passages they highlighted from question explanations — pull out the testable point in each rather than making a card per sentence.
+
+${headings}
+
+TASK
+Write 1-2 flashcards for EACH concept above, then package them as a ready-to-import Anki deck file:
+- Use Python with the \`genanki\` library to generate a real .apkg file named \`${file}.apkg\` and give it to me as a download.
+- Deck name: "MedBoard — ${deck}"${single?'':' (one subdeck per content area is fine)'}
+- Use the Basic note type (Front / Back).
+- Tag every note: \`captured-concepts\` AND the tag shown in its heading.
+
+STAY IN EACH CONTENT AREA
+Every card belongs to the content area of the heading it is listed under. Some concepts involve other organ systems — a complication, a host condition, or a drug's side effect. Frame those from that heading's angle and keep its subject matter in the question itself. Do not add cards outside these concepts.
+- If you are not able to produce an .apkg file, instead give me a downloadable CSV file with EXACTLY this header and one row per card:
+  front,back,subject,content_area,tags
+  …where subject and content_area are the values shown in the card's heading. Quote any field containing a comma.
+
+${cardRulesText('captured-concepts')}`;
 }
 
 // ── Folder import (Downloads › MedBoard Inbox) ───────────────────────────
+// This is how captures reach MedBoard when it runs in Safari: the extension
+// writes one small file per capture, and a web page may only read files you
+// hand it — by picking the folder or dragging it in. Ids make it safe to hand
+// over the whole folder every time; only new captures are added.
 async function handleConceptFiles(e){
-  const files=[...(e.target.files||[])].filter(f=>/\.json$/i.test(f.name)&&f.size<1e6);
+  const files=[...(e.target.files||[])];
   e.target.value='';
-  if(!files.length){ toast('No capture files (.json) found there'); return; }
+  await importConceptFileList(files);
+}
+async function importConceptFileList(all){
+  const files=[...all].filter(f=>f&&/\.json$/i.test(f.name)&&f.size<1e6);
+  if(!files.length){ toast('No capture files found — choose Downloads › MedBoard Inbox'); return; }
   const items=[];
   for(const f of files){
     try{
@@ -8461,8 +8564,41 @@ async function handleConceptFiles(e){
     }catch(_){}
   }
   const r=importCaptures(items);
-  const dup=items.length-r.added-r.merged;
-  toast(`Imported ${r.added} new concept${r.added===1?'':'s'}${r.merged?` · ${r.merged} missed again`:''}${dup>0?` · ${dup} already here`:''}`);
+  DB.settings.lastCaptureImport={at:new Date().toISOString(),added:r.added,merged:r.merged,files:files.length};
+  saveDB(); renderConceptImportStatus();
+  toast(r.added||r.merged
+    ?`🧩 Imported ${r.added} new concept${r.added===1?'':'s'}${r.merged?` · ${r.merged} missed again`:''}`
+    :`No new captures — all ${files.length} already imported`);
+  if(!document.getElementById('page-concepts').classList.contains('active')) navigate('concepts');
+}
+// Finder drag-and-drop: a dropped folder arrives as a directory entry, so walk it.
+// Entries must be taken synchronously inside the drop event, before any await.
+async function filesFromDrop(dt){
+  const entries=[...(dt.items||[])].map(i=>i.webkitGetAsEntry?i.webkitGetAsEntry():null).filter(Boolean);
+  if(!entries.length) return [...(dt.files||[])];
+  const out=[];
+  const walk=async en=>{
+    if(en.isFile){ const f=await new Promise(res=>en.file(res,()=>res(null))); if(f) out.push(f); }
+    else if(en.isDirectory){
+      const rd=en.createReader(); let batch;
+      do{ batch=await new Promise(res=>rd.readEntries(res,()=>res([]))); for(const x of batch) await walk(x); }while(batch.length);
+    }
+  };
+  for(const en of entries) await walk(en);
+  return out;
+}
+function setupConceptDrop(){
+  const z=document.getElementById('mc-drop'); if(!z) return;
+  z.addEventListener('dragover',e=>{ e.preventDefault(); z.classList.add('drag'); });
+  z.addEventListener('dragleave',()=>z.classList.remove('drag'));
+  z.addEventListener('drop',async e=>{ e.preventDefault(); z.classList.remove('drag'); await importConceptFileList(await filesFromDrop(e.dataTransfer)); });
+}
+function renderConceptImportStatus(){
+  const el=document.getElementById('mc-import-status'); if(!el) return;
+  const li=DB.settings.lastCaptureImport;
+  if(!li){ el.textContent='No imports yet.'; return; }
+  const d=new Date(li.at);
+  el.innerHTML=`Last import ${escHtml(shortDate(fmtLocalDate(d)))} at ${escHtml(d.toLocaleTimeString([], {hour:'numeric',minute:'2-digit'}))}: <strong>${li.added} new</strong>${li.merged?` · ${li.merged} missed again`:''} from ${li.files} file${li.files===1?'':'s'}.`;
 }
 
 // ── Views ─────────────────────────────────────────────────────────────────
@@ -8480,6 +8616,7 @@ function refreshConceptViews(){
 }
 function renderConceptExtStatus(){
   const el=document.getElementById('mc-ext'); if(!el) return;
+  el.style.display=captureExt.present?'':'none';
   if(captureExt.present){
     el.className='mc-ext on';
     const last=captureExt.lastImport?` · last import ${captureExt.lastImport.toLocaleTimeString([], {hour:'numeric',minute:'2-digit'})} (${captureExt.lastCount})`:'';
@@ -8488,6 +8625,18 @@ function renderConceptExtStatus(){
     el.className='mc-ext';
     el.innerHTML=`<span>The MedBoard Capture extension isn't connected in this browser. Set it up below, import its folder, or add concepts by hand.</span>`;
   }
+}
+// "Has a card" for each concept, matched the same way Tested-Topic Coverage
+// matches missed objectives against your deck. Built once per render.
+function conceptCardIndex(){
+  let idx=null;
+  try{ idx=buildCardConceptIndex(); }catch(e){}
+  const memo=new Map();
+  return c=>{
+    if(!idx) return false;
+    if(!memo.has(c.id)) memo.set(c.id,objectiveCoveredBy(conceptObjectiveText(c),idx));
+    return memo.get(c.id);
+  };
 }
 // Which other exams flagged the same concept — ITE/MKSAP objectives indexed by
 // the same high-precision tokens as the ITE∩MKSAP overlap.
@@ -8504,87 +8653,76 @@ function conceptAlsoMissed(c, idx){
   const t=conceptTokens(conceptObjectiveText(c)), out=new Set();
   t.bigrams.forEach(g=>{ const s=idx.get('b:'+g); if(s) s.forEach(x=>out.add(x)); });
   t.terms.forEach(x=>{ const s=idx.get('t:'+x); if(s) s.forEach(y=>out.add(y)); });
-  if(c.source) out.delete(c.source);     // an MKSAP capture matching MKSAP is the same question
   return [...out].sort();
 }
-function conceptItemHtml(c, idx){
+function conceptItemHtml(c, ctx){
   const id=escHtml(c.id), t=today(), q=`'${id}'`;
   const isDue=!c.resolved&&c.due&&c.due<=t;
   if(mcEditing===c.id){
-    const sel=(k,obj,cur)=>`<select id="mc-ed-${k}">${Object.keys(obj).map(v=>`<option value="${v}"${v===cur?' selected':''}>${escHtml(obj[v])}</option>`).join('')}</select>`;
     return `<div class="mc-item"><div class="mc-edit">
-      <label>Concept<textarea id="mc-ed-text" rows="3">${escHtml(c.text)}</textarea></label>
-      <label>Your takeaway<input id="mc-ed-takeaway" value="${escHtml(c.takeaway)}"></label>
-      <div class="mc-edit-row"><label>Area<select id="mc-ed-area">${conceptAreaOptions(c.area)}</select></label>
-      <label>What happened${sel('status',CONCEPT_STATUS,c.status)}</label>
-      <label>Why${sel('reason',Object.assign({'':'—'},CONCEPT_REASONS),c.reason||'')}</label></div>
+      <label>Concept<textarea id="mc-ed-text" rows="5">${escHtml(c.text)}</textarea></label>
+      <label>Area<select id="mc-ed-area">${conceptAreaOptions(c.area)}</select></label>
       <div class="mc-actions"><button class="btn-primary" onclick="conceptEditSave(${q})">Save</button><button class="btn-secondary" onclick="mcEditing=null;renderConcepts()">Cancel</button></div>
     </div></div>`;
   }
+  const hasCard=ctx.hasCard(c);
   const chips=[`<span class="sn-chip">${escHtml(c.area||'No area yet')}</span>`];
-  if(c.source||c.qid) chips.push(`<span class="sn-chip">${escHtml(c.source||'Question')}${c.qid?' #'+escHtml(c.qid):''}</span>`);
-  chips.push(`<span class="sn-chip${c.status==='missed'?' sn-weak':''}">${CONCEPT_STATUS[c.status]||'Missed'}${c.reason?' · '+escHtml(CONCEPT_REASONS[c.reason]||''):''}</span>`);
   if((c.misses||0)>1) chips.push(`<span class="sn-chip sn-weak">missed ${c.misses}×</span>`);
-  const also=conceptAlsoMissed(c,idx);
+  const also=conceptAlsoMissed(c,ctx.objIdx);
   if(also.length) chips.push(`<span class="sn-chip sn-both">🔥 also missed on ${escHtml(also.join(' + '))}</span>`);
+  chips.push(hasCard?`<span class="sn-chip mc-done">has a card</span>`:`<span class="sn-chip">no card yet</span>`);
+  if(c.promptedAt) chips.push(`<span class="sn-chip">sent to Claude ${shortDate(c.promptedAt)}</span>`);
   chips.push(`<span class="sn-chip">captured ${shortDate(c.date)}</span>`);
   chips.push(c.resolved?`<span class="sn-chip mc-done">mastered ${shortDate(c.resolvedAt||c.date)}</span>`
     :`<span class="sn-chip">${isDue?'<strong>due now</strong>':'next '+shortDate(c.due)} · step ${Math.min((c.step||0)+1,RECHECK_STEPS.length)} of ${RECHECK_STEPS.length}</span>`);
   const acts=c.resolved
     ?`<button class="btn-secondary" onclick="conceptReopen(${q})">Re-open</button>`
     :`<button class="btn-primary" onclick="conceptRecheck(${q},true)">✓ Got it</button><button class="btn-secondary" onclick="conceptRecheck(${q},false)">↺ Still shaky</button>`;
-  return `<div class="mc-item">
-    ${c.text?`<div class="mc-text clamp" onclick="this.classList.toggle('clamp')" title="Click to expand">${escHtml(c.text)}</div>`:''}
-    ${c.takeaway?`<div class="mc-take">${escHtml(c.takeaway)}</div>`:''}
-    <div class="mc-chips">${chips.join('')}</div>
-    <div class="mc-actions">${acts}<button class="btn-secondary" onclick="conceptEdit(${q})">Edit</button><button class="btn-secondary mc-del" onclick="conceptDelete(${q})" aria-label="Delete">Delete</button></div>
+  const sel=mcSelected.has(c.id);
+  return `<div class="mc-item${sel?' mc-sel':''}">
+    <label class="mc-pick" title="Select for the flashcard prompt"><input type="checkbox" class="mc-check" data-id="${id}"${sel?' checked':''} onchange="mcToggle(${q},this.checked)" aria-label="Select this concept"></label>
+    <div class="mc-main">
+      <div class="mc-text clamp" onclick="this.classList.toggle('clamp')" title="Click to expand">${escHtml(c.text)}</div>
+      <div class="mc-chips">${chips.join('')}</div>
+      <div class="mc-actions">${acts}<button class="btn-secondary" onclick="conceptEdit(${q})">Edit</button><button class="btn-secondary mc-del" onclick="conceptDelete(${q})">Delete</button></div>
+    </div>
   </div>`;
 }
+let mcShownIds=[];
 function renderConcepts(){
   const all=DB.concepts||[];
   renderConceptExtStatus();
+  renderConceptImportStatus();
   const sel=document.getElementById('mc-add-area');
   if(sel&&!sel.dataset.filled){ sel.innerHTML=conceptAreaOptions(''); sel.dataset.filled='1'; }
-  const open=all.filter(c=>!c.resolved), due=conceptsDue(), gaps=conceptGaps();
-  let uncovered=0;
-  if(gaps.length){ try{ const cidx=buildCardConceptIndex(); uncovered=gaps.filter(c=>!objectiveCoveredBy(conceptObjectiveText(c),cidx)).length; }catch(e){} }
+  const open=all.filter(c=>!c.resolved), due=conceptsDue();
+  const ctx={hasCard:conceptCardIndex(), objIdx:all.length?objectiveSourceIndex():null};
+  const noCard=open.filter(c=>!ctx.hasCard(c)).length;
   const set=(id,v)=>{ const el=document.getElementById(id); if(el) el.textContent=v; };
-  set('mc-stat-due',due.length); set('mc-stat-open',open.length); set('mc-stat-gaps',uncovered); set('mc-stat-mastered',all.length-open.length);
+  set('mc-stat-due',due.length); set('mc-stat-open',open.length); set('mc-stat-nocard',noCard); set('mc-stat-mastered',all.length-open.length);
   document.getElementById('mc-empty').style.display=all.length?'none':'';
   document.getElementById('mc-body').style.display=all.length?'':'none';
+  renderConceptSelBar();
   if(!all.length) return;
-  const idx=objectiveSourceIndex();
 
   // Due now
   const dueEl=document.getElementById('mc-due-list');
   dueEl.innerHTML=due.length
-    ?due.slice(0,25).map(c=>conceptItemHtml(c,idx)).join('')+(due.length>25?`<p style="font-size:12px;color:var(--muted);margin-top:8px">+ ${due.length-25} more due — they'll show here as you clear these.</p>`:'')
+    ?due.slice(0,25).map(c=>conceptItemHtml(c,ctx)).join('')+(due.length>25?`<p style="font-size:12px;color:var(--muted);margin-top:8px">+ ${due.length-25} more due — they'll show here as you clear these.</p>`:'')
     :`<p style="color:var(--muted);font-size:13px">Nothing due today. ${open.length?`Next re-check: <strong>${shortDate(open.map(c=>c.due).filter(Boolean).sort()[0])}</strong>.`:''}</p>`;
 
   // By area
   const byArea={};
-  open.forEach(c=>{ const a=c.area||''; const r=(byArea[a]=byArea[a]||{area:a,open:0,due:0,gaps:0}); r.open++; if(c.due&&c.due<=today()) r.due++; if(isConceptGap(c)) r.gaps++; });
+  open.forEach(c=>{ const a=c.area||''; const r=(byArea[a]=byArea[a]||{area:a,open:0,due:0,nocard:0}); r.open++; if(c.due&&c.due<=today()) r.due++; if(!ctx.hasCard(c)) r.nocard++; });
   const rows=Object.values(byArea).sort((a,b)=>b.open-a.open);
   const maxOpen=Math.max(1,...rows.map(r=>r.open));
   document.getElementById('mc-area-list').innerHTML=rows.length?rows.map(r=>{
-    const nm=r.area.replace(/\\/g,'\\\\').replace(/'/g,"\\'");
+    const nm=escHtml(r.area.replace(/\\/g,'\\\\').replace(/'/g,"\\'"));
     return `<div class="mc-area">
-      <div class="mc-area-top"><span>${escHtml(r.area||'No area yet')}</span><span class="mc-area-n">${r.open} open${r.due?` · <strong>${r.due} due</strong>`:''}</span></div>
+      <div class="mc-area-top"><span>${escHtml(r.area||'No area yet')}</span><span class="mc-area-n">${r.open} open${r.due?` · <strong>${r.due} due</strong>`:''} · ${r.nocard} without a card</span></div>
       <div class="mc-area-bot"><div class="mc-bar"><div style="width:${Math.round(r.open/maxOpen*100)}%"></div></div>
-      ${r.gaps?`<button class="btn-secondary" onclick="sendConceptsToPractice('${escHtml(nm)}')">Practice →</button>`:''}</div></div>`;
+      ${r.nocard?`<button class="btn-secondary" onclick="mcSelectArea('${nm}')">Select ${r.nocard} without a card</button>`:''}</div></div>`;
   }).join(''):'<p style="color:var(--muted);font-size:13px">Everything you captured is mastered.</p>';
-
-  // Why you missed
-  const answered=all.filter(c=>c.status!=='retest');
-  const counts={knowledge:0,misread:0,changed:0,time:0};
-  answered.forEach(c=>{ counts[c.reason||'knowledge']++; });
-  const n=answered.length||1;
-  document.getElementById('mc-reason-list').innerHTML=answered.length?Object.keys(counts).map(k=>{
-    const pct=Math.round(counts[k]/n*100);
-    return `<div class="mc-row"><div style="width:120px;font-weight:600;color:#42506a">${CONCEPT_REASONS[k]}</div>
-      <div class="mc-bar"><div style="width:${pct}%"></div></div><div style="width:70px;text-align:right;font-size:12px;color:var(--muted)">${counts[k]} · ${pct}%</div></div>`;
-  }).join('')+`<p style="font-size:11.5px;color:var(--muted);margin-top:8px">Only "Didn't know it" counts as a knowledge gap in Study Next and the card builders. The rest are test-taking misses.</p>`
-  :'<p style="color:var(--muted);font-size:13px">Shows up once you log a missed or guessed question.</p>';
 
   // All concepts
   const af=document.getElementById('mc-filter-area');
@@ -8592,18 +8730,21 @@ function renderConcepts(){
     if(mcFilter.area!=='*'&&!areas.includes(mcFilter.area)) mcFilter.area='*';
     af.innerHTML='<option value="*">All areas</option>'+areas.map(a=>`<option value="${escHtml(a)}">${escHtml(a||'No area yet')}</option>`).join('');
     af.value=mcFilter.area; }
-  const q=mcFilter.q.trim().toLowerCase();
+  const vf=document.getElementById('mc-filter-view'); if(vf) vf.value=mcFilter.view;
+  const q=mcFilter.q.trim().toLowerCase(), t=today();
   const list=all.filter(c=>{
     if(mcFilter.view==='open'&&c.resolved) return false;
+    if(mcFilter.view==='due'&&!(!c.resolved&&c.due&&c.due<=t)) return false;
+    if(mcFilter.view==='nocard'&&(c.resolved||ctx.hasCard(c))) return false;
     if(mcFilter.view==='mastered'&&!c.resolved) return false;
-    if(mcFilter.view==='gaps'&&!isConceptGap(c)) return false;
     if(mcFilter.area!=='*'&&(c.area||'')!==mcFilter.area) return false;
-    if(q&&!(c.text+' '+c.takeaway+' '+c.source+' '+c.qid).toLowerCase().includes(q)) return false;
+    if(q&&!String(c.text).toLowerCase().includes(q)) return false;
     return true;
   }).sort((a,b)=>String(b.created).localeCompare(String(a.created)));
+  mcShownIds=list.map(c=>c.id);
   document.getElementById('mc-all-count').textContent=`${list.length} shown`;
   document.getElementById('mc-all-list').innerHTML=list.length
-    ?list.slice(0,mcShow).map(c=>conceptItemHtml(c,idx)).join('')+(list.length>mcShow?`<div style="margin-top:10px"><button class="btn-secondary" onclick="mcShow+=40;renderConcepts()">Show ${Math.min(40,list.length-mcShow)} more</button></div>`:'')
+    ?list.slice(0,mcShow).map(c=>conceptItemHtml(c,ctx)).join('')+(list.length>mcShow?`<div style="margin-top:10px"><button class="btn-secondary" onclick="mcShow+=40;renderConcepts()">Show ${Math.min(40,list.length-mcShow)} more</button></div>`:'')
     :'<p style="color:var(--muted);font-size:13px">Nothing matches these filters.</p>';
 }
 function setConceptFilter(k,v){ mcFilter[k]=v; mcShow=40; renderConcepts(); }
@@ -8617,12 +8758,15 @@ function renderConceptsDash(){
   el.innerHTML=`<div style="display:flex;justify-content:space-between;align-items:center;gap:10px;flex-wrap:wrap">
       <div><div style="font-weight:700;color:var(--navy)">🧩 Captured Concepts</div>
       <div style="font-size:13px;color:#42506a;margin-top:2px"><strong style="color:${due.length?'var(--red)':'var(--green)'}">${due.length} due to re-check</strong> · ${open} open · ${all.length-open} mastered</div></div>
-      <button class="btn-primary" style="padding:7px 14px;font-size:12px" onclick="navigate('concepts')">${due.length?'Re-check now →':'View all →'}</button>
+      <div style="display:flex;gap:8px;flex-wrap:wrap">
+        <button class="btn-secondary" style="padding:7px 12px;font-size:12px" onclick="document.getElementById('mc-folder').click()">📥 Import captures</button>
+        <button class="btn-primary" style="padding:7px 14px;font-size:12px" onclick="navigate('concepts')">${due.length?'Re-check now →':'View all →'}</button>
+      </div>
     </div>${preview?`<ul class="mc-dash-list">${preview}</ul>`:''}`;
 }
-// Study Next signal: where your open knowledge gaps cluster, relative to how
-// much each area is tested. Same estimator as dated MKSAP misses, so an area
-// you capture a lot from is not penalised just for being the one you practise.
+// Study Next signal: where your open concepts cluster, relative to how much
+// each area is tested. Same estimator as dated MKSAP misses, so an area you
+// capture a lot from is not penalised just for being the one you practise.
 function capturedSignals(){
   const t=today(), w={}, raw={}; let M=0;
   conceptGaps().forEach(c=>{
@@ -10209,6 +10353,7 @@ async function init(){
   setupITEDrop();
   setupMKSAPDrop();
   setupPRITEDrop();
+  setupConceptDrop();
   applySpecialty();
   syncStudyFilterUI();
 
