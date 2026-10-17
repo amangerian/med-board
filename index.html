@@ -245,7 +245,7 @@ tr:hover td{background:#fafbff}
   .nav-item{flex:0 0 auto;flex-direction:column;gap:3px;min-width:64px;padding:8px 10px;font-size:10px;border-left:none;border-top:3px solid transparent;justify-content:center;text-align:center;position:relative}
   .nav-item.active{border-left-color:transparent;border-top-color:#60a5fa}
   .nav-item span:last-child{display:block}
-  #due-badge-nav{position:absolute;top:3px;right:6px;margin-left:0;padding:0 5px;font-size:9px}
+  #due-badge-nav,#concepts-badge-nav{position:absolute;top:3px;right:6px;margin-left:0;padding:0 5px;font-size:9px}
   .nav-icon{font-size:19px;width:auto}
   #main{margin-left:0;padding:14px 12px calc(84px + env(safe-area-inset-bottom))}
   .page-header h2{font-size:19px}
@@ -393,6 +393,7 @@ body[data-specialty="Psych"] .only-both{display:none!important}
     <div class="nav-item" onclick="navigate('study')"><span class="nav-icon">🃏</span><span>Study</span><span id="due-badge-nav" class="due-badge" style="display:none">0</span></div>
     <div class="nav-item" onclick="navigate('cards')"><span class="nav-icon">🗂️</span><span>Cards</span></div>
     <div class="nav-item" onclick="navigate('practice')"><span class="nav-icon">🎯</span><span>Weak Areas</span></div>
+    <div class="nav-item" onclick="navigate('concepts')"><span class="nav-icon">🧩</span><span>Captured Concepts</span><span id="concepts-badge-nav" class="due-badge" style="display:none">0</span></div>
     <div class="nav-item" onclick="navigate('analytics')"><span class="nav-icon">📈</span><span>Analytics</span></div>
     <div class="nav-item only-im" onclick="navigate('ite')"><span class="nav-icon">📄</span><span>ITE Analyzer</span></div>
     <div class="nav-item only-im" onclick="navigate('mksap')"><span class="nav-icon">📚</span><span>MKSAP</span></div>
@@ -402,7 +403,7 @@ body[data-specialty="Psych"] .only-both{display:none!important}
     <div class="nav-item" onclick="navigate('settings')"><span class="nav-icon">⚙️</span><span>Settings</span></div>
   </nav>
   <div id="sidebar-footer">
-    <div id="app-version" style="color:rgba(255,255,255,.4);font-size:11px" title="Recency-weighted weak areas, smarter new-card mix, exam-aware scheduling">v4.4 · updated 2026-10-17</div>
+    <div id="app-version" style="color:rgba(255,255,255,.4);font-size:11px" title="Captured Concepts: capture what you miss on UWorld/MKSAP with the MedBoard Capture Chrome extension, then re-check it on a schedule">v4.5 · last updated 2026-10-17</div>
   </div>
 </div>
 
@@ -447,6 +448,7 @@ body[data-specialty="Psych"] .only-both{display:none!important}
       <div class="sub"><span id="stat-streak-days">0</span> day streak · <span onclick="navigate('streak')" style="color:var(--blue);cursor:pointer;font-weight:600">view aviary</span></div>
     </div>
   </div>
+  <div class="panel" id="mc-dash" style="display:none;margin-bottom:16px"></div>
   <div class="grid-2" style="margin-bottom:16px">
     <div class="panel">
       <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:14px">
@@ -1345,6 +1347,142 @@ A: [answer]. Citation: Harrison's Principles of Internal Medicine, 21e, Ch. 245.
   </div>
 </div>
 
+<!-- CAPTURED CONCEPTS (v4.5) -->
+<style>
+.mc-ext{display:flex;align-items:center;gap:10px;flex-wrap:wrap;font-size:13px;line-height:1.5;border-radius:9px;padding:10px 14px;margin-bottom:16px;background:#f8faff;border:1px solid #e5e7eb;color:#42506a}
+.mc-ext.on{background:#ecfdf3;border-color:#bbf7d0;color:#166534}
+.mc-item{padding:13px 0;border-bottom:1px solid #eef2f7}
+.mc-item:last-child{border-bottom:0}
+.mc-text{font-size:13.5px;color:var(--text);line-height:1.5;white-space:pre-wrap;word-break:break-word}
+.mc-text.clamp{display:-webkit-box;-webkit-line-clamp:3;-webkit-box-orient:vertical;overflow:hidden;cursor:pointer}
+.mc-take{font-size:13.5px;color:var(--navy);font-weight:700;margin-top:5px;line-height:1.45}
+.mc-take::before{content:'→ ';color:var(--blue)}
+.mc-chips{display:flex;flex-wrap:wrap;gap:5px;margin-top:8px}
+.mc-actions{display:flex;flex-wrap:wrap;gap:7px;margin-top:10px}
+.mc-actions button{padding:6px 12px;font-size:12px;min-height:34px}
+.mc-actions .mc-del{color:#b91c1c}
+.sn-chip.mc-done{background:#ecfdf3;color:#166534;border-color:#bbf7d0}
+.mc-row{display:flex;align-items:center;gap:10px;flex-wrap:wrap;padding:9px 0;border-bottom:1px solid #eef2f7;font-size:13px}
+.mc-row:last-of-type{border-bottom:0}
+.mc-area{padding:9px 0;border-bottom:1px solid #eef2f7}
+.mc-area:last-child{border-bottom:0}
+.mc-area-top{display:flex;justify-content:space-between;align-items:baseline;gap:10px;font-size:13px;font-weight:700;color:var(--navy)}
+.mc-area-n{font-size:12px;font-weight:400;color:var(--muted);white-space:nowrap}
+.mc-area-n strong{color:var(--red)}
+.mc-area-bot{display:flex;align-items:center;gap:10px;margin-top:6px;min-height:28px}
+.mc-area-bot button{padding:5px 10px;font-size:12px;flex:0 0 auto}
+.mc-bar{height:8px;background:#eef2f7;border-radius:20px;overflow:hidden;flex:1 1 80px;min-width:60px}
+.mc-bar>div{height:100%;background:var(--blue);border-radius:20px}
+.mc-filters{display:flex;gap:8px;flex-wrap:wrap;align-items:center;margin-bottom:6px}
+.mc-filters select,.mc-filters input{padding:7px 9px;border:2px solid #e5e7eb;border-radius:6px;font-size:13px;background:#fff;font-family:inherit}
+.mc-filters input{flex:1 1 160px;min-width:0}
+.mc-edit{display:grid;gap:9px;background:#f8faff;border:1px solid #e5e7eb;border-radius:8px;padding:12px}
+.mc-edit label{display:grid;gap:4px;font-size:12px;font-weight:700;color:var(--navy)}
+.mc-edit input,.mc-edit select,.mc-edit textarea{padding:7px 9px;border:2px solid #e5e7eb;border-radius:6px;font-size:13px;font-family:inherit;font-weight:400;background:#fff;width:100%}
+.mc-edit-row{display:grid;grid-template-columns:2fr 1fr 1fr;gap:9px}
+.mc-dash-list{margin:10px 0 0 18px;padding:0;font-size:12.5px;color:#3a475e;line-height:1.6}
+.mc-steps{margin:8px 0 0 18px;padding:0;font-size:13px;color:#42506a;line-height:1.7}
+.mc-steps code{background:#eef2f7;border-radius:4px;padding:1px 5px;font-size:12px}
+@media(max-width:640px){
+  .mc-actions button{min-height:44px;padding:8px 14px}
+  .mc-edit-row{grid-template-columns:1fr}
+  .mc-filters select,.mc-filters input{min-height:44px}
+}
+</style>
+<div id="page-concepts" class="page">
+  <div class="page-header">
+    <h2>🧩 Captured Concepts</h2>
+    <p>Concepts you flagged while doing questions, re-checked on a schedule until they stick</p>
+  </div>
+
+  <div id="mc-ext" class="mc-ext"></div>
+
+  <div class="stat-grid">
+    <div class="stat-card"><div class="label">Due to Re-check</div><div class="value" id="mc-stat-due">0</div><div class="sub">today</div></div>
+    <div class="stat-card"><div class="label">Open</div><div class="value" id="mc-stat-open">0</div><div class="sub">still on the ladder</div></div>
+    <div class="stat-card"><div class="label">Gaps Without a Card</div><div class="value" id="mc-stat-gaps">0</div><div class="sub">knowledge gaps</div></div>
+    <div class="stat-card"><div class="label">Mastered</div><div class="value" id="mc-stat-mastered">0</div><div class="sub">passed every re-check</div></div>
+  </div>
+
+  <div id="mc-empty" class="panel">
+    <p style="color:var(--muted);font-size:14px;line-height:1.6">Nothing captured yet. While you do UWorld, MKSAP or any question bank in Chrome, highlight the concept you missed and press <strong>Option&nbsp;+&nbsp;Shift&nbsp;+&nbsp;M</strong> (or right-click → <em>Send to MedBoard…</em>). It lands here automatically with a re-check date. No extension? Add one by hand below.</p>
+  </div>
+
+  <div id="mc-body" style="display:none">
+    <div class="panel" style="margin-bottom:16px">
+      <div style="font-weight:700;color:var(--navy);margin-bottom:2px">Due to re-check</div>
+      <div style="font-size:12px;color:var(--muted);margin-bottom:6px">Answer it in your head (or do a question on it), then mark it. <strong>Got it</strong> moves it to the next step (1 → 3 → 7 → 21 → 60 days); <strong>Still shaky</strong> sends it back to tomorrow.</div>
+      <div id="mc-due-list"></div>
+    </div>
+
+    <div class="grid-2" style="margin-bottom:16px">
+      <div class="panel">
+        <div style="font-weight:700;color:var(--navy);margin-bottom:2px">Open concepts by area</div>
+        <div style="font-size:12px;color:var(--muted);margin-bottom:6px">Knowledge gaps here also feed Study Next and Tested-Topic Coverage. <strong>Practice →</strong> builds a Claude prompt from them.</div>
+        <div id="mc-area-list"></div>
+      </div>
+      <div class="panel">
+        <div style="font-weight:700;color:var(--navy);margin-bottom:2px">Why you missed</div>
+        <div style="font-size:12px;color:var(--muted);margin-bottom:6px">Every missed or guessed question you've logged</div>
+        <div id="mc-reason-list"></div>
+      </div>
+    </div>
+
+    <div class="panel" style="margin-bottom:16px">
+      <div style="display:flex;justify-content:space-between;align-items:baseline;gap:8px;margin-bottom:8px">
+        <div style="font-weight:700;color:var(--navy)">All concepts</div>
+        <div id="mc-all-count" style="font-size:12px;color:var(--muted)"></div>
+      </div>
+      <div class="mc-filters">
+        <select onchange="setConceptFilter('view',this.value)" aria-label="Show">
+          <option value="open">Open</option><option value="gaps">Knowledge gaps</option><option value="mastered">Mastered</option><option value="all">All</option>
+        </select>
+        <select id="mc-filter-area" onchange="setConceptFilter('area',this.value)" aria-label="Area"></select>
+        <input type="search" placeholder="Search text, takeaway, source, question ID" oninput="setConceptFilter('q',this.value)" aria-label="Search concepts">
+      </div>
+      <div id="mc-all-list"></div>
+    </div>
+  </div>
+
+  <details class="panel" style="margin-bottom:16px">
+    <summary style="cursor:pointer;font-weight:700;color:var(--navy)">➕ Add a concept by hand</summary>
+    <div style="margin-top:14px">
+      <div class="form-group"><label for="mc-add-text">Concept</label><textarea id="mc-add-text" style="min-height:70px" placeholder="What you missed"></textarea></div>
+      <div class="form-group"><label for="mc-add-takeaway">Your takeaway (optional)</label><input id="mc-add-takeaway" placeholder="The one-line rule to remember"></div>
+      <div class="grid-2" style="gap:12px">
+        <div class="form-group"><label for="mc-add-status">What happened</label><select id="mc-add-status"><option value="missed">Missed it</option><option value="guessed">Guessed right</option><option value="retest">Re-test later</option></select></div>
+        <div class="form-group"><label for="mc-add-reason">Why</label><select id="mc-add-reason"><option value="knowledge">Didn't know it</option><option value="misread">Misread</option><option value="changed">Changed answer</option><option value="time">Out of time</option></select></div>
+        <div class="form-group"><label for="mc-add-area">Area</label><select id="mc-add-area"></select></div>
+        <div class="form-group" style="display:grid;grid-template-columns:1fr 1fr;gap:8px">
+          <div><label for="mc-add-source">Source</label><input id="mc-add-source" placeholder="UWorld"></div>
+          <div><label for="mc-add-qid">Question ID</label><input id="mc-add-qid" placeholder="optional"></div>
+        </div>
+      </div>
+      <button class="btn-primary" onclick="conceptAddManual()">Add concept</button>
+    </div>
+  </details>
+
+  <details class="panel">
+    <summary style="cursor:pointer;font-weight:700;color:var(--navy)">🧷 Set up the MedBoard Capture extension (Chrome on your Mac)</summary>
+    <ol class="mc-steps">
+      <li>In Chrome, open <code>chrome://extensions</code> and switch on <strong>Developer mode</strong> (top right).</li>
+      <li>Click <strong>Load unpacked</strong> and choose the <code>medboard-capture</code> folder in your Downloads.</li>
+      <li>Pin it from the puzzle-piece menu so you can see its badge (how many captures are waiting).</li>
+      <li>On a question page, highlight text and press <strong>Option + Shift + M</strong>, right-click → <em>Send to MedBoard…</em>, or click the icon. Tag it and press <strong>⌘ + Enter</strong>.</li>
+      <li>Keep MedBoard open in a tab and captures appear here within a second. If it's closed, they wait in the extension and import the next time you open MedBoard.</li>
+      <li>Opening MedBoard from a file instead of the website? On the extension's <strong>Details</strong> page, turn on <strong>Allow access to file URLs</strong>.</li>
+    </ol>
+    <div style="margin-top:12px;font-size:13px;color:#42506a;line-height:1.6">The extension also saves each capture as a small file in <strong>Downloads › MedBoard Inbox</strong> (you can turn that off in its ⚙ settings). To bring those in on another browser, or after clearing data:</div>
+    <div style="display:flex;gap:8px;flex-wrap:wrap;margin-top:10px">
+      <button class="btn-secondary" onclick="document.getElementById('mc-folder').click()">Import from folder…</button>
+      <button class="btn-secondary" onclick="document.getElementById('mc-files').click()">Import files…</button>
+    </div>
+    <input type="file" id="mc-folder" webkitdirectory multiple style="display:none" onchange="handleConceptFiles(event)">
+    <input type="file" id="mc-files" accept=".json,application/json" multiple style="display:none" onchange="handleConceptFiles(event)">
+    <div style="font-size:11.5px;color:var(--muted);margin-top:8px">Files already imported are skipped, so importing the same folder twice is safe.</div>
+  </details>
+</div>
+
 <!-- EXAM READINESS -->
 <div id="page-readiness" class="page">
   <div class="page-header">
@@ -1655,7 +1793,7 @@ A: [answer]. Citation: Harrison's Principles of Internal Medicine, 21e, Ch. 245.
 // ═══════════════════════════════════════════════════════════
 // Bump this on every release. The sidebar renders from it, and it re-checks
 // for an optional sw.js after an update. The other copy lives in sw.js (CACHE).
-const APP_VERSION='4.4';
+const APP_VERSION='4.5';
 const APP_UPDATED='2026-10-17';   // shown in the sidebar so users can see which build they have
 
 const ABIM_CATEGORIES = [
@@ -2320,6 +2458,7 @@ async function loadDB(){
   DB.iteReports=DB.iteReports||[];
   DB.mksapReports=DB.mksapReports||[];
   DB.priteReports=DB.priteReports||[];
+  DB.concepts=DB.concepts||[];      // v4.5: Captured Concepts (MedBoard Capture extension)
 }
 // saveDB keeps its synchronous signature (called from ~37 places) but is now
 // write-behind: it marks the DB dirty and flushes to IndexedDB shortly after,
@@ -3337,6 +3476,7 @@ function navigate(page){
   if(page==='browser') renderBrowser();
   if(page==='import') refreshMediaStatus();
   if(page==='practice') renderPractice();
+  if(page==='concepts'){ mcEditing=null; renderConcepts(); }
   if(page==='analytics') renderAnalytics();
   if(page==='ite') renderITE();
   if(page==='mksap') renderMKSAP();
@@ -3396,6 +3536,7 @@ function renderDashboard(){
   // due badge in nav
   const badge=document.getElementById('due-badge-nav');
   if(dueAll.length>0){badge.textContent=dueAll.length;badge.style.display='';}else{badge.style.display='none';}
+  renderConceptsDash(); updateConceptBadge();
 
   // due breakdown
   document.getElementById('due-breakdown').innerHTML=`
@@ -6264,6 +6405,7 @@ function objectiveCoverage(){
   };
   (DB.iteReports||[]).forEach(r=>{ if(!r.objectives) return; for(const area in r.objectives){ const abim=ITE_TO_ABIM[area]||area; r.objectives[area].forEach(o=>add(o,abim,'ITE'+(r.year?' '+r.year:''))); } });
   (DB.mksapReports||[]).forEach(r=>{ const abim=mksapAreaMap(r.activity).abim||r.activity; (r.objectives||[]).forEach(o=>add(o.text,abim,'MKSAP')); });
+  conceptGaps().forEach(c=>add(conceptObjectiveText(c),c.area||null,c.source||'Captured'));   // v4.5
   const areas={};
   Object.values(map).forEach(o=>{ const a=o.abim||'Other'; (areas[a]=areas[a]||{area:a,objectives:[]}).objectives.push(o); });
   const areaRows=Object.values(areas).map(g=>{
@@ -6284,7 +6426,7 @@ function sendGapsToPractice(abim){
 }
 function renderCoverage(){
   const el=document.getElementById('coverage-body'); if(!el) return;
-  if(!(DB.iteReports||[]).length && !(DB.mksapReports||[]).length){
+  if(!(DB.iteReports||[]).length && !(DB.mksapReports||[]).length && !conceptGaps().length){
     el.innerHTML='<p style="color:var(--muted);font-size:13px">Load an ITE or MKSAP report (they contain your missed educational objectives) to see which tested topics your cards do and don\'t cover. PRITE reports don\'t list per-topic objectives, so they\'re not included here.</p>';
     return;
   }
@@ -6786,6 +6928,7 @@ function exportBackup(){
       mksap:(DB.mksapReports||[]).length,
       prite:(DB.priteReports||[]).length
     },
+    conceptCount:(DB.concepts||[]).length,
     data:DB
   };
   const blob=new Blob([JSON.stringify(payload,null,2)],{type:'application/json'});
@@ -6842,6 +6985,7 @@ function restoreBackup(incoming, mode){
     DB.iteReports=incoming.iteReports||[];
     DB.mksapReports=incoming.mksapReports||[];
     DB.priteReports=incoming.priteReports||[];
+    DB.concepts=incoming.concepts||[];
   } else {
     // Merge: add cards whose id isn't already present (fall back to front+back key).
     const have=new Set(DB.cards.map(c=>c.id));
@@ -6905,13 +7049,27 @@ function restoreBackup(incoming, mode){
     mergeReports('iteReports',   r=>String(r.year));
     mergeReports('mksapReports', r=>String(r.product)+'||'+String(r.activity));
     mergeReports('priteReports', r=>String(r.examDate));
+    // Captured concepts (v4.5): union by id; for the same concept keep whichever
+    // copy was updated last, so re-check progress made on either device survives.
+    let conAdded=0;
+    if((incoming.concepts||[]).length){
+      DB.concepts=DB.concepts||[];
+      const at=new Map(DB.concepts.map((c,i)=>[c.id,i]));
+      incoming.concepts.forEach(c=>{
+        if(!c||!c.id) return;
+        if(!at.has(c.id)){ DB.concepts.push(c); at.set(c.id,DB.concepts.length-1); conAdded++; }
+        else if(String(c.updated||'')>String(DB.concepts[at.get(c.id)].updated||'')) DB.concepts[at.get(c.id)]=c;
+      });
+    }
 
     saveDB();
     renderSettings();
     const repBits=[];
     if(repAdded) repBits.push(`${repAdded} report${repAdded===1?'':'s'} added`);
     if(repUpdated) repBits.push(`${repUpdated} updated`);
+    if(conAdded) repBits.push(`${conAdded} captured concept${conAdded===1?'':'s'}`);
     applyExamCaps();
+    invalidatePriorityCache(); updateConceptBadge();
     toast(`Merged — ${addedN} new card${addedN===1?'':'s'}${repBits.length?' · '+repBits.join(', '):''}`);
     return;
   }
@@ -8102,6 +8260,386 @@ function renderDashboardBirds(){
 }
 
 // ═══════════════════════════════════════════════════════════
+// CAPTURED CONCEPTS (v4.5) — captured with the MedBoard Capture extension
+// ═══════════════════════════════════════════════════════════
+// One entry per thing you flagged while doing questions (UWorld, MKSAP,
+// anywhere): the highlighted text, your takeaway, what happened and why. Each
+// one is re-checked on a fixed ladder until you've got it five times running.
+// Knowledge gaps (not misreads, changed answers or timing) also feed Study
+// Next, Tested-Topic Coverage and the practice builder, like MKSAP misses do.
+const RECHECK_STEPS=[1,3,7,21,60];    // days to each re-check; passing the last one = mastered
+const CONCEPT_HALF_LIFE=120;          // a capture this many days old counts half in Study Next
+const W_CAPTURED=0.6;                 // Study Next weight — same as estimated MKSAP misses
+const CONCEPT_REASONS={knowledge:"Didn't know it",misread:'Misread',changed:'Changed answer',time:'Out of time'};
+const CONCEPT_STATUS={missed:'Missed',guessed:'Guessed right',retest:'Re-test'};
+let mcFilter={view:'open',area:'*',q:''}, mcShow=40, mcEditing=null;   // area '*' = all, '' = no area yet
+
+function conceptAreaNames(){ return [...ABIM_CATEGORIES,...ABPN_CATEGORIES].map(c=>c.name); }
+function conceptKey(c){ return String(c.text||c.takeaway||'').toLowerCase().replace(/[^a-z0-9]+/g,' ').trim().slice(0,200); }
+function conceptDue(c, step, from){
+  const days=RECHECK_STEPS[Math.min(step||0,RECHECK_STEPS.length-1)];
+  return examCappedDue({id:c.id,subject:c.subject}, addDays(from||today(), days));
+}
+function isConceptGap(c){ return !c.resolved && (c.reason==='knowledge'||!c.reason); }
+function conceptGaps(){ return (DB.concepts||[]).filter(isConceptGap); }
+function conceptObjectiveText(c){ return String(c.takeaway||c.text||'').replace(/\s+/g,' ').trim().slice(0,300); }
+function conceptsDue(){
+  const t=today();
+  return (DB.concepts||[]).filter(c=>!c.resolved&&c.due&&c.due<=t)
+    .sort((a,b)=>String(a.due).localeCompare(String(b.due))||String(a.date).localeCompare(String(b.date)));
+}
+function shortDate(d){ try{ return parseLocalDate(d).toLocaleDateString(undefined,{month:'short',day:'numeric'}); }catch(e){ return String(d); } }
+function conceptAreaOptions(selected){
+  const opt=n=>`<option value="${escHtml(n)}"${n===selected?' selected':''}>${escHtml(n)}</option>`;
+  const sp=currentSpecialty();
+  return `<option value="">No area yet</option>`
+    +(sp!=='Psych'?`<optgroup label="Internal Medicine (ABIM)">${ABIM_CATEGORIES.map(c=>opt(c.name)).join('')}</optgroup>`:'')
+    +(sp!=='IM'?`<optgroup label="Psychiatry (ABPN)">${ABPN_CATEGORIES.map(c=>opt(c.name)).join('')}</optgroup>`:'');
+}
+
+// Untrusted input (the extension's inbox, or JSON files from a folder) → a
+// clean concept record, or null when there is nothing worth keeping.
+function normalizeConcept(raw){
+  if(!raw||typeof raw!=='object') return null;
+  const s=(v,n)=>String(v==null?'':v).replace(/\u0000/g,'').trim().slice(0,n);
+  const text=s(raw.text,4000), takeaway=s(raw.takeaway,600);
+  if(!text&&!takeaway) return null;
+  const created=!isNaN(Date.parse(raw.created))?new Date(raw.created).toISOString():new Date().toISOString();
+  // A malformed id gets a stable stand-in (hash of the text and time), so the
+  // same file imported twice is still recognised as already here.
+  const id=/^[A-Za-z0-9_-]{4,64}$/.test(String(raw.id||''))?String(raw.id):('cap_h'+(hashSpread(text+'|'+takeaway+'|'+created,2147483647)).toString(36));
+  const status=['missed','guessed','retest'].includes(raw.status)?raw.status:'missed';
+  const reason=status==='retest'?'':(['knowledge','misread','changed','time'].includes(raw.reason)?raw.reason:'');
+  const area=conceptAreaNames().includes(raw.area)?raw.area:'';
+  const c={id,ids:[id],created,date:fmtLocalDate(new Date(created)),text,takeaway,status,reason,area,
+    subject:areaSubject(area||'Uncategorized',defaultSubject()),source:s(raw.source,80),qid:s(raw.qid,40),host:s(raw.host,120),
+    misses:status==='retest'?0:1,step:0,lapses:0,history:[],resolved:false,resolvedAt:null,updated:new Date().toISOString()};
+  c.due=conceptDue(c,0,c.date);
+  return c;
+}
+
+// Adds new captures; a concept you already have (same text) counts as missed
+// again and goes back to the bottom of the ladder instead of duplicating.
+// Returns every id it handled — duplicates included — so the sender can drop them.
+function importCaptures(items){
+  const res={ids:[],added:0,merged:0};
+  if(!Array.isArray(items)) return res;
+  DB.concepts=DB.concepts||[];
+  const byId=new Map(), byKey=new Map();
+  DB.concepts.forEach(c=>{ (c.ids||[c.id]).forEach(i=>byId.set(i,c)); byKey.set(conceptKey(c),c); });
+  items.slice(0,2000).forEach(raw=>{
+    if(raw&&typeof raw.id==='string') res.ids.push(raw.id);
+    const c=normalizeConcept(raw); if(!c) return;
+    if(byId.has(c.id)) return;                         // already here (e.g. the folder copy of a delivered capture)
+    const same=byKey.get(conceptKey(c));
+    if(same){
+      same.ids=(same.ids||[same.id]).concat(c.id);
+      if(c.status!=='retest') same.misses=(same.misses||0)+1;
+      same.step=0; same.resolved=false; same.resolvedAt=null; same.due=conceptDue(same,0);
+      same.history=(same.history||[]).concat({d:today(),r:'again'});
+      if(!same.takeaway&&c.takeaway) same.takeaway=c.takeaway;
+      if(!same.area&&c.area){ same.area=c.area; same.subject=c.subject; }
+      same.updated=new Date().toISOString();
+      byId.set(c.id,same); res.merged++; return;
+    }
+    DB.concepts.push(c); byId.set(c.id,c); byKey.set(conceptKey(c),c); res.added++;
+  });
+  if(res.added||res.merged){ saveDB(); invalidatePriorityCache(); refreshConceptViews(); }
+  return res;
+}
+
+// Writes the DB now and reports whether it landed — the extension only deletes
+// a capture from its inbox once MedBoard has it safely stored.
+async function flushDBNow(){
+  clearTimeout(dbFlushTimer); dbFlushTimer=null; dbDirty=false;
+  if(idb) return await idbSet('db',DB);
+  try{ localStorage.setItem('medboard_v1',JSON.stringify(DB)); return true; }catch(e){ return false; }
+}
+
+// ── Bridge to the MedBoard Capture extension ──────────────────────────────
+// The extension's content script posts {mbCapture:...} into this window; we
+// answer with {mbApp:...}. Nothing is sent anywhere else — both ends are in
+// this browser tab.
+const captureExt={present:false,version:null,lastImport:null,lastCount:0};
+let captureQueue=[], conceptsReady=false;
+function captureHello(){ try{ window.postMessage({mbApp:'hello',v:APP_VERSION},'*'); }catch(e){} }
+window.addEventListener('message',e=>{
+  if(e.source!==window||!e.data||typeof e.data.mbCapture!=='string') return;
+  captureExt.present=true;
+  if(e.data.v) captureExt.version=String(e.data.v).slice(0,20);
+  if(e.data.mbCapture==='ready'){ if(conceptsReady) captureHello(); renderConceptExtStatus(); }
+  else if(e.data.mbCapture==='items'){
+    const items=Array.isArray(e.data.items)?e.data.items:[];
+    if(!conceptsReady) captureQueue.push(items); else receiveCaptures(items);
+  }
+});
+async function receiveCaptures(items){
+  if(!items.length){ renderConceptExtStatus(); return; }
+  const r=importCaptures(items);
+  const ok=await flushDBNow();
+  if(ok&&r.ids.length) window.postMessage({mbApp:'ack',ids:r.ids},'*');
+  if(r.added||r.merged){
+    captureExt.lastImport=new Date(); captureExt.lastCount=r.added+r.merged;
+    toast(`🧩 Imported ${r.added} captured concept${r.added===1?'':'s'}${r.merged?` · ${r.merged} missed again`:''}`);
+  }
+  renderConceptExtStatus();
+}
+function conceptsOnReady(){
+  conceptsReady=true;
+  captureQueue.splice(0).forEach(receiveCaptures);
+  captureHello();
+}
+
+// ── Re-check actions ──────────────────────────────────────────────────────
+function conceptById(id){ return (DB.concepts||[]).find(c=>c.id===id); }
+function conceptRecheck(id, ok){
+  const c=conceptById(id); if(!c) return;
+  const t=today();
+  c.history=(c.history||[]).concat({d:t,r:ok?'got':'shaky'});
+  if(ok){
+    c.step=(c.step||0)+1;
+    if(c.step>=RECHECK_STEPS.length){ c.resolved=true; c.resolvedAt=t; c.due=null; }
+    else c.due=conceptDue(c,c.step,t);
+  } else { c.step=0; c.lapses=(c.lapses||0)+1; c.resolved=false; c.resolvedAt=null; c.due=conceptDue(c,0,t); }
+  c.updated=new Date().toISOString();
+  saveDB(); invalidatePriorityCache(); refreshConceptViews();
+  toast(ok?(c.resolved?'Mastered — off your re-check list 🎉':`Got it — next re-check ${shortDate(c.due)}`):`Still shaky — back to ${shortDate(c.due)}`);
+}
+function conceptReopen(id){
+  const c=conceptById(id); if(!c) return;
+  c.resolved=false; c.resolvedAt=null; c.step=0; c.due=conceptDue(c,0); c.updated=new Date().toISOString();
+  c.history=(c.history||[]).concat({d:today(),r:'reopened'});
+  saveDB(); invalidatePriorityCache(); refreshConceptViews();
+}
+function conceptDelete(id){
+  if(!confirm('Delete this concept? This cannot be undone.')) return;
+  DB.concepts=(DB.concepts||[]).filter(c=>c.id!==id);
+  saveDB(); invalidatePriorityCache(); refreshConceptViews();
+}
+function conceptEdit(id){ mcEditing=id; renderConcepts(); }
+function conceptEditSave(id){
+  const c=conceptById(id); if(!c) return;
+  const val=k=>{ const el=document.getElementById('mc-ed-'+k); return el?el.value:''; };
+  const area=val('area');
+  c.area=conceptAreaNames().includes(area)?area:'';
+  c.subject=areaSubject(c.area||'Uncategorized',defaultSubject());
+  c.takeaway=val('takeaway').trim().slice(0,600);
+  const text=val('text').trim().slice(0,4000); if(text||c.takeaway) c.text=text;
+  c.status=['missed','guessed','retest'].includes(val('status'))?val('status'):c.status;
+  c.reason=c.status==='retest'?'':(['knowledge','misread','changed','time'].includes(val('reason'))?val('reason'):'');
+  c.updated=new Date().toISOString();
+  mcEditing=null;
+  saveDB(); invalidatePriorityCache(); refreshConceptViews();
+}
+function conceptAddManual(){
+  const g=id=>document.getElementById(id);
+  const r=importCaptures([{text:g('mc-add-text').value,takeaway:g('mc-add-takeaway').value,status:g('mc-add-status').value,
+    reason:g('mc-add-reason').value,area:g('mc-add-area').value,source:g('mc-add-source').value,qid:g('mc-add-qid').value,created:new Date().toISOString()}]);
+  if(!r.added&&!r.merged){ toast('Type the concept or a takeaway first'); return; }
+  ['mc-add-text','mc-add-takeaway','mc-add-qid'].forEach(id=>{ g(id).value=''; });
+  toast(r.merged?'Already on your list — counted as missed again':'Added — first re-check tomorrow');
+}
+function sendConceptsToPractice(area){
+  const list=conceptGaps().filter(c=>(c.area||'')===area).map(conceptObjectiveText);
+  if(!list.length){ toast('No open knowledge gaps in this area'); return; }
+  navigate('practice');
+  openPractice(area||'Captured concepts', areaSubject(area||'Uncategorized',defaultSubject()), list, 'captured-concepts');
+}
+
+// ── Folder import (Downloads › MedBoard Inbox) ───────────────────────────
+async function handleConceptFiles(e){
+  const files=[...(e.target.files||[])].filter(f=>/\.json$/i.test(f.name)&&f.size<1e6);
+  e.target.value='';
+  if(!files.length){ toast('No capture files (.json) found there'); return; }
+  const items=[];
+  for(const f of files){
+    try{
+      const p=JSON.parse(await f.text());
+      if(p&&p.format==='medboard-capture'&&p.capture) items.push(p.capture);
+      else if(Array.isArray(p)) items.push(...p);
+      else if(p&&Array.isArray(p.items)) items.push(...p.items);
+    }catch(_){}
+  }
+  const r=importCaptures(items);
+  const dup=items.length-r.added-r.merged;
+  toast(`Imported ${r.added} new concept${r.added===1?'':'s'}${r.merged?` · ${r.merged} missed again`:''}${dup>0?` · ${dup} already here`:''}`);
+}
+
+// ── Views ─────────────────────────────────────────────────────────────────
+function updateConceptBadge(){
+  const due=conceptsDue().length;
+  const b=document.getElementById('concepts-badge-nav');
+  if(b){ b.textContent=due; b.style.display=due?'':'none'; }
+}
+function refreshConceptViews(){
+  updateConceptBadge();
+  const pg=document.getElementById('page-concepts');
+  if(pg&&pg.classList.contains('active')) renderConcepts();
+  const dash=document.getElementById('page-dashboard');
+  if(dash&&dash.classList.contains('active')) renderConceptsDash();
+}
+function renderConceptExtStatus(){
+  const el=document.getElementById('mc-ext'); if(!el) return;
+  if(captureExt.present){
+    el.className='mc-ext on';
+    const last=captureExt.lastImport?` · last import ${captureExt.lastImport.toLocaleTimeString([], {hour:'numeric',minute:'2-digit'})} (${captureExt.lastCount})`:'';
+    el.innerHTML=`<span>🟢 <strong>MedBoard Capture is connected.</strong> New captures import automatically while this page is open${last}.</span>`;
+  } else {
+    el.className='mc-ext';
+    el.innerHTML=`<span>The MedBoard Capture extension isn't connected in this browser. Set it up below, import its folder, or add concepts by hand.</span>`;
+  }
+}
+// Which other exams flagged the same concept — ITE/MKSAP objectives indexed by
+// the same high-precision tokens as the ITE∩MKSAP overlap.
+function objectiveSourceIndex(){
+  const idx=new Map();
+  const put=(k,src)=>{ let s=idx.get(k); if(!s){ s=new Set(); idx.set(k,s); } s.add(src); };
+  const add=(text,src)=>{ const t=conceptTokens(text); t.bigrams.forEach(g=>put('b:'+g,src)); t.terms.forEach(x=>put('t:'+x,src)); };
+  (DB.iteReports||[]).forEach(r=>{ if(!r.objectives) return; for(const a in r.objectives) r.objectives[a].forEach(o=>add(o,'ITE')); });
+  (DB.mksapReports||[]).forEach(r=>(r.objectives||[]).forEach(o=>add(o.text,'MKSAP')));
+  return idx;
+}
+function conceptAlsoMissed(c, idx){
+  if(!idx||!idx.size) return [];
+  const t=conceptTokens(conceptObjectiveText(c)), out=new Set();
+  t.bigrams.forEach(g=>{ const s=idx.get('b:'+g); if(s) s.forEach(x=>out.add(x)); });
+  t.terms.forEach(x=>{ const s=idx.get('t:'+x); if(s) s.forEach(y=>out.add(y)); });
+  if(c.source) out.delete(c.source);     // an MKSAP capture matching MKSAP is the same question
+  return [...out].sort();
+}
+function conceptItemHtml(c, idx){
+  const id=escHtml(c.id), t=today(), q=`'${id}'`;
+  const isDue=!c.resolved&&c.due&&c.due<=t;
+  if(mcEditing===c.id){
+    const sel=(k,obj,cur)=>`<select id="mc-ed-${k}">${Object.keys(obj).map(v=>`<option value="${v}"${v===cur?' selected':''}>${escHtml(obj[v])}</option>`).join('')}</select>`;
+    return `<div class="mc-item"><div class="mc-edit">
+      <label>Concept<textarea id="mc-ed-text" rows="3">${escHtml(c.text)}</textarea></label>
+      <label>Your takeaway<input id="mc-ed-takeaway" value="${escHtml(c.takeaway)}"></label>
+      <div class="mc-edit-row"><label>Area<select id="mc-ed-area">${conceptAreaOptions(c.area)}</select></label>
+      <label>What happened${sel('status',CONCEPT_STATUS,c.status)}</label>
+      <label>Why${sel('reason',Object.assign({'':'—'},CONCEPT_REASONS),c.reason||'')}</label></div>
+      <div class="mc-actions"><button class="btn-primary" onclick="conceptEditSave(${q})">Save</button><button class="btn-secondary" onclick="mcEditing=null;renderConcepts()">Cancel</button></div>
+    </div></div>`;
+  }
+  const chips=[`<span class="sn-chip">${escHtml(c.area||'No area yet')}</span>`];
+  if(c.source||c.qid) chips.push(`<span class="sn-chip">${escHtml(c.source||'Question')}${c.qid?' #'+escHtml(c.qid):''}</span>`);
+  chips.push(`<span class="sn-chip${c.status==='missed'?' sn-weak':''}">${CONCEPT_STATUS[c.status]||'Missed'}${c.reason?' · '+escHtml(CONCEPT_REASONS[c.reason]||''):''}</span>`);
+  if((c.misses||0)>1) chips.push(`<span class="sn-chip sn-weak">missed ${c.misses}×</span>`);
+  const also=conceptAlsoMissed(c,idx);
+  if(also.length) chips.push(`<span class="sn-chip sn-both">🔥 also missed on ${escHtml(also.join(' + '))}</span>`);
+  chips.push(`<span class="sn-chip">captured ${shortDate(c.date)}</span>`);
+  chips.push(c.resolved?`<span class="sn-chip mc-done">mastered ${shortDate(c.resolvedAt||c.date)}</span>`
+    :`<span class="sn-chip">${isDue?'<strong>due now</strong>':'next '+shortDate(c.due)} · step ${Math.min((c.step||0)+1,RECHECK_STEPS.length)} of ${RECHECK_STEPS.length}</span>`);
+  const acts=c.resolved
+    ?`<button class="btn-secondary" onclick="conceptReopen(${q})">Re-open</button>`
+    :`<button class="btn-primary" onclick="conceptRecheck(${q},true)">✓ Got it</button><button class="btn-secondary" onclick="conceptRecheck(${q},false)">↺ Still shaky</button>`;
+  return `<div class="mc-item">
+    ${c.text?`<div class="mc-text clamp" onclick="this.classList.toggle('clamp')" title="Click to expand">${escHtml(c.text)}</div>`:''}
+    ${c.takeaway?`<div class="mc-take">${escHtml(c.takeaway)}</div>`:''}
+    <div class="mc-chips">${chips.join('')}</div>
+    <div class="mc-actions">${acts}<button class="btn-secondary" onclick="conceptEdit(${q})">Edit</button><button class="btn-secondary mc-del" onclick="conceptDelete(${q})" aria-label="Delete">Delete</button></div>
+  </div>`;
+}
+function renderConcepts(){
+  const all=DB.concepts||[];
+  renderConceptExtStatus();
+  const sel=document.getElementById('mc-add-area');
+  if(sel&&!sel.dataset.filled){ sel.innerHTML=conceptAreaOptions(''); sel.dataset.filled='1'; }
+  const open=all.filter(c=>!c.resolved), due=conceptsDue(), gaps=conceptGaps();
+  let uncovered=0;
+  if(gaps.length){ try{ const cidx=buildCardConceptIndex(); uncovered=gaps.filter(c=>!objectiveCoveredBy(conceptObjectiveText(c),cidx)).length; }catch(e){} }
+  const set=(id,v)=>{ const el=document.getElementById(id); if(el) el.textContent=v; };
+  set('mc-stat-due',due.length); set('mc-stat-open',open.length); set('mc-stat-gaps',uncovered); set('mc-stat-mastered',all.length-open.length);
+  document.getElementById('mc-empty').style.display=all.length?'none':'';
+  document.getElementById('mc-body').style.display=all.length?'':'none';
+  if(!all.length) return;
+  const idx=objectiveSourceIndex();
+
+  // Due now
+  const dueEl=document.getElementById('mc-due-list');
+  dueEl.innerHTML=due.length
+    ?due.slice(0,25).map(c=>conceptItemHtml(c,idx)).join('')+(due.length>25?`<p style="font-size:12px;color:var(--muted);margin-top:8px">+ ${due.length-25} more due — they'll show here as you clear these.</p>`:'')
+    :`<p style="color:var(--muted);font-size:13px">Nothing due today. ${open.length?`Next re-check: <strong>${shortDate(open.map(c=>c.due).filter(Boolean).sort()[0])}</strong>.`:''}</p>`;
+
+  // By area
+  const byArea={};
+  open.forEach(c=>{ const a=c.area||''; const r=(byArea[a]=byArea[a]||{area:a,open:0,due:0,gaps:0}); r.open++; if(c.due&&c.due<=today()) r.due++; if(isConceptGap(c)) r.gaps++; });
+  const rows=Object.values(byArea).sort((a,b)=>b.open-a.open);
+  const maxOpen=Math.max(1,...rows.map(r=>r.open));
+  document.getElementById('mc-area-list').innerHTML=rows.length?rows.map(r=>{
+    const nm=r.area.replace(/\\/g,'\\\\').replace(/'/g,"\\'");
+    return `<div class="mc-area">
+      <div class="mc-area-top"><span>${escHtml(r.area||'No area yet')}</span><span class="mc-area-n">${r.open} open${r.due?` · <strong>${r.due} due</strong>`:''}</span></div>
+      <div class="mc-area-bot"><div class="mc-bar"><div style="width:${Math.round(r.open/maxOpen*100)}%"></div></div>
+      ${r.gaps?`<button class="btn-secondary" onclick="sendConceptsToPractice('${escHtml(nm)}')">Practice →</button>`:''}</div></div>`;
+  }).join(''):'<p style="color:var(--muted);font-size:13px">Everything you captured is mastered.</p>';
+
+  // Why you missed
+  const answered=all.filter(c=>c.status!=='retest');
+  const counts={knowledge:0,misread:0,changed:0,time:0};
+  answered.forEach(c=>{ counts[c.reason||'knowledge']++; });
+  const n=answered.length||1;
+  document.getElementById('mc-reason-list').innerHTML=answered.length?Object.keys(counts).map(k=>{
+    const pct=Math.round(counts[k]/n*100);
+    return `<div class="mc-row"><div style="width:120px;font-weight:600;color:#42506a">${CONCEPT_REASONS[k]}</div>
+      <div class="mc-bar"><div style="width:${pct}%"></div></div><div style="width:70px;text-align:right;font-size:12px;color:var(--muted)">${counts[k]} · ${pct}%</div></div>`;
+  }).join('')+`<p style="font-size:11.5px;color:var(--muted);margin-top:8px">Only "Didn't know it" counts as a knowledge gap in Study Next and the card builders. The rest are test-taking misses.</p>`
+  :'<p style="color:var(--muted);font-size:13px">Shows up once you log a missed or guessed question.</p>';
+
+  // All concepts
+  const af=document.getElementById('mc-filter-area');
+  if(af){ const areas=[...new Set(all.map(c=>c.area||''))].sort();
+    if(mcFilter.area!=='*'&&!areas.includes(mcFilter.area)) mcFilter.area='*';
+    af.innerHTML='<option value="*">All areas</option>'+areas.map(a=>`<option value="${escHtml(a)}">${escHtml(a||'No area yet')}</option>`).join('');
+    af.value=mcFilter.area; }
+  const q=mcFilter.q.trim().toLowerCase();
+  const list=all.filter(c=>{
+    if(mcFilter.view==='open'&&c.resolved) return false;
+    if(mcFilter.view==='mastered'&&!c.resolved) return false;
+    if(mcFilter.view==='gaps'&&!isConceptGap(c)) return false;
+    if(mcFilter.area!=='*'&&(c.area||'')!==mcFilter.area) return false;
+    if(q&&!(c.text+' '+c.takeaway+' '+c.source+' '+c.qid).toLowerCase().includes(q)) return false;
+    return true;
+  }).sort((a,b)=>String(b.created).localeCompare(String(a.created)));
+  document.getElementById('mc-all-count').textContent=`${list.length} shown`;
+  document.getElementById('mc-all-list').innerHTML=list.length
+    ?list.slice(0,mcShow).map(c=>conceptItemHtml(c,idx)).join('')+(list.length>mcShow?`<div style="margin-top:10px"><button class="btn-secondary" onclick="mcShow+=40;renderConcepts()">Show ${Math.min(40,list.length-mcShow)} more</button></div>`:'')
+    :'<p style="color:var(--muted);font-size:13px">Nothing matches these filters.</p>';
+}
+function setConceptFilter(k,v){ mcFilter[k]=v; mcShow=40; renderConcepts(); }
+function renderConceptsDash(){
+  const el=document.getElementById('mc-dash'); if(!el) return;
+  const all=DB.concepts||[];
+  if(!all.length){ el.style.display='none'; return; }
+  const due=conceptsDue(), open=all.filter(c=>!c.resolved).length;
+  el.style.display='';
+  const preview=due.slice(0,3).map(c=>`<li>${escHtml(conceptObjectiveText(c).slice(0,140))}${c.area?` <span style="color:var(--muted);font-size:11.5px">· ${escHtml(c.area)}</span>`:''}</li>`).join('');
+  el.innerHTML=`<div style="display:flex;justify-content:space-between;align-items:center;gap:10px;flex-wrap:wrap">
+      <div><div style="font-weight:700;color:var(--navy)">🧩 Captured Concepts</div>
+      <div style="font-size:13px;color:#42506a;margin-top:2px"><strong style="color:${due.length?'var(--red)':'var(--green)'}">${due.length} due to re-check</strong> · ${open} open · ${all.length-open} mastered</div></div>
+      <button class="btn-primary" style="padding:7px 14px;font-size:12px" onclick="navigate('concepts')">${due.length?'Re-check now →':'View all →'}</button>
+    </div>${preview?`<ul class="mc-dash-list">${preview}</ul>`:''}`;
+}
+// Study Next signal: where your open knowledge gaps cluster, relative to how
+// much each area is tested. Same estimator as dated MKSAP misses, so an area
+// you capture a lot from is not penalised just for being the one you practise.
+function capturedSignals(){
+  const t=today(), w={}, raw={}; let M=0;
+  conceptGaps().forEach(c=>{
+    const a=c.area; if(!a) return;
+    const x=Math.pow(0.5,Math.max(0,diffDays(t,c.date))/CONCEPT_HALF_LIFE)*(1+0.5*Math.min(2,Math.max(0,(c.misses||1)-1)));
+    w[a]=(w[a]||0)+x; M+=x; raw[a]=(raw[a]||0)+1;
+  });
+  const out={}; if(!M) return out;
+  const areas=Object.keys(w), tot=areas.reduce((s,a)=>s+catPct(a),0), K=4;
+  areas.forEach(a=>{
+    const e=catPct(a)/tot, ratio=Math.min(3,((w[a]+K*e)/(M+K))/e);
+    out[a]={g:clamp01(0.5*ratio),ratio,open:raw[a]};
+  });
+  return out;
+}
+
+// ═══════════════════════════════════════════════════════════
 // WEAK-AREA PRACTICE (Claude-prompt workflow with citations)
 // ═══════════════════════════════════════════════════════════
 let practiceArea=null, practiceObjectives=null, practiceTag='weak-area-practice';
@@ -8276,14 +8814,14 @@ function areaCardRecall(){
 function computeStudyPriorities(){
   const stats=getContentAreaStats();
   const statBy={}; stats.forEach(s=>{ if(s.name) statBy[s.name]=s; });
-  const iteSig=iteSignals(), mkSig=mksapSignals(), priteSig=priteSignals(), recall=areaCardRecall();
+  const iteSig=iteSignals(), mkSig=mksapSignals(), priteSig=priteSignals(), recall=areaCardRecall(), capSig=capturedSignals();
   const iteW=iteYearWeightFn();
   const overlapN={}, overlapW={};
   crossRefITEMKSAP().forEach(o=>{ const abim=ITE_TO_ABIM[o.area]; if(!abim) return;
     overlapN[abim]=(overlapN[abim]||0)+1; overlapW[abim]=(overlapW[abim]||0)+iteW(o.year); });
 
   const catByName={}; [...ABIM_CATEGORIES,...ABPN_CATEGORIES].forEach(c=>catByName[c.name]=c);
-  const areaSet=new Set([...Object.keys(iteSig),...Object.keys(mkSig),...Object.keys(priteSig)]);
+  const areaSet=new Set([...Object.keys(iteSig),...Object.keys(mkSig),...Object.keys(priteSig),...Object.keys(capSig)]);
   stats.forEach(s=>{ if(s.name&&s.name!=='Uncategorized'&&s.total>0) areaSet.add(s.name); });
   areaSet.delete('Uncategorized');
 
@@ -8291,13 +8829,14 @@ function computeStudyPriorities(){
   areaSet.forEach(area=>{
     const cat=catByName[area], examPct=cat?cat.pct:2;
     const subject=ABIM_CATEGORIES.some(c=>c.name===area)?'IM':(ABPN_CATEGORIES.some(c=>c.name===area)?'Psych':'IM');
-    const ite=iteSig[area], mk=mkSig[area], pr=priteSig[area], rc=recall[area], st=statBy[area];
+    const ite=iteSig[area], mk=mkSig[area], pr=priteSig[area], rc=recall[area], st=statBy[area], cp=capSig[area];
     let sw=SIG_PRIOR_W, sg=SIG_PRIOR*SIG_PRIOR_W; const reasons=[];
     const add=(g,w)=>{ sg+=g*w; sw+=w; };
     if(pr){ add(pr.g,W_PRITE); reasons.push({t:`PRITE ${pr.std}${trendArrow(pr.std,pr.prevStd,25)}`,weak:pr.weak}); }
     if(ite){ add(ite.g,W_ITE); reasons.push({t:`ITE ${ite.latest==null?'?':ordSuffix(ite.latest)}${trendArrow(ite.latest,ite.prev,10)}`,weak:ite.weak}); }
     if(mk){ add(mk.g,mk.est?W_MKSAP_EST:W_MKSAP_REAL);
       reasons.push({t:mk.est?`MKSAP misses ${mk.ratio.toFixed(1)}× avg`:`MKSAP ${mk.pct}%`,weak:mk.g>0.6}); }
+    if(cp){ add(cp.g,W_CAPTURED); reasons.push({t:`Captured ${cp.open} open`,weak:cp.g>0.6}); }
     if(rc){ add(rc.g,rc.recent?W_CARDS_RECENT:W_CARDS_LIFETIME);
       reasons.push({t:`Recall ${Math.round(rc.recall*100)}%${rc.recent?'':' (thin data)'}`,weak:rc.recall<rc.target-0.03}); }
     let weakness=sg/sw;
@@ -8372,6 +8911,8 @@ function renderPractice(){
 function objectivesForABIM(abim){
   const out=[], seen=new Set();
   const push=t=>{ const k=String(t).toLowerCase().replace(/\s+/g,' ').trim(); if(k&&!seen.has(k)){ seen.add(k); out.push(t); } };
+  // v4.5: concepts you captured yourself come first — they're the freshest misses.
+  conceptGaps().filter(c=>c.area===abim).sort((a,b)=>String(b.created).localeCompare(String(a.created))).forEach(c=>push(conceptObjectiveText(c)));
   (DB.iteReports||[]).slice().sort((a,b)=>(b.year||0)-(a.year||0)).forEach(r=>{
     if(!r.objectives) return;
     for(const area in r.objectives){ if(ITE_TO_ABIM[area]===abim) r.objectives[area].forEach(push); }
@@ -9656,7 +10197,7 @@ function endTutorial(){
 // ═══════════════════════════════════════════════════════════
 async function init(){
   const vEl=document.getElementById('app-version');
-  if(vEl) vEl.textContent=`v${APP_VERSION} · updated ${APP_UPDATED}`;
+  if(vEl) vEl.textContent=`v${APP_VERSION} · last updated ${APP_UPDATED}`;
   await loadDB();
   try{ applyExamCaps(); }catch(e){}   // v4.4: keep reviews from skipping the final month before an exam
   updateContentAreaOptions();
@@ -9674,6 +10215,7 @@ async function init(){
   seedSampleCards();
 
   renderDashboard();
+  conceptsOnReady();   // v4.5: pull anything the MedBoard Capture extension has waiting
 
   // First launch: run the feature tour (skippable; replayable from Settings → Help).
   if(!DB.settings.tutorialSeen) startTutorial();
