@@ -416,7 +416,7 @@ body[data-specialty="Psych"] .only-both{display:none!important}
     <div class="nav-item" onclick="navigate('settings')"><span class="nav-icon">⚙️</span><span>Settings</span></div>
   </nav>
   <div id="sidebar-footer">
-    <div id="app-version" style="color:rgba(255,255,255,.4);font-size:11px" title="Captured Concepts: download the MedBoard Capture Chrome extension right from the page; MedBoard flags when your copy is out of date">v5.1 · last updated 2026-10-27</div>
+    <div id="app-version" style="color:rgba(255,255,255,.4);font-size:11px" title="Captured Concepts: download the MedBoard Capture Chrome extension right from the page; MedBoard flags when your copy is out of date">v5.2 · last updated 2026-10-27</div>
   </div>
 </div>
 
@@ -1300,11 +1300,11 @@ front,back,subject,content_area,tags<br>
           </select>
         </div>
         <div class="setting-row">
-          <div><div class="setting-label">Read the answer aloud</div><div class="setting-desc">After you reveal a card. Citation lines are skipped.</div></div>
+          <div><div class="setting-label">Read the answer aloud</div><div class="setting-desc">After you reveal a card, only the answer is read — not the question again. Citation lines are skipped.</div></div>
           <input type="checkbox" id="set-audio-readans" onchange="saveAudio('readAnswer',this.checked)" style="width:20px;height:20px;cursor:pointer;flex:none;margin-left:12px">
         </div>
         <div class="setting-row">
-          <div><div class="setting-label">Voice</div><div class="setting-desc">Voices come from your device. Enhanced or Premium voices (downloadable in your device's speech settings) sound the most natural.</div></div>
+          <div><div class="setting-label">Voice</div><div class="setting-desc">Samantha, Karen, Daniel, Moira and Tessa, when your device has them (on a computer or phone without them, all English voices are listed). Enhanced or Premium versions, downloadable in your device's speech settings, sound the most natural.</div></div>
           <div style="display:flex;gap:6px;align-items:center;flex:none;margin-left:12px">
             <select id="set-audio-voice" onchange="saveAudio('voice',this.value)" style="padding:6px 8px;border:2px solid #e5e7eb;border-radius:6px;font-size:13px;max-width:200px"></select>
             <button class="btn-secondary" style="padding:6px 10px;font-size:12px" onclick="audioTestVoice()">▶ Test</button>
@@ -1876,7 +1876,7 @@ A: [answer]. Citation: Harrison's Principles of Internal Medicine, 21e, Ch. 245.
 // ═══════════════════════════════════════════════════════════
 // Bump this on every release. The sidebar renders from it, and it re-checks
 // for an optional sw.js after an update. The other copy lives in sw.js (CACHE).
-const APP_VERSION='5.1';
+const APP_VERSION='5.2';
 const APP_UPDATED='2026-10-27';   // shown in the sidebar so users can see which build they have
 
 const ABIM_CATEGORIES = [
@@ -4100,6 +4100,7 @@ function audioSpeakable(html, side){
   AUDIO_PRON.forEach(([re,to])=>{ s=s.replace(re,to); });
   const lines=s.split('\n').map(l=>l.replace(/^\s*(?:[•▪◦*–-]|\d+[.)])\s+/,'').replace(/\s+/g,' ').trim()).filter(Boolean);
   let out=lines.map(l=>/[.!?:;,]$/.test(l)?l:l+'.').join(' ').replace(/\s+([.,;:!?])/g,'$1').replace(/([.,])\1+/g,'$1').trim();
+  out=out.replace(/[,;]\s*$/,'.');
   if(!out.replace(/\(picture\)[.,]?/g,'').trim()) out='This side is a picture. Check the screen.';
   return out;
 }
@@ -4113,14 +4114,50 @@ function audioChunks(text){
   return out.flatMap(c=>c.length<=260?[c]:(c.match(/.{1,240}(\s|$)/g)||[c]).map(x=>x.trim()).filter(Boolean));
 }
 
+// What to read once a card is flipped: the answer only, never the question again.
+// Cloze backs are the whole sentence with the hidden part highlighted, so read
+// just the highlighted answer(s) plus the extra note. Other cards sometimes
+// repeat the question on the back (Anki's {{FrontSide}}); drop that repeat.
+function audioAnswerSpeech(card){
+  const back=String(card&&card.back||''), front=String(card&&card.front||'');
+  const hl=[...back.matchAll(/<span[^>]*background:\s*#fff3bf[^>]*>([\s\S]*?)<\/span>/gi)].map(m=>m[1]);
+  if(hl.length){
+    const extra=back.match(/<span[^>]*color:\s*#6b7a90[^>]*>([\s\S]*?)<\/span>\s*$/i);
+    return audioSpeakable(hl.join('<br>')+(extra?'<br>'+extra[1]:''),'back');
+  }
+  let b=back;
+  const hr=b.search(/<hr\b[^>]*id\s*=\s*["']?answer/i);
+  if(hr>=0) b=b.slice(hr).replace(/^<hr\b[^>]*>/i,'');
+  const bT=audioSpeakable(b,'back');
+  const fT=audioSpeakable(front,'back').replace(/[.?!:]+$/,'');
+  if(fT.length>15 && bT.toLowerCase().startsWith(fT.toLowerCase())){
+    const rest=bT.slice(fT.length).replace(/^[\s.?!:,;]+/,'');
+    if(rest) return rest;
+  }
+  return bT;
+}
+
 // ── Voices ────────────────────────────────────────────────────────────────
+// v5.2: only the voices that sound good. If a device has none of them
+// (Windows, Android), every English voice is offered instead so audio still works.
+const AUDIO_VOICE_ALLOW=['Samantha','Karen','Daniel','Moira','Tessa'];
+function audioVoiceRank(v){ return AUDIO_VOICE_ALLOW.indexOf(String(v.name||'').split(/[\s(]/)[0]); }
 function audioVoices(){
   if(!speechOutSupported()) return [];
-  return (speechSynthesis.getVoices()||[]).filter(v=>/^en([-_]|$)/i.test(v.lang||''));
+  const en=(speechSynthesis.getVoices()||[]).filter(v=>/^en([-_]|$)/i.test(v.lang||''));
+  const ok=en.filter(v=>audioVoiceRank(v)>=0)
+    .sort((a,b)=>audioVoiceRank(a)-audioVoiceRank(b)||a.name.localeCompare(b.name));
+  if(ok.length) return ok;
+  // Fallback: never offer Apple's novelty voices.
+  const novelty=/^(Albert|Bad News|Bahh|Bells|Boing|Bubbles|Cellos|Good News|Jester|Organ|Superstar|Trinoids|Whisper|Wobble|Zarvox|Junior|Ralph|Fred|Kathy|Deranged|Hysterical|Pipe Organ)\b/i;
+  return en.filter(v=>!novelty.test(v.name));
 }
 function audioPickVoice(name){
   const vs=audioVoices();
   return vs.find(v=>v.name===name)
+      || vs.find(v=>audioVoiceRank(v)===0&&/enhanced|premium/i.test(v.name))
+      || vs.find(v=>audioVoiceRank(v)===0)
+      || vs.find(v=>audioVoiceRank(v)>=0)
       || vs.find(v=>/^en[-_]US/i.test(v.lang)&&/enhanced|premium|natural/i.test(v.name))
       || vs.find(v=>/^en[-_]US/i.test(v.lang)&&v.localService)
       || vs.find(v=>/^en[-_]US/i.test(v.lang))
@@ -4272,7 +4309,7 @@ function audioOnReveal(card){
   audioState.retries=0;
   audioRenderHeard();
   const after=()=>{ if(audioVoiceMode()) audioListen('rate'); else audioSetStatus('Rate the card when you\'re ready.'); };
-  if(audioCfg().readAnswer) audioSpeak(audioSpeakable(card.back,'back'), after);
+  if(audioCfg().readAnswer) audioSpeak(audioAnswerSpeech(card), after);
   else { audioStop(); after(); }
 }
 function audioOnSessionEnd(n, acc){
@@ -4285,7 +4322,7 @@ function audioReplay(){
   if(!card||document.getElementById('study-card-wrap').style.display==='none') return;
   audioState.retries=0;
   if(studyState.revealed){
-    audioSpeak(audioSpeakable(card.back,'back'), ()=>{ if(audioVoiceMode()) audioListen('rate'); });
+    audioSpeak(audioAnswerSpeech(card), ()=>{ if(audioVoiceMode()) audioListen('rate'); });
   } else {
     audioSpeak(audioSpeakable(card.front,'front'), ()=>{ if(audioVoiceMode()&&!studyState.revealed) audioListen('answer'); });
   }

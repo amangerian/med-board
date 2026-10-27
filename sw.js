@@ -1,8 +1,8 @@
-// MedBoard Prep v5.1 — offline service worker (deploy build, app served as index.html).
+// MedBoard Prep v5.2 — offline service worker (deploy build, app served as index.html).
 // Strategy: network-first for same-origin files (so app updates arrive when
 // online, cached copy serves when offline); cache-first for CDN libraries
 // (Chart.js / JSZip / pdf.js are versioned URLs, safe to cache forever).
-const CACHE = 'medboard-v5.1.0';
+const CACHE = 'medboard-v5.2.0';
 // index.html now carries the manifest and both icons inline, so the shell is
 // just the page itself. This file is optional: without it the app still runs,
 // it simply loses offline caching.
