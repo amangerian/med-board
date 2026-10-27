@@ -227,6 +227,19 @@ tr:hover td{background:#fafbff}
 /* Due badge */
 .due-badge{background:#fee2e2;color:#dc2626;border-radius:20px;padding:1px 7px;font-size:11px;font-weight:700;margin-left:6px}
 .streak-icon{font-size:18px}
+/* AUDIO MODE (beta, v5.1) */
+.beta-pill{display:inline-block;margin-left:6px;padding:1px 8px;border-radius:20px;background:#ede9fe;color:#6d28d9;font-size:10.5px;font-weight:800;letter-spacing:.5px;vertical-align:middle}
+.audio-bar{display:flex;align-items:center;gap:8px;flex-wrap:wrap;justify-content:center;margin:-4px auto 12px;max-width:720px}
+.audio-bar .btn-secondary{padding:6px 12px;font-size:12.5px}
+.audio-bar .btn-secondary.listening{background:#fee2e2;color:#b91c1c;animation:mic-pulse 1.4s ease-in-out infinite}
+@keyframes mic-pulse{50%{box-shadow:0 0 0 6px rgba(220,38,38,.15)}}
+.audio-status{flex-basis:100%;text-align:center;font-size:12px;color:var(--muted);min-height:16px}
+.audio-heard{max-width:720px;margin:0 auto 12px;background:#f8faff;border:1px solid #dbe6f5;border-radius:10px;padding:10px 14px;font-size:14px;color:var(--navy);line-height:1.5}
+.audio-heard .lbl{font-size:11px;font-weight:700;text-transform:uppercase;letter-spacing:.6px;color:var(--muted);display:block;margin-bottom:2px}
+#audio-opts.off{display:none}
+#set-audio-fixes{width:100%;min-height:80px;margin-top:8px;padding:8px 10px;border:2px solid #e5e7eb;border-radius:6px;font-family:ui-monospace,Menlo,monospace;font-size:12.5px}
+@media(max-width:640px){.audio-bar .btn-secondary{padding:9px 14px;font-size:13px}}
+@media(prefers-reduced-motion:reduce){.audio-bar .btn-secondary.listening{animation:none}}
 @media(max-width:900px){
   #sidebar{width:60px}
   #sidebar-logo{display:none}
@@ -245,7 +258,7 @@ tr:hover td{background:#fafbff}
   .nav-item{flex:0 0 auto;flex-direction:column;gap:3px;min-width:64px;padding:8px 10px;font-size:10px;border-left:none;border-top:3px solid transparent;justify-content:center;text-align:center;position:relative}
   .nav-item.active{border-left-color:transparent;border-top-color:#60a5fa}
   .nav-item span:last-child{display:block}
-  #due-badge-nav,#concepts-badge-nav{position:absolute;top:3px;right:6px;margin-left:0;padding:0 5px;font-size:9px}
+  #due-badge-nav{position:absolute;top:3px;right:6px;margin-left:0;padding:0 5px;font-size:9px}
   .nav-icon{font-size:19px;width:auto}
   #main{margin-left:0;padding:14px 12px calc(84px + env(safe-area-inset-bottom))}
   .page-header h2{font-size:19px}
@@ -393,7 +406,7 @@ body[data-specialty="Psych"] .only-both{display:none!important}
     <div class="nav-item" onclick="navigate('study')"><span class="nav-icon">🃏</span><span>Study</span><span id="due-badge-nav" class="due-badge" style="display:none">0</span></div>
     <div class="nav-item" onclick="navigate('cards')"><span class="nav-icon">🗂️</span><span>Cards</span></div>
     <div class="nav-item" onclick="navigate('practice')"><span class="nav-icon">🎯</span><span>Weak Areas</span></div>
-    <div class="nav-item" onclick="navigate('concepts')"><span class="nav-icon">🧩</span><span>Captured Concepts</span><span id="concepts-badge-nav" class="due-badge" style="display:none">0</span></div>
+    <div class="nav-item" onclick="navigate('concepts')"><span class="nav-icon">🧩</span><span>Captured Concepts</span></div>
     <div class="nav-item" onclick="navigate('analytics')"><span class="nav-icon">📈</span><span>Analytics</span></div>
     <div class="nav-item only-im" onclick="navigate('ite')"><span class="nav-icon">📄</span><span>ITE Analyzer</span></div>
     <div class="nav-item only-im" onclick="navigate('mksap')"><span class="nav-icon">📚</span><span>MKSAP</span></div>
@@ -403,7 +416,7 @@ body[data-specialty="Psych"] .only-both{display:none!important}
     <div class="nav-item" onclick="navigate('settings')"><span class="nav-icon">⚙️</span><span>Settings</span></div>
   </nav>
   <div id="sidebar-footer">
-    <div id="app-version" style="color:rgba(255,255,255,.4);font-size:11px" title="Captured Concepts: download the MedBoard Capture Chrome extension right from the page; MedBoard flags when your copy is out of date">v4.9 · last updated 2026-10-17</div>
+    <div id="app-version" style="color:rgba(255,255,255,.4);font-size:11px" title="Captured Concepts: download the MedBoard Capture Chrome extension right from the page; MedBoard flags when your copy is out of date">v5.1 · last updated 2026-10-27</div>
   </div>
 </div>
 
@@ -448,7 +461,6 @@ body[data-specialty="Psych"] .only-both{display:none!important}
       <div class="sub"><span id="stat-streak-days">0</span> day streak · <span onclick="navigate('streak')" style="color:var(--blue);cursor:pointer;font-weight:600">view aviary</span></div>
     </div>
   </div>
-  <div class="panel" id="mc-dash" style="display:none;margin-bottom:16px"></div>
   <div class="grid-2" style="margin-bottom:16px">
     <div class="panel">
       <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:14px">
@@ -519,6 +531,20 @@ body[data-specialty="Psych"] .only-both{display:none!important}
         <button class="btn-danger" style="padding:5px 12px;font-size:12px" onclick="studyDeleteCard()">🗑️ Delete</button>
       </div>
       <div class="fc-hint" id="fc-hint">Click card or press <kbd>Space</kbd> to reveal answer</div>
+      <div id="audio-bar" class="audio-bar" style="display:none">
+        <button class="btn-secondary" onclick="audioReplay()" title="Read it again (R)">🔊 Read again</button>
+        <button class="btn-secondary" id="audio-mic-btn" onclick="audioMicButton()" title="Answer by voice (V)">🎙 Speak</button>
+        <button class="btn-secondary" onclick="audioPause()" title="Stop reading and listening">⏹ Stop</button>
+        <select id="audio-bar-rate" onchange="saveAudio('rate',+this.value);audioReplay()" title="Reading speed" style="padding:5px 8px;border:2px solid #e5e7eb;border-radius:8px;font-size:12.5px;background:#fff">
+          <option value="0.85">0.85×</option>
+          <option value="1">1×</option>
+          <option value="1.15">1.15×</option>
+          <option value="1.3">1.3×</option>
+          <option value="1.5">1.5×</option>
+        </select>
+        <span id="audio-status" class="audio-status" aria-live="polite"></span>
+      </div>
+      <div id="audio-heard" class="audio-heard" style="display:none"></div>
       <div class="rating-row" id="rating-row" style="display:none">
         <button class="rate-btn btn-again" onclick="rateCard(0)"><span class="key-badge">A</span>😩 Again<span class="days" id="days-again">&lt;1d</span></button>
         <button class="rate-btn btn-hard" onclick="rateCard(1)"><span class="key-badge">S</span>😐 Hard<span class="days" id="days-hard"></span></button>
@@ -1258,6 +1284,50 @@ front,back,subject,content_area,tags<br>
         <input type="number" id="set-retention" min="70" max="97" onchange="saveRetention(this.value)">
       </div>
     </div>
+    <div class="panel settings-section" id="beta-section">
+      <h3>Beta features <span class="beta-pill">BETA</span></h3>
+      <div class="setting-desc" style="margin:-6px 0 6px">Experimental features. They may change, and they behave a little differently from browser to browser.</div>
+      <div class="setting-row">
+        <div><div class="setting-label">🔊 Audio mode</div><div class="setting-desc">In Study, reads each question aloud, then the answer once you reveal it. You can also answer and rate by voice. The screen stays awake while you study. Shortcuts: <kbd>R</kbd> reads again, <kbd>V</kbd> starts the microphone.</div></div>
+        <input type="checkbox" id="set-audio-on" onchange="saveAudio('on',this.checked)" style="width:22px;height:22px;cursor:pointer;flex:none;margin-left:12px">
+      </div>
+      <div id="audio-opts" class="off">
+        <div class="setting-row">
+          <div><div class="setting-label">How you answer</div><div class="setting-desc"><strong>Tap</strong>: listen, then flip and rate with the buttons or keys as usual. <strong>Voice</strong>: say your answer (or “show answer”); it appears under the card next to the real answer, then say <em>again</em>, <em>hard</em>, <em>good</em> or <em>easy</em>. You still grade yourself — the app does not judge whether your answer was right. Voice is turned into text by your browser's speech service (Google in Chrome, Apple in Safari), so it needs internet and, unlike the rest of MedBoard, your spoken answers leave this device.</div></div>
+          <select id="set-audio-method" onchange="saveAudio('method',this.value)" style="padding:6px 10px;border:2px solid #e5e7eb;border-radius:6px;font-size:14px">
+            <option value="tap">Tap</option>
+            <option value="voice">Voice</option>
+          </select>
+        </div>
+        <div class="setting-row">
+          <div><div class="setting-label">Read the answer aloud</div><div class="setting-desc">After you reveal a card. Citation lines are skipped.</div></div>
+          <input type="checkbox" id="set-audio-readans" onchange="saveAudio('readAnswer',this.checked)" style="width:20px;height:20px;cursor:pointer;flex:none;margin-left:12px">
+        </div>
+        <div class="setting-row">
+          <div><div class="setting-label">Voice</div><div class="setting-desc">Voices come from your device. Enhanced or Premium voices (downloadable in your device's speech settings) sound the most natural.</div></div>
+          <div style="display:flex;gap:6px;align-items:center;flex:none;margin-left:12px">
+            <select id="set-audio-voice" onchange="saveAudio('voice',this.value)" style="padding:6px 8px;border:2px solid #e5e7eb;border-radius:6px;font-size:13px;max-width:200px"></select>
+            <button class="btn-secondary" style="padding:6px 10px;font-size:12px" onclick="audioTestVoice()">▶ Test</button>
+          </div>
+        </div>
+        <div class="setting-row">
+          <div><div class="setting-label">Speed</div></div>
+          <select id="set-audio-rate" onchange="saveAudio('rate',+this.value)" style="padding:6px 10px;border:2px solid #e5e7eb;border-radius:6px;font-size:14px">
+            <option value="0.85">Slower</option>
+            <option value="1">Normal</option>
+            <option value="1.15">A bit faster</option>
+            <option value="1.3">Fast</option>
+            <option value="1.5">Very fast</option>
+          </select>
+        </div>
+        <div style="padding:10px 0;border-bottom:1px solid #f3f4f6">
+          <div class="setting-label">Pronunciation fixes</div>
+          <div class="setting-desc">Common units and shorthand are already handled (mg/dL, q8h, PO, ≥, HFrEF, QTc…). If the voice still says something wrong, add a line: <code>what's written = how to say it</code>, e.g. <code>TdP = torsades de pointes</code>.</div>
+          <textarea id="set-audio-fixes" placeholder="TdP = torsades de pointes&#10;NMS = N M S" onchange="saveAudio('fixes',this.value)"></textarea>
+        </div>
+        <div id="audio-support" style="font-size:12px;color:var(--muted);padding-top:10px;line-height:1.55"></div>
+      </div>
+    </div>
     <div class="panel settings-section">
       <h3>Backup &amp; Restore</h3>
       <div class="alert alert-info" style="margin-bottom:14px">Your cards and progress live only in this browser. Back up regularly — a backup file lets you restore everything or move to another computer/browser.</div>
@@ -1389,7 +1459,6 @@ A: [answer]. Citation: Harrison's Principles of Internal Medicine, 21e, Ch. 245.
 .mc-edit{display:grid;gap:9px;background:#f8faff;border:1px solid #e5e7eb;border-radius:8px;padding:12px;flex:1}
 .mc-edit label{display:grid;gap:4px;font-size:12px;font-weight:700;color:var(--navy)}
 .mc-edit select,.mc-edit textarea{padding:7px 9px;border:2px solid #e5e7eb;border-radius:6px;font-size:13px;font-family:inherit;font-weight:400;background:#fff;width:100%}
-.mc-dash-list{margin:10px 0 0 18px;padding:0;font-size:12.5px;color:#3a475e;line-height:1.6}
 .mc-steps{margin:8px 0 0 18px;padding:0;font-size:13px;color:#42506a;line-height:1.7}
 .mc-steps code{background:#eef2f7;border-radius:4px;padding:1px 5px;font-size:12px}
 .mc-selbar{position:sticky;bottom:16px;z-index:20;display:flex;align-items:center;gap:8px;flex-wrap:wrap;margin-top:16px;background:var(--navy);color:#fff;border-radius:12px;padding:10px 12px 10px 16px;box-shadow:0 8px 28px rgba(15,30,60,.28)}
@@ -1807,8 +1876,8 @@ A: [answer]. Citation: Harrison's Principles of Internal Medicine, 21e, Ch. 245.
 // ═══════════════════════════════════════════════════════════
 // Bump this on every release. The sidebar renders from it, and it re-checks
 // for an optional sw.js after an update. The other copy lives in sw.js (CACHE).
-const APP_VERSION='4.9';
-const APP_UPDATED='2026-10-17';   // shown in the sidebar so users can see which build they have
+const APP_VERSION='5.1';
+const APP_UPDATED='2026-10-27';   // shown in the sidebar so users can see which build they have
 
 const ABIM_CATEGORIES = [
   {name:'Cardiovascular Disease',pct:14},
@@ -3481,6 +3550,7 @@ function navigate(page){
   document.querySelectorAll('.page').forEach(p=>p.classList.remove('active'));
   document.querySelectorAll('.nav-item').forEach(n=>n.classList.remove('active'));
   document.getElementById('page-'+page).classList.add('active');
+  if(page!=='study') audioStop(true);   // v5.1: audio mode only runs on the Study page
   const navItems=document.querySelectorAll('.nav-item');
   navItems.forEach(n=>{if(n.getAttribute('onclick')&&n.getAttribute('onclick').includes("'"+navKey+"'"))n.classList.add('active');});
 
@@ -3550,7 +3620,6 @@ function renderDashboard(){
   // due badge in nav
   const badge=document.getElementById('due-badge-nav');
   if(dueAll.length>0){badge.textContent=dueAll.length;badge.style.display='';}else{badge.style.display='none';}
-  renderConceptsDash(); updateConceptBadge();
 
   // due breakdown
   document.getElementById('due-breakdown').innerHTML=`
@@ -3652,6 +3721,7 @@ function spreadShuffle(cards){
   return a;
 }
 function initStudy(){
+  audioStop();
   const algoNote=document.getElementById('study-algo-note');
   if(algoNote) algoNote.textContent=(DB.settings.scheduler||'fsrs')==='fsrs'
     ? `Spaced repetition — FSRS · target retention ${DB.settings.targetRetention||90}%`
@@ -3826,6 +3896,7 @@ function showCurrentCard(){
   document.getElementById('days-hard').textContent=calcNextInterval(card,1);
   document.getElementById('days-good').textContent=calcNextInterval(card,2);
   document.getElementById('days-easy').textContent=calcNextInterval(card,3);
+  audioOnCardShown(card);
 }
 
 function flipCard(){
@@ -3840,6 +3911,7 @@ function flipCard(){
     fc.classList.add('flipped');
     document.getElementById('fc-hint').innerHTML='How well did you know this? &nbsp;<span style="color:var(--muted)">Press <kbd>A</kbd> <kbd>S</kbd> <kbd>D</kbd> <kbd>F</kbd> · <kbd>Z</kbd> undoes · tap card to re-read</span>';
     document.getElementById('rating-row').style.display='grid';
+    audioOnReveal(card);
     return;
   }
   // Already revealed: toggle freely between faces to re-read the question.
@@ -3911,6 +3983,7 @@ function undoLastRating(){
 function rateCard(grade){
   const card=studyState.queue[studyState.idx];
   if(!card) return;
+  audioStop();
   undoStack.push(snapshotForUndo(card,grade));
   if(undoStack.length>UNDO_MAX) undoStack.shift();
   reviewCard(card, grade);
@@ -3940,6 +4013,376 @@ function endSession(){
   document.getElementById('session-summary').textContent=
     (studyState.extra?'Extra session — ':'')+`Reviewed ${studyState.sessionTotal} cards · ${acc}% accuracy · ${studyState.sessionCorrect} correct`;
   studyState.extra=false;
+  audioOnSessionEnd(studyState.sessionTotal, acc);
+}
+
+// ═══════════════════════════════════════════════════════════
+// AUDIO MODE (beta, v5.1)
+// Reads cards aloud with the browser's built-in speech (speechSynthesis) and,
+// in Voice mode, listens with the browser's speech recognition. No libraries.
+// Flow per card: read question → (voice) listen for an answer or "show
+// answer" → reveal → read answer → (voice) listen for again/hard/good/easy.
+// Grading stays with the user: a spoken answer is shown next to the real one,
+// never auto-marked, because recognition mishears drug names and eponyms.
+// Every async step carries a token; anything that changes the card or stops
+// audio bumps it, so a late callback from an old card can never act.
+// ═══════════════════════════════════════════════════════════
+const AUDIO_DEFAULTS={on:false, method:'tap', readAnswer:true, rate:1, voice:'', fixes:''};
+const SpeechRec=window.SpeechRecognition||window.webkitSpeechRecognition||null;
+let audioState={token:0, rec:null, recError:null, heard:'', retries:0, utterances:[], wakeLock:null};
+
+function audioCfg(){ return Object.assign({},AUDIO_DEFAULTS,(DB.settings&&DB.settings.audio)||{}); }
+function speechOutSupported(){ return ('speechSynthesis' in window) && typeof SpeechSynthesisUtterance!=='undefined'; }
+function voiceSupported(){ return !!SpeechRec; }
+function audioOn(){ return !!audioCfg().on && speechOutSupported(); }
+function audioVoiceMode(){ return audioOn() && audioCfg().method==='voice' && voiceSupported(); }
+function audioStudyActive(){ const p=document.getElementById('page-study'); return !!(p&&p.classList.contains('active')); }
+
+// ── Turning card HTML into something a voice can read ─────────────────────
+// Order matters: user fixes first (they override everything), then units
+// containing "/" before the generic slash rule, then symbols.
+const AUDIO_PRON=[
+  [/\bmg\s*\/\s*dL\b/gi,' milligrams per deciliter '],
+  [/\bg\s*\/\s*dL\b/gi,' grams per deciliter '],
+  [/\bmEq\s*\/\s*L\b/gi,' milliequivalents per liter '],
+  [/\bmmol\s*\/\s*L\b/gi,' millimoles per liter '],
+  [/\bmL\s*\/\s*min\b/gi,' milliliters per minute '],
+  [/\bmg\s*\/\s*kg\b/gi,' milligrams per kilogram '],
+  [/\bmm\s?Hg\b/gi,' millimeters of mercury '],
+  [/(\d)\s?(mcg|µg|ug)\b/gi,'$1 micrograms '],
+  [/(\d)\s?mg\b/gi,'$1 milligrams '],
+  [/(\d)\s?kg\b/gi,'$1 kilograms '],
+  [/(\d)\s?mL\b/gi,'$1 milliliters '],
+  [/(\d)\s?ms\b/g,'$1 milliseconds '],
+  [/(\d)\s?g\b/g,'$1 grams '],
+  [/\bq\s?(\d+)\s?h(rs?)?\b/gi,' every $1 hours '],
+  [/\bqhs\b/gi,' at bedtime '], [/\bqAM\b/g,' every morning '], [/\bqd\b/gi,' daily '],
+  [/\bbid\b/gi,' twice daily '], [/\btid\b/gi,' three times daily '], [/\bqid\b/gi,' four times daily '],
+  [/\bprn\b/gi,' as needed '], [/\bPO\b/g,' by mouth '], [/\bSL\b/g,' sublingual '], [/\bSQ\b/g,' subcutaneous '],
+  [/\bDDx\b/gi,' differential diagnosis '], [/\bDx\b/g,' diagnosis '], [/\bTx\b/g,' treatment '],
+  [/\bHx\b/g,' history '], [/\bSx\b/g,' symptoms '], [/\bRx\b/g,' prescription '], [/\bFHx\b/g,' family history '],
+  [/\bHFrEF\b/g,' heart failure with reduced ejection fraction '], [/\bHFpEF\b/g,' heart failure with preserved ejection fraction '],
+  [/\bQTc\b/g,' Q T C '], [/\bQRS\b/g,' Q R S '], [/\bTdP\b/g,' torsades de pointes '],
+  [/\be\.g\.,?/gi,' for example, '], [/\bi\.e\.,?/gi,' that is, '], [/\bvs\.?(?=\s)/gi,' versus '], [/\betc\./gi,' etcetera. '],
+  [/\bw\/o\b/gi,' without '], [/\bw\//gi,' with '],
+  [/≥|>=/g,' greater than or equal to '], [/≤|<=/g,' less than or equal to '],
+  [/>/g,' greater than '], [/</g,' less than '],
+  [/→|->|⟶|⇒/g,', then '], [/↑/g,' increased '], [/↓/g,' decreased '], [/±/g,' plus or minus '],
+  [/~(?=\s?\d)/g,' about '], [/°\s?C\b/g,' degrees Celsius '], [/°\s?F\b/g,' degrees Fahrenheit '],
+  [/\bNa\+/g,' sodium '], [/\bK\+/g,' potassium '], [/\bCa(2\+|\+\+)/g,' calcium '], [/\bMg(2\+|\+\+)/g,' magnesium '], [/\bLi\+/g,' lithium '],
+  [/(\d)\s*[-–]\s*(?=\d)/g,'$1 to '],
+  [/([A-Za-z])\s*\/\s*(?=[A-Za-z])/g,'$1 '],
+  [/&/g,' and '],
+];
+function audioFixRules(){
+  return String(audioCfg().fixes||'').split(/\n/).map(l=>{
+    const m=l.match(/^\s*([^=#][^=]*?)\s*=\s*(.+?)\s*$/); if(!m) return null;
+    const src=m[1].replace(/[.*+?^${}()|[\]\\]/g,'\\$&');
+    const pre=/^\w/.test(m[1])?'\\b':'', post=/\w$/.test(m[1])?'\\b':'';
+    try{ return [new RegExp(pre+src+post,'gi'),' '+m[2]+' ']; }catch(e){ return null; }
+  }).filter(Boolean);
+}
+function audioSpeakable(html, side){
+  let s=String(html||'');
+  s=s.replace(/<img\b[^>]*>/gi,' (picture) ');
+  s=s.replace(/<br\s*\/?>/gi,'\n').replace(/<\/(div|p|li|tr|h[1-6]|ul|ol)>/gi,'\n').replace(/<li\b[^>]*>/gi,'\n');
+  s=s.replace(/<[^>]*>/g,' ');
+  s=s.replace(/&nbsp;/gi,' ').replace(/&lt;/gi,'<').replace(/&gt;/gi,'>').replace(/&#39;|&rsquo;|&lsquo;/gi,"'")
+     .replace(/&quot;|&ldquo;|&rdquo;/gi,'"').replace(/&amp;/gi,'&').replace(/&#?\w+;/g,' ');
+  s=s.replace(/\r/g,'').replace(/\[sound:[^\]]*\]/gi,'').replace(/\[VERIFY\]/gi,'').replace(/\[image:[^\]]*\]/gi,' (picture) ');
+  s=s.replace(/\s*\(?\bCitations?\s*:[^\n]*/gi,'');           // citations are for reading, not listening
+  s=s.replace(/\[\s*\d+(\s*[,–-]\s*\d+)*\s*\]/g,'');            // [1], [2-4] reference markers
+  if(side==='front'){
+    s=s.replace(/\[\s*(?:\.\.\.|…)\s*\]/g,' blank ');            // cloze gap
+    s=s.replace(/\[\s*([^\]\n]{1,80}?)\s*\]/g,' blank, hint: $1, ');
+  }
+  audioFixRules().forEach(([re,to])=>{ s=s.replace(re,to); });
+  AUDIO_PRON.forEach(([re,to])=>{ s=s.replace(re,to); });
+  const lines=s.split('\n').map(l=>l.replace(/^\s*(?:[•▪◦*–-]|\d+[.)])\s+/,'').replace(/\s+/g,' ').trim()).filter(Boolean);
+  let out=lines.map(l=>/[.!?:;,]$/.test(l)?l:l+'.').join(' ').replace(/\s+([.,;:!?])/g,'$1').replace(/([.,])\1+/g,'$1').trim();
+  if(!out.replace(/\(picture\)[.,]?/g,'').trim()) out='This side is a picture. Check the screen.';
+  return out;
+}
+// Short chunks: Chrome stops long utterances after ~15 s, and sentence-sized
+// pieces let Stop and Read-again react immediately.
+function audioChunks(text){
+  const parts=String(text).replace(/([.!?;])\s+/g,'$1\u0001').split(/\u0001|\n+/).map(x=>x.trim()).filter(Boolean);
+  const out=[]; let cur='';
+  parts.forEach(p=>{ if(cur && (cur+' '+p).length>200){ out.push(cur); cur=p; } else cur=cur?cur+' '+p:p; });
+  if(cur) out.push(cur);
+  return out.flatMap(c=>c.length<=260?[c]:(c.match(/.{1,240}(\s|$)/g)||[c]).map(x=>x.trim()).filter(Boolean));
+}
+
+// ── Voices ────────────────────────────────────────────────────────────────
+function audioVoices(){
+  if(!speechOutSupported()) return [];
+  return (speechSynthesis.getVoices()||[]).filter(v=>/^en([-_]|$)/i.test(v.lang||''));
+}
+function audioPickVoice(name){
+  const vs=audioVoices();
+  return vs.find(v=>v.name===name)
+      || vs.find(v=>/^en[-_]US/i.test(v.lang)&&/enhanced|premium|natural/i.test(v.name))
+      || vs.find(v=>/^en[-_]US/i.test(v.lang)&&v.localService)
+      || vs.find(v=>/^en[-_]US/i.test(v.lang))
+      || vs[0] || null;
+}
+
+// ── Speaking ──────────────────────────────────────────────────────────────
+function audioSpeak(text, onDone){
+  if(!speechOutSupported()) { onDone&&onDone(); return; }
+  audioStopRec();
+  try{ speechSynthesis.cancel(); }catch(e){}
+  const tok=++audioState.token;
+  const chunks=audioChunks(text);
+  if(!chunks.length){ onDone&&onDone(); return; }
+  const cfg=audioCfg(), voice=audioPickVoice(cfg.voice);
+  audioState.utterances=[];          // keep references: Safari drops onend for GC'd utterances
+  let i=0;
+  audioSetStatus('🔊 Reading…');
+  const next=()=>{
+    if(tok!==audioState.token) return;
+    if(i>=chunks.length){ audioState.utterances=[]; onDone&&onDone(); return; }
+    const u=new SpeechSynthesisUtterance(chunks[i++]);
+    u.rate=Math.min(2,Math.max(0.5,+cfg.rate||1));
+    u.lang=(voice&&voice.lang)||'en-US';
+    if(voice) u.voice=voice;
+    u.onend=next;
+    u.onerror=e=>{
+      if(tok!==audioState.token) return;
+      if(e&&e.error==='not-allowed'){ audioSetStatus('Tap 🔊 Read again to start — your browser needs one tap before it will speak.'); return; }
+      if(e&&(e.error==='interrupted'||e.error==='canceled')) return;
+      next();
+    };
+    audioState.utterances.push(u);
+    try{ speechSynthesis.speak(u); }catch(err){ audioSetStatus('This browser could not read aloud.'); }
+  };
+  next();
+}
+function audioStopRec(){
+  const r=audioState.rec;
+  audioState.rec=null;
+  if(r){ try{ r.abort(); }catch(e){} }
+  audioSetMic(false);
+}
+// Stops speech and listening. release=true also lets the screen sleep again.
+function audioStop(release){
+  audioState.token++;
+  try{ if(speechOutSupported()) speechSynthesis.cancel(); }catch(e){}
+  audioStopRec();
+  audioSetStatus('');
+  if(release) audioWake(false);
+}
+function audioPause(){
+  audioStop();
+  audioSetStatus('Paused — tap 🔊 Read again to continue.');
+}
+
+// ── Listening (Voice mode) ────────────────────────────────────────────────
+const AUDIO_REPLAY=/\b(repeat|read (it|that) again|say (it|that) again|one more time)\b/;
+const AUDIO_SHOW=/^(show|flip|reveal|answer|show (me )?(the )?answer|skip|pass|next)$/;
+const AUDIO_DUNNO=/^((i )?(don'?t|do not) know|no idea|not sure|no clue)$/;
+const AUDIO_RATINGS=[
+  [0,/\b(again|missed( it)?|miss|forgot|wrong|fail(ed)?|didn'?t know|no idea)\b/],
+  [1,/\b(hard|difficult|tough|struggled)\b/],
+  [3,/\b(easy|easily)\b/],
+  [2,/\b(good|got it|correct|right|yes|knew it|know it)\b/],
+];
+function audioListen(phase){
+  if(!audioVoiceMode()||!audioStudyActive()) return;
+  audioStopRec();
+  const tok=audioState.token;
+  let rec;
+  try{ rec=new SpeechRec(); }catch(e){ audioSetStatus('Voice input isn\'t available in this browser — use the buttons.'); return; }
+  rec.lang='en-US'; rec.interimResults=true; rec.maxAlternatives=3; rec.continuous=false;
+  audioState.rec=rec; audioState.recError=null;
+  let finalText=null, alts=[];
+  rec.onresult=e=>{
+    if(tok!==audioState.token||audioState.rec!==rec) return;
+    let interim='';
+    for(let i=e.resultIndex;i<e.results.length;i++){
+      const r=e.results[i];
+      if(r.isFinal){ finalText=(finalText?finalText+' ':'')+r[0].transcript; alts=Array.from(r).map(a=>a.transcript); }
+      else interim+=r[0].transcript;
+    }
+    const shown=(finalText||interim||'').trim();
+    if(shown) audioSetStatus('🎙 “'+shown+'”');
+  };
+  rec.onerror=e=>{ if(tok===audioState.token) audioState.recError=e&&e.error; };
+  rec.onend=()=>{
+    if(tok!==audioState.token||audioState.rec!==rec) return;
+    audioState.rec=null; audioSetMic(false);
+    const err=audioState.recError; audioState.recError=null;
+    if(err==='not-allowed'||err==='service-not-allowed'){
+      audioSetStatus('🎙 Microphone blocked. Allow it for this site, or set "How you answer" to Tap in Settings.'); return;
+    }
+    if(err==='network'){ audioSetStatus('🎙 Voice needs an internet connection. Use the buttons for now.'); return; }
+    if(!finalText||!finalText.trim()){
+      if(audioState.retries++<1){
+        audioSetStatus('Didn\'t hear anything — listening again…');
+        setTimeout(()=>{ if(tok===audioState.token) audioListen(phase); },400);
+      } else audioSetStatus('Not listening. Tap 🎙 Speak to try again, or use the buttons.');
+      return;
+    }
+    audioHandleSpeech(phase, finalText, alts, tok);
+  };
+  try{
+    rec.start(); audioSetMic(true);
+    audioSetStatus(phase==='answer'?'🎙 Listening — say your answer, or “show answer”':'🎙 Listening — say again, hard, good or easy');
+  }catch(e){ audioState.rec=null; audioSetMic(false); audioSetStatus('Tap 🎙 Speak to answer by voice.'); }
+}
+function audioHandleSpeech(phase, text, alts, tok){
+  const t=String(text||'').toLowerCase().replace(/[.,!?]/g,'').trim();
+  if(AUDIO_REPLAY.test(t)){ audioReplay(); return; }
+  if(/^(stop|stop listening|pause|be quiet)$/.test(t)){ audioPause(); return; }
+  if(phase==='answer'){
+    if(AUDIO_SHOW.test(t)) audioState.heard='';
+    else if(AUDIO_DUNNO.test(t)) audioState.heard='(you said you didn\'t know)';
+    else audioState.heard=String(text).trim();
+    audioRenderHeard();
+    if(!studyState.revealed) flipCard();          // flipCard → audioOnReveal
+    return;
+  }
+  // phase === 'rate'
+  const cands=[t].concat((alts||[]).map(a=>String(a).toLowerCase()));
+  for(const c of cands){
+    for(const [g,re] of AUDIO_RATINGS){
+      if(re.test(c)){ toast('Rated: '+['Again','Hard','Good','Easy'][g]); rateCard(g); return; }
+    }
+  }
+  if(audioState.retries++<2){
+    audioSetStatus('Didn\'t catch a rating — say again, hard, good or easy.');
+    setTimeout(()=>{ if(tok===audioState.token) audioListen('rate'); },300);
+  } else audioSetStatus('Tap a rating button, or 🎙 Speak to try again.');
+}
+
+// ── Hooks called from the study flow ──────────────────────────────────────
+function audioOnCardShown(card){
+  audioState.heard=''; audioState.retries=0;
+  audioRenderHeard(); audioRenderBar();
+  if(!audioOn()||!card) return;
+  audioWake(true);
+  audioSpeak(audioSpeakable(card.front,'front'), ()=>{
+    if(studyState.revealed) return;
+    if(audioVoiceMode()) audioListen('answer');
+    else audioSetStatus('Tap the card or press Space to reveal the answer.');
+  });
+}
+function audioOnReveal(card){
+  if(!audioOn()||!card) return;
+  audioState.retries=0;
+  audioRenderHeard();
+  const after=()=>{ if(audioVoiceMode()) audioListen('rate'); else audioSetStatus('Rate the card when you\'re ready.'); };
+  if(audioCfg().readAnswer) audioSpeak(audioSpeakable(card.back,'back'), after);
+  else { audioStop(); after(); }
+}
+function audioOnSessionEnd(n, acc){
+  if(!audioOn()||!n){ audioStop(true); return; }
+  audioSpeak(`Session complete. ${n} card${n===1?'':'s'}, ${acc} percent correct.`, ()=>audioWake(false));
+}
+function audioReplay(){
+  if(!audioOn()) return;
+  const card=studyState.queue[studyState.idx];
+  if(!card||document.getElementById('study-card-wrap').style.display==='none') return;
+  audioState.retries=0;
+  if(studyState.revealed){
+    audioSpeak(audioSpeakable(card.back,'back'), ()=>{ if(audioVoiceMode()) audioListen('rate'); });
+  } else {
+    audioSpeak(audioSpeakable(card.front,'front'), ()=>{ if(audioVoiceMode()&&!studyState.revealed) audioListen('answer'); });
+  }
+}
+function audioMicButton(){
+  if(!audioVoiceMode()) return;
+  if(audioState.rec){ audioStop(); audioSetStatus('Stopped listening.'); return; }
+  audioStop();                                   // cut off any reading in progress
+  audioState.retries=0;
+  audioListen(studyState.revealed?'rate':'answer');
+}
+
+// ── Screen wake lock (keeps the phone from sleeping mid-session) ──────────
+async function audioWake(on){
+  try{
+    if(on){
+      if(audioState.wakeLock||!navigator.wakeLock||document.visibilityState!=='visible') return;
+      const w=await navigator.wakeLock.request('screen');
+      audioState.wakeLock=w;
+      w.addEventListener('release',()=>{ if(audioState.wakeLock===w) audioState.wakeLock=null; });
+    } else if(audioState.wakeLock){
+      const w=audioState.wakeLock; audioState.wakeLock=null; await w.release();
+    }
+  }catch(e){ /* not supported or refused — audio still works */ }
+}
+
+// ── Small UI helpers ──────────────────────────────────────────────────────
+function audioSetStatus(msg){ const el=document.getElementById('audio-status'); if(el) el.textContent=msg||''; }
+function audioSetMic(on){
+  const b=document.getElementById('audio-mic-btn'); if(!b) return;
+  b.classList.toggle('listening',!!on);
+  b.textContent=on?'🎙 Listening…':'🎙 Speak';
+}
+function audioRenderBar(){
+  const bar=document.getElementById('audio-bar'); if(!bar) return;
+  bar.style.display=audioOn()?'flex':'none';
+  const mic=document.getElementById('audio-mic-btn'); if(mic) mic.style.display=audioVoiceMode()?'':'none';
+  const rs=document.getElementById('audio-bar-rate'); if(rs) rs.value=String(audioCfg().rate);
+}
+function audioRenderHeard(){
+  const el=document.getElementById('audio-heard'); if(!el) return;
+  const h=audioState.heard;
+  if(!audioOn()||!h){ el.style.display='none'; el.innerHTML=''; return; }
+  el.style.display='';
+  el.innerHTML='<span class="lbl">🎙 Your answer</span>'+escHtml(h);
+}
+
+// ── Settings ──────────────────────────────────────────────────────────────
+function renderAudioSettings(){
+  const cfg=audioCfg();
+  const on=document.getElementById('set-audio-on'); if(!on) return;
+  on.checked=!!cfg.on;
+  document.getElementById('audio-opts').classList.toggle('off',!cfg.on);
+  const m=document.getElementById('set-audio-method');
+  const vOpt=m.querySelector('option[value="voice"]');
+  vOpt.disabled=!voiceSupported();
+  vOpt.textContent=voiceSupported()?'Voice':'Voice (not available in this browser)';
+  m.value=(cfg.method==='voice'&&voiceSupported())?'voice':'tap';
+  document.getElementById('set-audio-readans').checked=!!cfg.readAnswer;
+  document.getElementById('set-audio-rate').value=String(cfg.rate);
+  const fx=document.getElementById('set-audio-fixes'); if(document.activeElement!==fx) fx.value=cfg.fixes||'';
+  const vs=document.getElementById('set-audio-voice');
+  const voices=audioVoices(), picked=audioPickVoice(cfg.voice);
+  vs.innerHTML=voices.length
+    ? voices.map(v=>`<option value="${escHtml(v.name)}">${escHtml(v.name)}${v.localService?'':' (online)'}</option>`).join('')
+    : '<option value="">Default voice</option>';
+  if(picked) vs.value=picked.name;
+  const notes=[];
+  if(!speechOutSupported()) notes.push('⚠️ This browser can\'t read text aloud, so audio mode won\'t work here.');
+  if(!voiceSupported()) notes.push('Voice answers aren\'t available in this browser (Firefox doesn\'t support them). Tap mode still works. On iPhone, use Safari and turn on Siri or Dictation in Settings; voice input may not work from the home-screen app.');
+  else notes.push('Voice answers: the first time, your browser will ask for microphone permission. On iPhone, Siri or Dictation must be turned on.');
+  notes.push('Audio stops if your screen locks, so MedBoard keeps the screen awake while audio mode is reading.');
+  document.getElementById('audio-support').innerHTML=notes.map(n=>'<div>'+n+'</div>').join('');
+}
+function saveAudio(key,val){
+  DB.settings.audio=Object.assign(audioCfg(),{[key]:val});
+  saveDB();
+  renderAudioSettings();
+  audioRenderBar();
+  if(key==='on'){
+    if(!val){ audioStop(true); audioState.heard=''; audioRenderHeard(); }
+    toast(val?'Audio mode on — it starts on your next card in Study':'Audio mode off');
+  } else if(key==='method' && val==='voice'){
+    toast('Voice answers on — allow the microphone when your browser asks');
+  }
+}
+function audioTestVoice(){
+  if(!speechOutSupported()){ toast('This browser can\'t read aloud'); return; }
+  audioSpeak(audioSpeakable('A 45-year-old on haloperidol 5 mg q8h has a QTc of 520 ms and K+ 3.1 mEq/L. Next step?','front'), ()=>audioSetStatus(''));
+}
+if(speechOutSupported()){
+  try{
+    speechSynthesis.addEventListener('voiceschanged',()=>{
+      const pg=document.getElementById('page-settings');
+      if(pg&&pg.classList.contains('active')) renderAudioSettings();
+    });
+  }catch(e){}
 }
 
 // ── Mid-review actions (edit / flag / delete the current card) ──
@@ -4782,6 +5225,7 @@ function deleteCard(id){
 }
 
 function openEditModal(id){
+  audioStop();
   const card=DB.cards.find(c=>c.id===id);
   if(!card) return;
   editingCardId=id;
@@ -6897,6 +7341,7 @@ function renderSettings(){
   document.getElementById('row-retention').style.display=(DB.settings.scheduler||'fsrs')==='fsrs'?'':'none';
   const spSel=document.getElementById('set-specialty'); if(spSel) spSel.value=currentSpecialty();
   const mixSel=document.getElementById('set-newmix'); if(mixSel) mixSel.value=DB.settings.newCardMix||'weighted';
+  renderAudioSettings();
 }
 function saveScheduler(v){
   DB.settings.scheduler=(v==='sm2')?'sm2':'fsrs';
@@ -7091,7 +7536,7 @@ function restoreBackup(incoming, mode){
     if(repUpdated) repBits.push(`${repUpdated} updated`);
     if(conAdded) repBits.push(`${conAdded} captured concept${conAdded===1?'':'s'}`);
     applyExamCaps();
-    invalidatePriorityCache(); updateConceptBadge();
+    invalidatePriorityCache();
     toast(`Merged — ${addedN} new card${addedN===1?'':'s'}${repBits.length?' · '+repBits.join(', '):''}`);
     return;
   }
@@ -7187,6 +7632,12 @@ function setupKeyboardShortcuts(){
     // Z undoes the previous rating at any point — the whole reason it exists is
     // that you rated too fast and the next card is already on screen.
     if((e.key||'').toLowerCase()==='z'){ e.preventDefault(); undoLastRating(); return; }
+    // v5.1 audio mode: R reads the current side again, V starts/stops the mic.
+    if(audioOn()){
+      const ak=(e.key||'').toLowerCase();
+      if(ak==='r'){ e.preventDefault(); audioReplay(); return; }
+      if(ak==='v' && audioVoiceMode()){ e.preventDefault(); audioMicButton(); return; }
+    }
     if(!studyState.revealed){
       // Answer not seen yet → Space/Enter reveals it
       if(e.code==='Space'||e.code==='Enter'){ e.preventDefault(); flipCard(); }
@@ -8637,17 +9088,9 @@ function versionNewer(a,b){
 }
 
 // ── Views ─────────────────────────────────────────────────────────────────
-function updateConceptBadge(){
-  const due=conceptsDue().length;
-  const b=document.getElementById('concepts-badge-nav');
-  if(b){ b.textContent=due; b.style.display=due?'':'none'; }
-}
 function refreshConceptViews(){
-  updateConceptBadge();
   const pg=document.getElementById('page-concepts');
   if(pg&&pg.classList.contains('active')) renderConcepts();
-  const dash=document.getElementById('page-dashboard');
-  if(dash&&dash.classList.contains('active')) renderConceptsDash();
 }
 function renderConceptExtStatus(){
   const el=document.getElementById('mc-ext'); if(!el) return;
@@ -8790,22 +9233,6 @@ function renderConcepts(){
     :'<p style="color:var(--muted);font-size:13px">Nothing matches these filters.</p>';
 }
 function setConceptFilter(k,v){ mcFilter[k]=v; mcShow=40; renderConcepts(); }
-function renderConceptsDash(){
-  const el=document.getElementById('mc-dash'); if(!el) return;
-  const all=DB.concepts||[];
-  if(!all.length){ el.style.display='none'; return; }
-  const due=conceptsDue(), open=all.filter(c=>!c.resolved).length;
-  el.style.display='';
-  const preview=due.slice(0,3).map(c=>`<li>${escHtml(conceptObjectiveText(c).slice(0,140))}${c.area?` <span style="color:var(--muted);font-size:11.5px">· ${escHtml(c.area)}</span>`:''}</li>`).join('');
-  el.innerHTML=`<div style="display:flex;justify-content:space-between;align-items:center;gap:10px;flex-wrap:wrap">
-      <div><div style="font-weight:700;color:var(--navy)">🧩 Captured Concepts</div>
-      <div style="font-size:13px;color:#42506a;margin-top:2px"><strong style="color:${due.length?'var(--red)':'var(--green)'}">${due.length} due to re-check</strong> · ${open} open · ${all.length-open} mastered</div></div>
-      <div style="display:flex;gap:8px;flex-wrap:wrap">
-        <button class="btn-secondary" style="padding:7px 12px;font-size:12px" onclick="document.getElementById('mc-folder').click()">📥 Import captures</button>
-        <button class="btn-primary" style="padding:7px 14px;font-size:12px" onclick="navigate('concepts')">${due.length?'Re-check now →':'View all →'}</button>
-      </div>
-    </div>${preview?`<ul class="mc-dash-list">${preview}</ul>`:''}`;
-}
 // Study Next signal: where your open concepts cluster, relative to how much
 // each area is tested. Same estimator as dated MKSAP misses, so an area you
 // capture a lot from is not penalised just for being the one you practise.
