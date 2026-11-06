@@ -416,7 +416,7 @@ body[data-specialty="Psych"] .only-both{display:none!important}
     <div class="nav-item" onclick="navigate('settings')"><span class="nav-icon">⚙️</span><span>Settings</span></div>
   </nav>
   <div id="sidebar-footer">
-    <div id="app-version" style="color:rgba(255,255,255,.4);font-size:11px" title="Captured Concepts: download the MedBoard Capture Chrome extension right from the page; MedBoard flags when your copy is out of date">v5.4 · last updated 2026-11-06</div>
+    <div id="app-version" style="color:rgba(255,255,255,.4);font-size:11px" title="Captured Concepts: download the MedBoard Capture Chrome extension right from the page; MedBoard flags when your copy is out of date">v5.5 · last updated 2026-11-06</div>
   </div>
 </div>
 
@@ -1440,6 +1440,11 @@ A: [answer]. Citation: Harrison's Principles of Internal Medicine, 21e, Ch. 245.
 .mc-text.clamp{display:-webkit-box;-webkit-line-clamp:4;-webkit-box-orient:vertical;overflow:hidden;cursor:pointer}
 .mc-chips{display:flex;flex-wrap:wrap;gap:5px;margin-top:8px}
 .mc-actions{display:flex;flex-wrap:wrap;gap:7px;margin-top:10px}
+.mc-matches{margin-top:8px;font-size:12.5px}
+.mc-matches summary{cursor:pointer;color:var(--blue);font-weight:600}
+.mc-matches ol{margin:6px 0 0 18px;padding:0;color:#42506a;line-height:1.5}
+.mc-matches li{margin:3px 0}
+.mc-m-meta{color:var(--muted);font-size:11.5px}
 .mc-actions button{padding:6px 12px;font-size:12px;min-height:34px}
 .mc-actions .mc-del{color:#b91c1c}
 .sn-chip.mc-done{background:#ecfdf3;color:#166534;border-color:#bbf7d0}
@@ -1726,6 +1731,7 @@ A: [answer]. Citation: Harrison's Principles of Internal Medicine, 21e, Ch. 245.
         <option value="auto">New cards first, then review ahead (recommended)</option>
         <option value="new">Only new cards I haven't seen</option>
         <option value="ahead">Only review cards, pulled forward</option>
+        <option value="concepts">Cards on my captured concepts</option>
       </select>
     </div>
 
@@ -1876,7 +1882,7 @@ A: [answer]. Citation: Harrison's Principles of Internal Medicine, 21e, Ch. 245.
 // ═══════════════════════════════════════════════════════════
 // Bump this on every release. The sidebar renders from it, and it re-checks
 // for an optional sw.js after an update. The other copy lives in sw.js (CACHE).
-const APP_VERSION='5.4';
+const APP_VERSION='5.5';
 const APP_UPDATED='2026-11-06';   // shown in the sidebar so users can see which build they have
 
 const ABIM_CATEGORIES = [
@@ -3469,6 +3475,11 @@ function selectNewCards(pool, limit, opts){
     if(!m.has(a)) m.set(a,[]);
     m.get(a).push(c);
   });
+  // v5.5: inside each area, cards that match an open captured concept come
+  // before the rest (otherwise creation order is kept). Area rotation, the
+  // per-area cap and sibling rules are unchanged.
+  const tgt=conceptTargets();
+  if(tgt.size) Object.values(bySubj).forEach(m=>m.forEach(list=>list.sort((a,b)=>(tgt.has(b.id)?1:0)-(tgt.has(a.id)?1:0))));
   const subjects=Object.keys(bySubj);
   const usedToday={};
   if(opts.countToday) (DB.cards||[]).forEach(c=>{ if(c.introducedDate===t){ const a=c.contentArea||'Uncategorized'; usedToday[a]=(usedToday[a]||0)+1; } });
@@ -3782,6 +3793,7 @@ function extraFocusAreas(subject){
 // Build the candidate pool for an extra session.
 function buildExtraQueue(source, subject, limit, focus){
   const t=today();
+  if(source==='concepts') return buildConceptQueue(subject, limit);
   const areas=focus?extraFocusAreas(subject):null;
   const inFocus=c=>!areas||!areas.length||areas.includes(c.contentArea);
   // New cards never seen — beyond today's newPerDay allowance.
@@ -3809,6 +3821,27 @@ function buildExtraQueue(source, subject, limit, focus){
   else pool=[...freshPick,...aheadPick];  // 'auto' — cheapest cards first
   return {queue:pool.slice(0,limit), freshN:fresh.length, aheadN:ahead.length};
 }
+// v5.5: cards matched to open captured concepts — new and already-seen alike,
+// taken round-robin across concepts (each concept's best matches first) so one
+// big topic can't fill the session. Cards already reviewed today are skipped,
+// and only one card per Anki note is used.
+function buildConceptQueue(subject, limit){
+  const t=today(), notes=todayBusyNotes(), used=new Set();
+  const lists=conceptGaps().map(c=>conceptCardMatches(c).map(r=>r.card).filter(card=>extraMatch(card,subject)&&card.lastReview!==t));
+  const all=new Set(); lists.forEach(l=>l.forEach(c=>all.add(c)));
+  const queue=[]; let round=0, more=true;
+  while(queue.length<limit && more){
+    more=false;
+    for(const l of lists){
+      if(queue.length>=limit) break;
+      while(round<l.length){ const c=l[round]; if(!used.has(c.id)){ const k=noteKey(c); if(!(k&&notes.has(k))){ used.add(c.id); if(k) notes.add(k); queue.push(c); break; } } break; }
+      if(round+1<l.length) more=true;
+    }
+    round++;
+  }
+  const arr=[...all];
+  return {queue, freshN:arr.filter(c=>(c.totalReviews||0)===0).length, aheadN:arr.filter(c=>(c.totalReviews||0)>0).length};
+}
 function openExtraStudy(){
   document.getElementById('extra-modal').style.display='flex';
   updateExtraPreview();
@@ -3821,7 +3854,9 @@ function updateExtraPreview(){
   const focus=document.getElementById('extra-focus').checked;
   const areas=focus?extraFocusAreas(subject):[];
   const fx=document.getElementById('extra-focus-areas');
-  fx.innerHTML = !focus
+  fx.innerHTML = source==='concepts'
+    ? 'Not used for this option — the cards come from your open captured concepts.'
+    : !focus
     ? 'Uses your ranked weak areas (blueprint weight + card command + ITE/MKSAP/PRITE gaps).'
     : (areas.length? 'Drawing from: '+areas.map(a=>escHtml(a)).join(' · ')
                    : '<span style="color:#c2410c">No ranked areas yet — upload a score report or review more cards. Falling back to all areas.</span>');
@@ -3867,7 +3902,7 @@ function startExtraSession(){
   studyState.flipped=false;
   studyState.revealed=false;
   studyState.extra=true;                 // changes the end-of-session wording
-  document.getElementById('study-count-label').textContent=queue.length+' extra card'+(queue.length===1?'':'s')+(focus?' · weak areas':'');
+  document.getElementById('study-count-label').textContent=queue.length+' extra card'+(queue.length===1?'':'s')+(source==='concepts'?' · captured concepts':focus?' · weak areas':'');
   showCurrentCard();
 }
 
@@ -6952,7 +6987,12 @@ function objectiveCoverage(){
   };
   (DB.iteReports||[]).forEach(r=>{ if(!r.objectives) return; for(const area in r.objectives){ const abim=ITE_TO_ABIM[area]||area; r.objectives[area].forEach(o=>add(o,abim,'ITE'+(r.year?' '+r.year:''))); } });
   (DB.mksapReports||[]).forEach(r=>{ const abim=mksapAreaMap(r.activity).abim||r.activity; (r.objectives||[]).forEach(o=>add(o.text,abim,'MKSAP')); });
-  conceptGaps().forEach(c=>add(conceptObjectiveText(c),c.area||null,'Captured'));   // v4.5
+  conceptGaps().forEach(c=>{
+    add(conceptObjectiveText(c),c.area||null,'Captured');   // v4.5
+    // v5.5: a captured-only topic counts as covered by the same rule as its chip.
+    const k=String(conceptObjectiveText(c)).toLowerCase().replace(/\s+/g,' ').replace(/\.$/,'').trim();
+    if(map[k] && map[k].sources.size===1){ try{ map[k].covered=conceptCardMatches(c).length>0; }catch(e){} }
+  });
   const areas={};
   Object.values(map).forEach(o=>{ const a=o.abim||'Other'; (areas[a]=areas[a]||{area:a,objectives:[]}).objectives.push(o); });
   const areaRows=Object.values(areas).map(g=>{
@@ -9201,15 +9241,90 @@ function renderConceptExtStatus(){
 }
 // "Has a card" for each concept, matched the same way Tested-Topic Coverage
 // matches missed objectives against your deck. Built once per render.
+// ── CAPTURED CONCEPT → CARDS (v5.5) ─────────────────────────────────────────
+// Links each captured concept to the specific cards that teach it, so those
+// cards can be studied first rather than the whole content area.
+// How a card qualifies:
+//   • Words are compared after abbreviation expansion (ITP → thrombocytopenia)
+//     and light plural stemming; filler and question-stem words are ignored.
+//   • Every word in the capture counts, weighted by how rare it is across your
+//     deck (squared IDF). A word no card contains counts at full weight — it's
+//     evidence the deck doesn't cover that topic — and very common words barely
+//     count at all.
+//   • A card must share at least two of the capture's words (or its only one),
+//     and either cover ≥50% of the capture's weight, or share two rare words
+//     (each in ≤25 cards) and cover ≥30%.
+//   • Only cards scoring within 60% of the best match are kept, at most 10 per
+//     capture. Shared two-word phrases rank a card higher but never qualify it.
+// Tested on 641 ITE/MKSAP objectives and 6 captures from a real collection:
+// one shared word ("stridor", "telangiectasia", "heat") was the main source
+// of wrong matches, which is why two are required.
+const CM_RARE_DF=25, CM_COVER=0.30, CM_COVER_SOLO=0.5, CM_REL=0.6, CM_MAX=10;
+const CM_STOP_EXTRA=new Set('which what when where most least likely following best next step should would could may can will than then there their these those them they such also both either neither each every other another about above below over under between within because while although though however therefore thus include includes including usually often common commonly rare rarely first second third test testing tested tests evidence finding findings suggest suggests present presents presentation apparent immediately upon frequent multiple involvement relative clinical depends depend confirm confirmed show shows shown seen case cases sign signs result results lead leads due diagnosis diagnostic life threatening year years old man woman male female history day days week weeks month months'.split(' '));
+function cmStem(w){ return w.length>4 ? w.replace(/ies$/,'y').replace(/(?:es|s)$/,'') : w; }
+function cmFeatures(text){
+  const t=expandAbbrev(String(text||'').toLowerCase()).replace(/[–—\-\/]/g,' ').replace(/[^a-z0-9 ]/g,' ');
+  const words=t.split(/\s+/).filter(Boolean).map(w=>(w.length<3||/^\d+$/.test(w)||CONCEPT_STOP.has(w)||CM_STOP_EXTRA.has(w))?null:cmStem(w));
+  const uni=new Set(), bi=new Set();
+  words.forEach((w,i)=>{ if(!w) return; uni.add(w); if(words[i+1]) bi.add(w+' '+words[i+1]); });
+  return {uni,bi};
+}
+// Card index, rebuilt only when card text or suspension changes — not on every review.
+let _cm=null;
+function cmSignature(){
+  let n=0; const cs=DB.cards||[];
+  for(const c of cs) n+=String(c.front||'').length+String(c.back||'').length+(c.suspended?7:0);
+  return cs.length+':'+n;
+}
+function conceptMatcher(){
+  const sig=cmSignature();
+  if(_cm && _cm.sig===sig) return _cm;
+  const cards=(DB.cards||[]).filter(c=>!c.suspended);
+  const df=new Map(), feats=[];
+  cards.forEach(c=>{
+    const f=cmFeatures(stripHtmlFast(c.front)+' '+stripHtmlFast(c.back)+' '+(Array.isArray(c.tags)?c.tags.join(' '):''));
+    feats.push(f);
+    f.uni.forEach(u=>df.set('u:'+u,(df.get('u:'+u)||0)+1));
+    f.bi.forEach(b=>df.set('b:'+b,(df.get('b:'+b)||0)+1));
+  });
+  _cm={sig, cards, feats, df, N:cards.length, memo:new Map()};
+  return _cm;
+}
+// [{card, score, cover, hit:[words]}] best first; [] when nothing qualifies.
+function conceptCardMatches(c){
+  const m=conceptMatcher(), key=String(c.id)+'|'+String(c.text||'');
+  if(m.memo.has(key)) return m.memo.get(key);
+  const f=cmFeatures(c.text), N=m.N;
+  const idf=k=>Math.log((N+1)/((m.df.get(k)||0)+1));
+  const terms=[...f.uni].map(u=>({u, d:m.df.get('u:'+u)||0, w:Math.pow(idf('u:'+u),2)}));
+  const total=terms.reduce((a,t)=>a+t.w,0);
+  const need=Math.min(2,terms.length);
+  const bigs=[...f.bi].filter(b=>m.df.get('b:'+b)).map(b=>({b,w:0.5*Math.pow(idf('b:'+b),2)}));
+  const out=[];
+  if(total>0) m.feats.forEach((cf,i)=>{
+    let got=0, rare=0; const hit=[];
+    for(const t of terms) if(t.d>0 && cf.uni.has(t.u)){ got+=t.w; hit.push(t.u); if(t.d<=CM_RARE_DF) rare++; }
+    if(hit.length<need) return;
+    const cover=got/total;
+    if(!(cover>=CM_COVER_SOLO || (rare>=2 && cover>=CM_COVER))) return;
+    let bonus=0; for(const b of bigs) if(cf.bi.has(b.b)) bonus+=b.w;
+    out.push({card:m.cards[i], score:got+bonus, cover, hit});
+  });
+  out.sort((a,b)=>b.score-a.score);
+  const top=out.length?out[0].score:0;
+  const res=out.filter(x=>x.score>=CM_REL*top).slice(0,CM_MAX);
+  m.memo.set(key,res);
+  return res;
+}
+// Open concepts → the cards they point at. Map(cardId → [concept, …]).
+function conceptTargets(){
+  const map=new Map();
+  try{ conceptGaps().forEach(c=>conceptCardMatches(c).forEach(r=>{ const a=map.get(r.card.id); if(a) a.push(c); else map.set(r.card.id,[c]); })); }
+  catch(e){ console.warn('concept matching failed',e); }
+  return map;
+}
 function conceptCardIndex(){
-  let idx=null;
-  try{ idx=buildCardConceptIndex(); }catch(e){}
-  const memo=new Map();
-  return c=>{
-    if(!idx) return false;
-    if(!memo.has(c.id)) memo.set(c.id,objectiveCoveredBy(conceptObjectiveText(c),idx));
-    return memo.get(c.id);
-  };
+  return c=>{ try{ return conceptCardMatches(c).length>0; }catch(e){ return false; } };
 }
 // Which other exams flagged the same concept — ITE/MKSAP objectives indexed by
 // the same high-precision tokens as the ITE∩MKSAP overlap.
@@ -9243,7 +9358,8 @@ function conceptItemHtml(c, ctx){
   if((c.misses||0)>1) chips.push(`<span class="sn-chip sn-weak">missed ${c.misses}×</span>`);
   const also=conceptAlsoMissed(c,ctx.objIdx);
   if(also.length) chips.push(`<span class="sn-chip sn-both">🔥 also missed on ${escHtml(also.join(' + '))}</span>`);
-  chips.push(hasCard?`<span class="sn-chip mc-done">has a card</span>`:`<span class="sn-chip">no card yet</span>`);
+  const matches=hasCard?conceptCardMatches(c):[];
+  chips.push(matches.length?`<span class="sn-chip mc-done">${matches.length} matching card${matches.length===1?'':'s'}</span>`:`<span class="sn-chip">no card yet</span>`);
   if(c.promptedAt) chips.push(`<span class="sn-chip">sent to Claude ${shortDate(c.promptedAt)}</span>`);
   chips.push(`<span class="sn-chip">captured ${shortDate(c.date)}</span>`);
   chips.push(c.resolved?`<span class="sn-chip mc-done">mastered ${shortDate(c.resolvedAt||c.date)}</span>`
@@ -9257,6 +9373,7 @@ function conceptItemHtml(c, ctx){
     <div class="mc-main">
       <div class="mc-text clamp" onclick="this.classList.toggle('clamp')" title="Click to expand">${escHtml(c.text)}</div>
       <div class="mc-chips">${chips.join('')}</div>
+      ${matches.length?`<details class="mc-matches"><summary>Show matching cards</summary><ol>${matches.map(r=>`<li><span class="mc-m-front">${escHtml(stripHtmlFast(r.card.front).slice(0,160))}</span> <span class="mc-m-meta">${escHtml(r.card.contentArea||'')} · ${(r.card.totalReviews||0)?'seen':'new'} · shares: ${escHtml(r.hit.slice(0,5).join(', '))}</span></li>`).join('')}</ol></details>`:''}
       <div class="mc-actions">${acts}<button class="btn-secondary" onclick="conceptEdit(${q})">Edit</button><button class="btn-secondary mc-del" onclick="conceptDelete(${q})">Delete</button></div>
     </div>
   </div>`;
