@@ -416,7 +416,7 @@ body[data-specialty="Psych"] .only-both{display:none!important}
     <div class="nav-item" onclick="navigate('settings')"><span class="nav-icon">⚙️</span><span>Settings</span></div>
   </nav>
   <div id="sidebar-footer">
-    <div id="app-version" style="color:rgba(255,255,255,.4);font-size:11px" title="Captured Concepts: download the MedBoard Capture Chrome extension right from the page; MedBoard flags when your copy is out of date">v5.2 · last updated 2026-10-27</div>
+    <div id="app-version" style="color:rgba(255,255,255,.4);font-size:11px" title="Captured Concepts: download the MedBoard Capture Chrome extension right from the page; MedBoard flags when your copy is out of date">v5.4 · last updated 2026-11-06</div>
   </div>
 </div>
 
@@ -852,7 +852,7 @@ NOTES:
       </div>
       <input type="file" id="apkg-file" accept=".apkg" style="display:none" onchange="handleApkgFile(event)">
       <div class="alert alert-info" style="margin-top:16px">
-        <strong>Note:</strong> To export from Anki: File → Export → "Anki Deck Package (.apkg)". Both modern (2.1.50+) and legacy decks are supported. Cards are auto-sorted into content areas, and embedded images are imported too. <em>Modern compressed decks need internet on first import to load the decompressor; image-heavy decks use more browser storage, so back up regularly (Settings → Backup).</em>
+        <strong>Note:</strong> To export from Anki: File → Export → "Anki Deck Package (.apkg)". Both modern (2.1.50+) and legacy decks are supported. Cards are auto-sorted into content areas, and the deck's images are saved on this device. <em>Modern compressed decks need internet on first import to load the decompressor. Images aren't part of backups or sync — on another device, drop the same .apkg into the Card images tab to add them.</em>
       </div>
       <div id="apkg-status" style="margin-top:12px"></div>
       <div id="apkg-preview" style="display:none;margin-top:16px">
@@ -1876,8 +1876,8 @@ A: [answer]. Citation: Harrison's Principles of Internal Medicine, 21e, Ch. 245.
 // ═══════════════════════════════════════════════════════════
 // Bump this on every release. The sidebar renders from it, and it re-checks
 // for an optional sw.js after an update. The other copy lives in sw.js (CACHE).
-const APP_VERSION='5.2';
-const APP_UPDATED='2026-10-27';   // shown in the sidebar so users can see which build they have
+const APP_VERSION='5.4';
+const APP_UPDATED='2026-11-06';   // shown in the sidebar so users can see which build they have
 
 const ABIM_CATEGORIES = [
   {name:'Cardiovascular Disease',pct:14},
@@ -2322,19 +2322,30 @@ function idbMediaClear(){
     }catch(e){ res(false); }
   });
 }
+// v5.4: one reader for an <img> attribute. The old pattern stopped at the
+// first space, so a quoted filename like "Screen Shot 2021.png" was read as
+// "Screen" and could never be matched to its picture.
+function imgTagAttr(tag, attr){
+  const m=String(tag).match(new RegExp('\\s'+attr+'\\s*=\\s*(?:"([^"]*)"|\'([^\']*)\'|([^\\s>]+))','i'));
+  if(!m) return null;
+  const v=m[1]!=null?m[1]:(m[2]!=null?m[2]:m[3]);
+  return v.replace(/&amp;/g,'&').replace(/&quot;/g,'"').replace(/&#39;/g,"'").trim();
+}
+// Add every stored-file picture name in `html` to `set`.
+function collectImgNames(html, set){
+  html=String(html||'');
+  if(html.indexOf('<img')<0) return set;
+  (html.match(/<img\b[^>]*>/gi)||[]).forEach(tag=>{
+    let fn=imgTagAttr(tag,'src'); if(!fn || /^(data:|blob:|https?:)/i.test(fn)) return;
+    try{ fn=decodeURIComponent(fn); }catch(_){}
+    set.add(fn);
+  });
+  return set;
+}
 // Filenames referenced by <img> tags across the collection.
 function referencedImageNames(){
   const names=new Set();
-  (DB.cards||[]).forEach(c=>{
-    const html=String(c.front||'')+String(c.back||'');
-    if(html.indexOf('<img')<0) return;
-    const re=/<img\b[^>]*?src\s*=\s*["']?([^"'>\s]+)["']?[^>]*>/gi; let m;
-    while((m=re.exec(html))){
-      let fn=m[1]; if(/^data:/i.test(fn)) continue;
-      try{ fn=decodeURIComponent(fn); }catch(_){}
-      names.add(fn);
-    }
-  });
+  (DB.cards||[]).forEach(c=>{ collectImgNames(c.front,names); collectImgNames(c.back,names); });
   return names;
 }
 // Swap bare filenames for object URLs at render time; anything still missing
@@ -2413,10 +2424,8 @@ function hydrateMedia(html){
   const out=String(html).replace(/<img\b[^>]*>/gi, tag=>{
     // data-mb-src first: deferImageSrc parks the filename there, and a bare
     // /src=/ would also match inside that attribute name.
-    const m=tag.match(/\bdata-mb-src\s*=\s*["']?([^"'>\s]+)["']?/i)
-          || tag.match(/\bsrc\s*=\s*["']?([^"'>\s]+)["']?/i);
-    if(!m) return tag;
-    const raw=m[1];
+    const raw=imgTagAttr(tag,'data-mb-src') || imgTagAttr(tag,'src');
+    if(!raw) return tag;
     if(/^(data:|blob:|https?:)/i.test(raw)) return tag;    // already usable
     let fn=raw; try{ fn=decodeURIComponent(fn); }catch(_){}
     const key=mediaNames.has(fn)?fn:(mediaNames.has(raw)?raw:null);
@@ -4084,12 +4093,12 @@ function audioFixRules(){
 }
 function audioSpeakable(html, side){
   let s=String(html||'');
-  s=s.replace(/<img\b[^>]*>/gi,' (picture) ');
+  s=s.replace(/<img\b[^>]*>/gi,' ');             // v5.3: pictures are skipped silently
   s=s.replace(/<br\s*\/?>/gi,'\n').replace(/<\/(div|p|li|tr|h[1-6]|ul|ol)>/gi,'\n').replace(/<li\b[^>]*>/gi,'\n');
   s=s.replace(/<[^>]*>/g,' ');
   s=s.replace(/&nbsp;/gi,' ').replace(/&lt;/gi,'<').replace(/&gt;/gi,'>').replace(/&#39;|&rsquo;|&lsquo;/gi,"'")
      .replace(/&quot;|&ldquo;|&rdquo;/gi,'"').replace(/&amp;/gi,'&').replace(/&#?\w+;/g,' ');
-  s=s.replace(/\r/g,'').replace(/\[sound:[^\]]*\]/gi,'').replace(/\[VERIFY\]/gi,'').replace(/\[image:[^\]]*\]/gi,' (picture) ');
+  s=s.replace(/\r/g,'').replace(/\[sound:[^\]]*\]/gi,'').replace(/\[VERIFY\]/gi,'').replace(/\[image:[^\]]*\]/gi,' ');
   s=s.replace(/\s*\(?\bCitations?\s*:[^\n]*/gi,'');           // citations are for reading, not listening
   s=s.replace(/\[\s*\d+(\s*[,–-]\s*\d+)*\s*\]/g,'');            // [1], [2-4] reference markers
   if(side==='front'){
@@ -4101,7 +4110,6 @@ function audioSpeakable(html, side){
   const lines=s.split('\n').map(l=>l.replace(/^\s*(?:[•▪◦*–-]|\d+[.)])\s+/,'').replace(/\s+/g,' ').trim()).filter(Boolean);
   let out=lines.map(l=>/[.!?:;,]$/.test(l)?l:l+'.').join(' ').replace(/\s+([.,;:!?])/g,'$1').replace(/([.,])\1+/g,'$1').trim();
   out=out.replace(/[,;]\s*$/,'.');
-  if(!out.replace(/\(picture\)[.,]?/g,'').trim()) out='This side is a picture. Check the screen.';
   return out;
 }
 // Short chunks: Chrome stops long utterances after ~15 s, and sentence-sized
@@ -5348,6 +5356,7 @@ async function ingestMediaFiles(files){
   const needed=referencedImageNamesCached();
   if(!idb){ prog.innerHTML='<div class="alert alert-warn">This browser has no IndexedDB, so images can\'t be stored. Try a different browser.</div>'; return; }
   let stored=0, skipped=0, unpacked=0, failed=0, saved=0;
+  const notes=[];
   const put=async(name,blob)=>{
     // Only keep images some card actually points at — no need to store a whole
     // media folder when the deck references a fraction of it.
@@ -5366,25 +5375,16 @@ async function ingestMediaFiles(files){
   for(const f of files){
     prog.innerHTML=`<div class="alert alert-info">Processing ${escHtml(f.name)}… ${stored} image${stored===1?'':'s'} stored so far.</div>`;
     if(/\.apkg$/i.test(f.name)){
-      // Pull images out of an .apkg using its JSON media map (classic export).
+      // v5.4: older and newer (2.1.50+) Anki packages alike — see apkgImageList.
       try{
-        if(typeof JSZip==='undefined'){ prog.innerHTML='<div class="alert alert-warn">JSZip could not load — connect to the internet once to read .apkg files, or select the image files directly.</div>'; continue; }
+        if(typeof JSZip==='undefined'){ notes.push('JSZip could not load — connect to the internet once to read .apkg files, or select the image files directly.'); continue; }
         const zip=await JSZip.loadAsync(f);
-        const mediaEntry=zip.file('media');
-        if(!mediaEntry){ prog.innerHTML='<div class="alert alert-warn">No media map inside that .apkg.</div>'; continue; }
-        let mapping=null;
-        try{ mapping=JSON.parse(await mediaEntry.async('string')); }catch(_){ mapping=null; }
-        if(!mapping){
-          prog.innerHTML='<div class="alert alert-warn">That .apkg uses Anki\'s newer compressed media format, which this app can\'t unpack. Select the image files from your <code>collection.media</code> folder instead — that always works.</div>';
-          continue;
-        }
-        for(const [num,name] of Object.entries(mapping)){
-          if(!MEDIA_EXT.test(String(name))) continue;
-          const zf=zip.file(String(num)); if(!zf) continue;
-          const blob=await zf.async('blob');
-          await put(String(name),blob); unpacked++;
-        }
-      }catch(err){ prog.innerHTML='<div class="alert alert-warn">Could not read that .apkg: '+escHtml(err.message||'unknown error')+'</div>'; }
+        const r=await storeApkgImages(zip, needed, x=>{
+          prog.innerHTML=`<div class="alert alert-info">Unpacking ${escHtml(f.name)}… ${stored+x.stored} image${stored+x.stored===1?'':'s'} stored so far.</div>`;
+        });
+        stored+=r.stored; skipped+=r.skipped; failed+=r.failed; saved+=r.saved; unpacked+=r.stored;
+        if(!r.found) notes.push(`${escHtml(f.name)} contains no images.`);
+      }catch(err){ notes.push('Could not read '+escHtml(f.name)+': '+escHtml(err.message||'unknown error')); }
     } else if(MEDIA_EXT.test(f.name)||/^image\//.test(f.type||'')){
       await put(f.name,f);
     }
@@ -5394,6 +5394,7 @@ async function ingestMediaFiles(files){
   if(failed){
     msg=`<div class="alert alert-warn"><strong>${failed}</strong> image${failed===1?'':'s'} could not be saved — this device is out of storage for the app${est?` (${fmtBytes(est.used)} of ${fmtBytes(est.quota)} used)`:''}. Free space in your browser's site data, or remove the stored images below and add a smaller set.</div>`+msg;
   }
+  if(notes.length) msg+=`<div class="alert alert-warn">${notes.join('<br>')}</div>`;
   prog.innerHTML=msg;
   toast(failed?`Stored ${stored} · ${failed} failed (out of space)`:`Stored ${stored} image${stored===1?'':'s'}`);
   refreshMediaStatus();
@@ -6296,16 +6297,21 @@ async function parseApkg(file){
 
     if(!cards.length) throw new Error('Deck was read successfully but no cards with both a front and back were found.');
 
-    // Inline any referenced images (from the deck's media) as data URIs so they
-    // display offline and travel with the saved card.
-    status.innerHTML='<div class="alert alert-info">🖼️ Loading images...</div>';
-    const media = await buildApkgMedia(zip);
-    let imgCount=0;
-    if(Object.keys(media).length){
-      cards.forEach(c=>{
-        const r1=inlineImages(c.front,media); c.front=r1.html; imgCount+=r1.n;
-        const r2=inlineImages(c.back,media);  c.back=r2.html;  imgCount+=r2.n;
-      });
+    // v5.4: pictures go into this device's image store under their Anki
+    // filename — the same place the Card images tab puts them — and the cards
+    // keep their plain <img src="filename"> tags. They used to be inlined into
+    // the card text as data URIs, which swelled every backup and sync, and
+    // newer-format decks lost their images altogether.
+    const wanted=new Set();
+    cards.forEach(c=>{ collectImgNames(c.front,wanted); collectImgNames(c.back,wanted); });
+    let imgRes=null, imgErr='';
+    if(wanted.size){
+      status.innerHTML='<div class="alert alert-info">🖼️ Saving images...</div>';
+      if(!idb) imgErr='This browser has no IndexedDB, so this deck\'s images can\'t be stored here.';
+      else {
+        try{ imgRes=await storeApkgImages(zip, wanted, r=>{ status.innerHTML=`<div class="alert alert-info">🖼️ Saving images… ${r.stored} so far.</div>`; }); }
+        catch(e){ imgErr='Images could not be read from this deck ('+escHtml(e.message||'unknown error')+'). The cards still import; add the pictures later under Card images.'; }
+      }
     }
 
     pendingApkg = cards;
@@ -6316,53 +6322,99 @@ async function parseApkg(file){
     importPage.apkg=0;
     resetImportSel('apkg');
     closeImportCard();
-    status.innerHTML = imgCount ? `<div class="alert alert-success">Loaded ${imgCount} image${imgCount===1?'':'s'} from this deck.</div>` : '';
-    showApkgPreview();
+    showApkgPreview();   // clears the status line, so the image note goes after it
+    if(wanted.size){
+      const miss=[...wanted].filter(n=>!mediaNames.has(n)).length;
+      const bits=[];
+      if(imgRes && imgRes.stored) bits.push(`Saved <strong>${imgRes.stored}</strong> image${imgRes.stored===1?'':'s'} from this deck to this device.`);
+      if(imgRes && imgRes.failed) bits.push(`<strong>${imgRes.failed}</strong> couldn't be saved — this device is out of storage for the app.`);
+      if(imgErr) bits.push(imgErr);
+      if(miss) bits.push(`<strong>${miss}</strong> picture${miss===1?' the cards refer to isn\'t':'s the cards refer to aren\'t'} in this deck — the cards keep the filename, so you can add ${miss===1?'it':'them'} later under Card images.`);
+      if(bits.length) status.innerHTML=`<div class="alert ${(miss||imgErr||(imgRes&&imgRes.failed))?'alert-warn':'alert-success'}">${bits.join(' ')}</div>`;
+    }
   }catch(err){
     status.innerHTML=`<div class="alert alert-warn"><strong>Import failed:</strong> ${err.message}</div>`;
   }
 }
 
-// Build a { filename → data-URI } map from an .apkg's media.
-// Legacy/standard decks store a JSON map in the "media" entry ({"0":"pic.png"}).
-// The actual bytes live in numerically-named zip entries. Modern decks use a
-// protobuf media map we can't parse here — those images are skipped gracefully.
-async function buildApkgMedia(zip){
-  const media={};
-  const mediaEntry=zip.file('media');
-  if(!mediaEntry) return media;
-  let mapping;
-  try{ mapping=JSON.parse(await mediaEntry.async('string')); }
-  catch(_){ return media; }   // modern protobuf format — skip
-  const MIME={jpg:'image/jpeg',jpeg:'image/jpeg',png:'image/png',gif:'image/gif',svg:'image/svg+xml',webp:'image/webp',bmp:'image/bmp'};
-  for(const [num,name] of Object.entries(mapping)){
-    const ext=(String(name).split('.').pop()||'').toLowerCase();
-    const mime=MIME[ext];
-    if(!mime) continue;                       // only images (skip audio/video)
-    const f=zip.file(String(num));
-    if(!f) continue;
-    try{
-      const b64=await f.async('base64');
-      media[name]='data:'+mime+';base64,'+b64;
-    }catch(_){/* skip unreadable media */}
-  }
-  return media;
+// ── .apkg PICTURES (v5.4) ──────────────────────────────────────────────────
+// Two layouts exist. Older exports (and newer Anki with "Support older Anki
+// versions" ticked) keep a JSON map in the zip's `media` entry, {"0":"pic.png"},
+// with each file stored as-is under that number. Anki 2.1.50+ zstd-compresses
+// that entry and writes it as a protobuf list — MediaEntries{ repeated
+// MediaEntry{ name=1, size=2, sha1=3 } } — where a file's zip name is its
+// position in the list, and each file is zstd-compressed too. Both are read
+// here, one file at a time, so a big deck never holds every picture in memory.
+const IMG_MIME={jpg:'image/jpeg',jpeg:'image/jpeg',png:'image/png',gif:'image/gif',svg:'image/svg+xml',webp:'image/webp',bmp:'image/bmp'};
+function pbVarint(buf,pos){
+  let v=0, mul=1, b;
+  do{ if(pos.i>=buf.length) throw new Error('media list is truncated'); b=buf[pos.i++]; v+=(b&0x7f)*mul; mul*=128; }while(b&0x80);
+  return v;
 }
-
-// Replace <img src="file"> with the inlined data URI; unresolved images become
-// a small "[image]" placeholder so nothing renders broken. Returns {html, n}.
-function inlineImages(html, media){
-  if(!html || html.indexOf('<img')<0) return {html:html||'', n:0};
-  let n=0;
-  const out=html.replace(/<img\b[^>]*>/gi, tag=>{
-    const m=tag.match(/src\s*=\s*["']?([^"'>\s]+)["']?/i);
-    if(!m) return '';
-    let fn=m[1]; try{ fn=decodeURIComponent(fn); }catch(_){}
-    const uri=media[fn]||media[m[1]];
-    if(uri){ n++; return '<img src="'+uri+'" style="max-width:100%;max-height:340px;height:auto;border-radius:6px;margin:6px 0;display:block">'; }
-    return '<span style="color:#6b7a90;font-style:italic">[image: '+stripHtml(fn)+']</span>';
-  });
-  return {html:out, n};
+function pbSkip(buf,pos,wt){
+  if(wt===0) pbVarint(buf,pos);
+  else if(wt===1) pos.i+=8;
+  else if(wt===2){ const l=pbVarint(buf,pos); pos.i+=l; }
+  else if(wt===5) pos.i+=4;
+  else throw new Error('media list is not in a format this app knows');
+}
+// Newer layout → [{num, name}] in list order.
+function parseMediaEntries(buf){
+  const out=[], pos={i:0}, dec=new TextDecoder();
+  while(pos.i<buf.length){
+    const key=pbVarint(buf,pos), field=Math.floor(key/8), wt=key&7;
+    if(field===1 && wt===2){
+      const len=pbVarint(buf,pos), end=pos.i+len, p={i:pos.i};
+      let name='';
+      while(p.i<end){
+        const k=pbVarint(buf,p), f=Math.floor(k/8), w=k&7;
+        if(f===1 && w===2){ const l=pbVarint(buf,p); name=dec.decode(buf.subarray(p.i,p.i+l)); p.i+=l; }
+        else pbSkip(buf,p,w);
+      }
+      out.push({num:String(out.length), name});
+      pos.i=end;
+    } else pbSkip(buf,pos,wt);
+  }
+  return out;
+}
+// Every picture in the package as [{num, name}]; audio and video are skipped.
+async function apkgImageList(zip){
+  const entry=zip.file('media'); if(!entry) return [];
+  let raw=await entry.async('uint8array');
+  if(isZstd(raw)) raw=(await loadFzstd()).decompress(raw);
+  let list=null;
+  if(raw.length && raw[0]===0x7b){            // '{' — the older JSON map
+    try{ list=Object.entries(JSON.parse(new TextDecoder().decode(raw))).map(([num,name])=>({num:String(num),name:String(name)})); }
+    catch(_){ list=null; }
+  }
+  if(!list) list=parseMediaEntries(raw);
+  return list.filter(x=>x.name && MEDIA_EXT.test(x.name));
+}
+async function apkgImageBlob(zip, item){
+  const f=zip.file(item.num); if(!f) return null;
+  let bytes=await f.async('uint8array');
+  if(isZstd(bytes)) bytes=(await loadFzstd()).decompress(bytes);
+  const ext=(item.name.split('.').pop()||'').toLowerCase();
+  return new Blob([bytes],{type:IMG_MIME[ext]||'application/octet-stream'});
+}
+// Save a package's pictures to this device's image store. `wanted`: only
+// these filenames (an empty or missing set keeps every picture).
+async function storeApkgImages(zip, wanted, onProgress){
+  const res={found:0, stored:0, skipped:0, failed:0, saved:0};
+  const list=await apkgImageList(zip);
+  res.found=list.length;
+  for(const it of list){
+    if(wanted && wanted.size && !wanted.has(it.name)){ res.skipped++; continue; }
+    const blob=await apkgImageBlob(zip,it); if(!blob) continue;
+    const small=await downscaleImage(blob,it.name);
+    if(await idbMediaPut(it.name,small)){
+      res.stored++; res.saved+=Math.max(0,blob.size-small.size);
+      mediaNames.add(it.name);
+      mediaUrls.delete(it.name);    // a replaced picture shouldn't show its old copy
+    } else res.failed++;
+    if(onProgress && (res.stored+res.failed)%25===0) onProgress(res);
+  }
+  return res;
 }
 
 // Anki decks are almost always single-subject. For Auto mode we detect the
