@@ -416,7 +416,7 @@ body[data-specialty="Psych"] .only-both{display:none!important}
     <div class="nav-item" onclick="navigate('settings')"><span class="nav-icon">⚙️</span><span>Settings</span></div>
   </nav>
   <div id="sidebar-footer">
-    <div id="app-version" style="color:rgba(255,255,255,.4);font-size:11px" title="Captured Concepts: download the MedBoard Capture Chrome extension right from the page; MedBoard flags when your copy is out of date">v5.5 · last updated 2026-11-06</div>
+    <div id="app-version" style="color:rgba(255,255,255,.4);font-size:11px" title="Captured Concepts: download the MedBoard Capture Chrome extension right from the page; MedBoard flags when your copy is out of date">v5.6 · last updated 2026-11-06</div>
   </div>
 </div>
 
@@ -1440,6 +1440,16 @@ A: [answer]. Citation: Harrison's Principles of Internal Medicine, 21e, Ch. 245.
 .mc-text.clamp{display:-webkit-box;-webkit-line-clamp:4;-webkit-box-orient:vertical;overflow:hidden;cursor:pointer}
 .mc-chips{display:flex;flex-wrap:wrap;gap:5px;margin-top:8px}
 .mc-actions{display:flex;flex-wrap:wrap;gap:7px;margin-top:10px}
+.mc-topic{margin-top:7px;font-size:12.5px;color:#42506a;line-height:1.5}
+.mc-topic strong{color:var(--navy)}
+.mc-topic-src{color:var(--muted)}
+.mc-topic .mc-link{font-size:12px;padding:2px 4px}
+.mc-topic-edit{display:grid;gap:6px;background:#f8faff;border:1px solid #e5e7eb;border-radius:8px;padding:10px 12px}
+.mc-topic-edit label{font-size:12px;font-weight:700;color:var(--navy)}
+.mc-topic-edit input{padding:7px 9px;border:2px solid #e5e7eb;border-radius:6px;font-size:13px;font-family:inherit;width:100%}
+.mc-topic-edit input:focus{outline:none;border-color:var(--blue)}
+.mc-topic-hint{font-size:11.5px;color:var(--muted)}
+@media(max-width:640px){.mc-topic-edit input{font-size:16px;min-height:44px}}
 .mc-matches{margin-top:8px;font-size:12.5px}
 .mc-matches summary{cursor:pointer;color:var(--blue);font-weight:600}
 .mc-matches ol{margin:6px 0 0 18px;padding:0;color:#42506a;line-height:1.5}
@@ -1882,7 +1892,7 @@ A: [answer]. Citation: Harrison's Principles of Internal Medicine, 21e, Ch. 245.
 // ═══════════════════════════════════════════════════════════
 // Bump this on every release. The sidebar renders from it, and it re-checks
 // for an optional sw.js after an update. The other copy lives in sw.js (CACHE).
-const APP_VERSION='5.5';
+const APP_VERSION='5.6';
 const APP_UPDATED='2026-11-06';   // shown in the sidebar so users can see which build they have
 
 const ABIM_CATEGORIES = [
@@ -3580,7 +3590,7 @@ function navigate(page){
   if(page==='browser') renderBrowser();
   if(page==='import') refreshMediaStatus();
   if(page==='practice') renderPractice();
-  if(page==='concepts'){ mcEditing=null; renderConcepts(); }
+  if(page==='concepts'){ mcEditing=null; mcTopicEditing=null; renderConcepts(); }
   if(page==='analytics') renderAnalytics();
   if(page==='ite') renderITE();
   if(page==='mksap') renderMKSAP();
@@ -9264,10 +9274,11 @@ const CM_STOP_EXTRA=new Set('which what when where most least likely following b
 function cmStem(w){ return w.length>4 ? w.replace(/ies$/,'y').replace(/(?:es|s)$/,'') : w; }
 function cmFeatures(text){
   const t=expandAbbrev(String(text||'').toLowerCase()).replace(/[–—\-\/]/g,' ').replace(/[^a-z0-9 ]/g,' ');
-  const words=t.split(/\s+/).filter(Boolean).map(w=>(w.length<3||/^\d+$/.test(w)||CONCEPT_STOP.has(w)||CM_STOP_EXTRA.has(w))?null:cmStem(w));
-  const uni=new Set(), bi=new Set();
-  words.forEach((w,i)=>{ if(!w) return; uni.add(w); if(words[i+1]) bi.add(w+' '+words[i+1]); });
-  return {uni,bi};
+  const raw=t.split(/\s+/).filter(Boolean);
+  const words=raw.map(w=>(w.length<3||/^\d+$/.test(w)||CONCEPT_STOP.has(w)||CM_STOP_EXTRA.has(w))?null:cmStem(w));
+  const uni=new Set(), bi=new Set(), disp=new Map();
+  words.forEach((w,i)=>{ if(!w) return; uni.add(w); if(!disp.has(w)) disp.set(w,raw[i]); if(words[i+1]) bi.add(w+' '+words[i+1]); });
+  return {uni,bi,disp};
 }
 // Card index, rebuilt only when card text or suspension changes — not on every review.
 let _cm=null;
@@ -9292,9 +9303,10 @@ function conceptMatcher(){
 }
 // [{card, score, cover, hit:[words]}] best first; [] when nothing qualifies.
 function conceptCardMatches(c){
-  const m=conceptMatcher(), key=String(c.id)+'|'+String(c.text||'');
+  const src=conceptMatchText(c);
+  const m=conceptMatcher(), key=String(c.id)+'|'+src;
   if(m.memo.has(key)) return m.memo.get(key);
-  const f=cmFeatures(c.text), N=m.N;
+  const f=cmFeatures(src), N=m.N;
   const idf=k=>Math.log((N+1)/((m.df.get(k)||0)+1));
   const terms=[...f.uni].map(u=>({u, d:m.df.get('u:'+u)||0, w:Math.pow(idf('u:'+u),2)}));
   const total=terms.reduce((a,t)=>a+t.w,0);
@@ -9303,18 +9315,75 @@ function conceptCardMatches(c){
   const out=[];
   if(total>0) m.feats.forEach((cf,i)=>{
     let got=0, rare=0; const hit=[];
-    for(const t of terms) if(t.d>0 && cf.uni.has(t.u)){ got+=t.w; hit.push(t.u); if(t.d<=CM_RARE_DF) rare++; }
+    for(const t of terms) if(t.d>0 && cf.uni.has(t.u)){ got+=t.w; hit.push(t); if(t.d<=CM_RARE_DF) rare++; }
     if(hit.length<need) return;
     const cover=got/total;
     if(!(cover>=CM_COVER_SOLO || (rare>=2 && cover>=CM_COVER))) return;
     let bonus=0; for(const b of bigs) if(cf.bi.has(b.b)) bonus+=b.w;
-    out.push({card:m.cards[i], score:got+bonus, cover, hit});
+    hit.sort((a,b)=>b.w-a.w);   // most distinctive shared word first
+    out.push({card:m.cards[i], score:got+bonus, cover, hit:hit.map(t=>f.disp.get(t.u)||t.u)});
   });
   out.sort((a,b)=>b.score-a.score);
   const top=out.length?out[0].score:0;
   const res=out.filter(x=>x.score>=CM_REL*top).slice(0,CM_MAX);
+  // The capture's most distinctive words, for showing what it's about when no card matched.
+  res.keyWords=terms.slice().sort((a,b)=>b.w-a.w).slice(0,4).map(t=>f.disp.get(t.u)||t.u);
   m.memo.set(key,res);
   return res;
+}
+// ── TOPIC (v5.6) ────────────────────────────────────────────────────────────
+// What a capture is matched on. By default that's the captured text itself;
+// you can replace it with a short topic of your own ("adrenal incidentaloma
+// CT density") when the automatic match picks the wrong cards or none at all.
+// Saved on the concept (c.topic), so it travels with backups and sync.
+function conceptMatchText(c){ return (c&&c.topic&&String(c.topic).trim()) ? String(c.topic) : String((c&&c.text)||''); }
+// {custom, words, matched}: the words the match turned on, most distinctive first.
+function conceptTopicInfo(c){
+  let r=[]; try{ r=conceptCardMatches(c); }catch(e){}
+  const custom=!!(c.topic&&String(c.topic).trim());
+  const words = r.length ? r[0].hit.slice(0,4) : (r.keyWords||[]);
+  return {custom, words, matched:r.length};
+}
+let mcTopicEditing=null;
+function conceptTopicEdit(id){ mcTopicEditing=id; mcEditing=null; renderConcepts();
+  setTimeout(()=>{ const el=document.getElementById('mc-topic-input'); if(el){ el.focus(); el.select(); } },0); }
+function conceptTopicCancel(){ mcTopicEditing=null; renderConcepts(); }
+function conceptTopicSave(id){
+  const c=conceptById(id); if(!c) return;
+  const v=String((document.getElementById('mc-topic-input')||{}).value||'').replace(/\s+/g,' ').trim().slice(0,200);
+  if(v) c.topic=v; else delete c.topic;
+  c.updated=new Date().toISOString();
+  mcTopicEditing=null;
+  saveDB(); invalidatePriorityCache(); refreshConceptViews();
+  const n=conceptCardMatches(c).length;
+  toast(v?`Topic set — ${n} matching card${n===1?'':'s'}`:`Back to automatic — ${n} matching card${n===1?'':'s'}`);
+}
+function conceptTopicReset(id){
+  const c=conceptById(id); if(!c) return;
+  delete c.topic; c.updated=new Date().toISOString();
+  mcTopicEditing=null;
+  saveDB(); invalidatePriorityCache(); refreshConceptViews();
+  toast('Topic back to automatic');
+}
+function conceptTopicHtml(c){
+  const id=escHtml(c.id), q=`'${id}'`;
+  const info=conceptTopicInfo(c);
+  if(mcTopicEditing===c.id){
+    const cur=info.custom?String(c.topic):info.words.join(' ');
+    return `<div class="mc-topic mc-topic-edit">
+      <label for="mc-topic-input">Topic to match on</label>
+      <input id="mc-topic-input" type="text" maxlength="200" value="${escHtml(cur)}" placeholder="e.g. adrenal incidentaloma CT density"
+        onkeydown="if(event.key==='Enter'){event.preventDefault();conceptTopicSave(${q})}else if(event.key==='Escape'){conceptTopicCancel()}">
+      <div class="mc-topic-hint">A few specific words work best — the disease plus what you missed about it. Leave it empty to go back to automatic.</div>
+      <div class="mc-actions"><button class="btn-primary" onclick="conceptTopicSave(${q})">Save topic</button>${info.custom?`<button class="btn-secondary" onclick="conceptTopicReset(${q})">Use automatic</button>`:''}<button class="btn-secondary" onclick="conceptTopicCancel()">Cancel</button></div>
+    </div>`;
+  }
+  const label = info.custom
+    ? `<strong>${escHtml(c.topic)}</strong> <span class="mc-topic-src">· set by you</span>`
+    : (info.words.length
+        ? `<strong>${info.words.map(escHtml).join(' · ')}</strong> <span class="mc-topic-src">· ${info.matched?'automatic':'automatic · no matching card'}</span>`
+        : `<span class="mc-topic-src">couldn't pick out a topic</span>`);
+  return `<div class="mc-topic">🔎 Topic: ${label} <button class="mc-link" onclick="conceptTopicEdit(${q})">${info.custom?'Edit':'Change'}</button>${info.custom?` <button class="mc-link" onclick="conceptTopicReset(${q})">Use automatic</button>`:''}</div>`;
 }
 // Open concepts → the cards they point at. Map(cardId → [concept, …]).
 function conceptTargets(){
@@ -9372,6 +9441,7 @@ function conceptItemHtml(c, ctx){
     <label class="mc-pick" title="Select for the flashcard prompt"><input type="checkbox" class="mc-check" data-id="${id}"${sel?' checked':''} onchange="mcToggle(${q},this.checked)" aria-label="Select this concept"></label>
     <div class="mc-main">
       <div class="mc-text clamp" onclick="this.classList.toggle('clamp')" title="Click to expand">${escHtml(c.text)}</div>
+      ${conceptTopicHtml(c)}
       <div class="mc-chips">${chips.join('')}</div>
       ${matches.length?`<details class="mc-matches"><summary>Show matching cards</summary><ol>${matches.map(r=>`<li><span class="mc-m-front">${escHtml(stripHtmlFast(r.card.front).slice(0,160))}</span> <span class="mc-m-meta">${escHtml(r.card.contentArea||'')} · ${(r.card.totalReviews||0)?'seen':'new'} · shares: ${escHtml(r.hit.slice(0,5).join(', '))}</span></li>`).join('')}</ol></details>`:''}
       <div class="mc-actions">${acts}<button class="btn-secondary" onclick="conceptEdit(${q})">Edit</button><button class="btn-secondary mc-del" onclick="conceptDelete(${q})">Delete</button></div>
