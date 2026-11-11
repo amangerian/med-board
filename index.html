@@ -416,7 +416,7 @@ body[data-specialty="Psych"] .only-both{display:none!important}
     <div class="nav-item" onclick="navigate('settings')"><span class="nav-icon">⚙️</span><span>Settings</span></div>
   </nav>
   <div id="sidebar-footer">
-    <div id="app-version" style="color:rgba(255,255,255,.4);font-size:11px" title="Captured Concepts: download the MedBoard Capture Chrome extension right from the page; MedBoard flags when your copy is out of date">v5.6 · last updated 2026-11-06</div>
+    <div id="app-version" style="color:rgba(255,255,255,.4);font-size:11px" title="Card and practice-question prompts now ask for US guidelines first, then widely adopted international ones; a single non-US national guideline is no longer accepted as the source">v5.7 · last updated 2026-11-11</div>
   </div>
 </div>
 
@@ -1892,7 +1892,7 @@ A: [answer]. Citation: Harrison's Principles of Internal Medicine, 21e, Ch. 245.
 // ═══════════════════════════════════════════════════════════
 // Bump this on every release. The sidebar renders from it, and it re-checks
 // for an optional sw.js after an update. The other copy lives in sw.js (CACHE).
-const APP_VERSION='5.6';
+const APP_VERSION='5.7';
 const APP_UPDATED='2026-11-06';   // shown in the sidebar so users can see which build they have
 
 const ABIM_CATEGORIES = [
@@ -7304,6 +7304,19 @@ let coverageMode='tested'; // 'tested' (ITE/MKSAP misses), 'blueprint' (ABPN spe
 let coverageTargets=[];    // [{area, objectives:[text]}] — current batch
 let coverageAllAreas=[];   // every area in the full gap set (for AREA matching)
 function subjectForArea(area){ return ABIM_CATEGORIES.some(c=>c.name===area)?'IM':(ABPN_CATEGORIES.some(c=>c.name===area)?'Psych':defaultSubject()); }
+// v5.7: which sources a card or practice question may cite. ABIM and ABPN
+// test US standard of care, so US guidelines come first, then the
+// international guidelines US practice actually follows. A single non-US
+// national society guideline is not accepted as the source. The block goes
+// into every deck prompt (cardRulesText); the one-line form goes into the
+// weak-area practice prompts.
+const SOURCE_RULES_BLOCK=`SOURCES — cite the highest tier that covers the fact
+1. US guidelines first: the relevant US specialty society (e.g. ACC/AHA, IDSA, ATS, ADA, ACG/AGA, AASLD, ACR, ASH, Endocrine Society, APA, AACAP), plus USPSTF, CDC and VA/DoD.
+2. Widely adopted international guidelines, when they are the de facto US standard or no current US guideline covers the fact: e.g. KDIGO, GOLD, GINA, Surviving Sepsis Campaign, ESC, EULAR, WHO, NICE; CANMAT and WFSBP for psychiatry.
+3. Landmark trials and standard texts: e.g. Harrison's, Kaplan & Sadock, DSM-5-TR.
+- Do NOT cite a single non-US national society guideline or a regional consensus statement. If that is all you find, look for the tier 1 or tier 2 guideline by name; if none covers the fact, write "Citation: general reference" and treat the card as a verify card (rule 6 below).
+- Where US and international guidelines differ, the card gives the US position. Where the US guideline is clearly outdated, use the newer tier 2 source and say so on the card.`;
+const SOURCE_RULES_LINE=`- Pick the source in this order: (1) US guidelines — the relevant US specialty society (e.g. ACC/AHA, IDSA, ADA, APA), USPSTF, CDC or VA/DoD; (2) widely adopted international guidelines where they are the de facto US standard or no current US guideline covers the point (e.g. KDIGO, GOLD, GINA, ESC, NICE, CANMAT); (3) landmark trials and standard texts. Do not cite a single non-US national society guideline or a regional consensus statement. Where US and international guidance differ, give the US answer.`;
 // The card and accuracy rules every deck prompt shares. `tag` is the tag the
 // deck already uses, repeated in the [VERIFY] instruction.
 function cardRulesText(tag){
@@ -7311,7 +7324,9 @@ function cardRulesText(tag){
 - One idea per card. Prefer the decision, threshold or next step that actually gets tested over background trivia.
 - Front: a short clinical vignette (age/sex, presentation, the key finding) that asks for the diagnosis, next step or mechanism — or a direct question where a vignette doesn't fit. Back: the answer, then a new line starting "Why:" with one line of reasoning or the feature that distinguishes it from the look-alike. Practising the reasoning, in the format the exam uses, is what carries a card over to new questions.
 - Where a number matters (dose, cutoff, timing, score), put the number on the card.
-- End every answer with a citation: guideline or reference plus year — e.g. "Citation: IDSA 2023" or "Citation: Harrison's 21e Ch. 245".
+- End every answer with a citation: guideline or reference plus year, chosen by the SOURCES rules below — e.g. "Citation: IDSA 2023" or "Citation: Harrison's 21e Ch. 245".
+
+${SOURCE_RULES_BLOCK}
 
 ACCURACY REQUIREMENTS — read carefully
 These cards get memorised by spaced repetition, so an error becomes a memorised error that is hard to unlearn. Therefore:
@@ -9833,6 +9848,7 @@ Requirements:
 - One single-best-answer clinical vignette per objective (age/sex, presentation, key finding → diagnosis, next step or mechanism), teaching exactly that point. Use a direct question only where a vignette doesn't fit.
 - Under every answer, add one line starting "Why:" — the reasoning or the feature that rules out the look-alike.
 - After every answer, add a citation to a reputable source (textbook chapter, clinical guideline, or peer-reviewed article with year — e.g., "UpToDate 2024", "Harrison's 21e, Ch. 245", "APA Practice Guideline 2020", or a PMID).
+${SOURCE_RULES_LINE}
 - Format EXACTLY like this, with ONE blank line between pairs and no numbering:
 
 Q: [vignette / question]
@@ -9848,6 +9864,7 @@ Requirements:
 - Each should be a realistic single-best-answer clinical vignette (age/sex, presentation, key finding → diagnosis, next step or mechanism) on a concept tested on ${subjName} boards. Use a direct question only where a vignette doesn't fit.
 - Under every answer, add one line starting "Why:" — the reasoning or the feature that rules out the look-alike.
 - After every answer, add a citation to a reputable source (textbook chapter, clinical guideline, or peer-reviewed article with year — e.g., "UpToDate 2024", "Harrison's 21e, Ch. 245", "APA Practice Guideline 2020", or a PMID).
+${SOURCE_RULES_LINE}
 - Format EXACTLY like this, with ONE blank line between pairs and no numbering:
 
 Q: [vignette / question]
