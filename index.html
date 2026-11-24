@@ -288,6 +288,52 @@ body[data-specialty="Psych"] #study-filter{display:none}
 /* Settings/controls that only make sense when BOTH subjects are in play. */
 body[data-specialty="IM"]    .only-both,
 body[data-specialty="Psych"] .only-both{display:none!important}
+/* ── STUDY TIMER + WHAT'S NEW (v5.8) ─────────────────────────────────── */
+#dash-timer{display:none;align-items:center;gap:14px;flex-wrap:wrap;background:#fff;border:1px solid #dbe3ec;border-radius:var(--radius);padding:12px 16px;margin-bottom:14px;box-shadow:var(--card-shadow)}
+#dash-timer .tm-ring{width:52px;height:52px;flex:none}
+#dash-timer .tm-ring circle{fill:none;stroke-width:6}
+#dash-timer .tm-ring .tm-track{stroke:#e8eef5}
+#dash-timer .tm-ring .tm-fill{stroke:var(--blue);stroke-linecap:round;transform:rotate(-90deg);transform-origin:50% 50%;transition:stroke-dashoffset 1s linear}
+#dash-timer.paused .tm-ring .tm-fill{stroke:var(--yellow)}
+#dash-timer.done .tm-ring .tm-fill{stroke:var(--green)}
+#dash-timer .tm-main{flex:1 1 180px;min-width:0}
+#dash-timer .tm-time{font-size:26px;font-weight:800;color:var(--navy);font-variant-numeric:tabular-nums;line-height:1.1}
+#dash-timer .tm-sub{font-size:12.5px;color:var(--muted);margin-top:2px}
+#dash-timer .tm-btns{display:flex;gap:8px;flex-wrap:wrap}
+#dash-timer .tm-btns button{padding:7px 14px;font-size:12px}
+#study-timer-chip{display:none;align-items:center;gap:7px;border:2px solid #dbe3ec;background:#fff;color:var(--navy);border-radius:999px;padding:6px 14px;font-size:12.5px;font-weight:700;cursor:pointer;white-space:nowrap}
+#study-timer-chip:hover{border-color:var(--blue)}
+#study-timer-chip.running{cursor:default;border-color:#bfdbfe;background:var(--light-blue)}
+#study-timer-chip .tm-dot{width:8px;height:8px;border-radius:50%;background:var(--blue);animation:tmPulse 1.6s ease-in-out infinite}
+@keyframes tmPulse{0%,100%{opacity:1;transform:scale(1)}50%{opacity:.35;transform:scale(.7)}}
+#timer-done-overlay{position:fixed;inset:0;z-index:9995;display:none;align-items:center;justify-content:center;padding:20px;background:rgba(15,23,42,.55);backdrop-filter:blur(3px);overflow:hidden}
+#timer-done-overlay.show{display:flex}
+#timer-done-card{position:relative;z-index:2;background:#fff;border-radius:20px;padding:30px 28px 24px;max-width:380px;width:100%;text-align:center;box-shadow:0 24px 70px rgba(0,0,0,.4);animation:tmPop .55s cubic-bezier(.2,1.4,.4,1) both}
+#timer-done-card .tm-big{font-size:58px;line-height:1;display:inline-block;animation:tmShake .9s ease-in-out .35s 2}
+#timer-done-card h3{font-size:24px;font-weight:800;color:var(--navy);margin:12px 0 6px}
+#timer-done-card p{font-size:14px;color:var(--muted);line-height:1.55;margin-bottom:18px}
+#timer-done-card .tm-btns{display:flex;gap:8px;justify-content:center;flex-wrap:wrap}
+.tm-wave{position:absolute;left:50%;top:50%;width:160px;height:160px;margin:-80px 0 0 -80px;border-radius:50%;border:4px solid rgba(96,165,250,.8);animation:tmWave 2.4s ease-out infinite;z-index:1}
+.tm-wave:nth-child(2){animation-delay:.8s}.tm-wave:nth-child(3){animation-delay:1.6s}
+.tm-conf{position:absolute;top:-16px;width:10px;height:16px;border-radius:2px;z-index:1;animation:tmFall linear forwards}
+@keyframes tmPop{0%{transform:scale(.5);opacity:0}100%{transform:scale(1);opacity:1}}
+@keyframes tmShake{0%,100%{transform:rotate(0)}20%{transform:rotate(-16deg)}40%{transform:rotate(14deg)}60%{transform:rotate(-10deg)}80%{transform:rotate(6deg)}}
+@keyframes tmWave{0%{transform:scale(.4);opacity:.9}100%{transform:scale(5);opacity:0}}
+@keyframes tmFall{0%{transform:translate3d(0,0,0) rotate(0)}100%{transform:translate3d(var(--dx),110vh,0) rotate(var(--rot))}}
+#whatsnew-overlay{position:fixed;inset:0;z-index:9980;display:none;align-items:center;justify-content:center;padding:18px;background:rgba(15,23,42,.55);backdrop-filter:blur(2px)}
+#whatsnew-overlay.show{display:flex}
+#whatsnew-card{background:#fff;border-radius:16px;max-width:420px;width:100%;max-height:82vh;overflow-y:auto;box-shadow:0 20px 60px rgba(0,0,0,.35);animation:tmPop .35s ease-out both}
+#whatsnew-head{background:linear-gradient(135deg,var(--navy),var(--blue));color:#fff;padding:16px 22px;font-size:17px;font-weight:800}
+#whatsnew-head small{display:block;font-size:12px;font-weight:600;opacity:.75;margin-top:2px}
+#whatsnew-body{padding:14px 22px 4px;font-size:14px;line-height:1.55;color:var(--text)}
+#whatsnew-body ul{margin:0 0 10px 18px;padding:0}
+#whatsnew-body li{margin-bottom:6px}
+#whatsnew-body .wn-v{font-size:11px;font-weight:800;color:var(--muted);letter-spacing:.04em;margin:8px 0 4px}
+#whatsnew-foot{display:flex;justify-content:flex-end;padding:8px 22px 18px}
+@media(prefers-reduced-motion:reduce){
+  #study-timer-chip .tm-dot,.tm-wave,.tm-conf,#timer-done-card,#timer-done-card .tm-big,#whatsnew-card{animation:none!important}
+  .tm-conf,.tm-wave{display:none}
+}
 /* ── TUTORIAL / FIRST-RUN TOUR (v3) ─────────────────────────────────── */
 #tutorial-overlay{position:fixed;inset:0;background:rgba(15,23,42,.62);z-index:300;display:none;align-items:center;justify-content:center;padding:18px;backdrop-filter:blur(2px)}
 #tutorial-card{background:#fff;border-radius:16px;max-width:480px;width:100%;max-height:86vh;overflow-y:auto;box-shadow:0 20px 60px rgba(0,0,0,.35);display:flex;flex-direction:column}
@@ -416,7 +462,7 @@ body[data-specialty="Psych"] .only-both{display:none!important}
     <div class="nav-item" onclick="navigate('settings')"><span class="nav-icon">⚙️</span><span>Settings</span></div>
   </nav>
   <div id="sidebar-footer">
-    <div id="app-version" style="color:rgba(255,255,255,.4);font-size:11px" title="Card and practice-question prompts now ask for US guidelines first, then widely adopted international ones; a single non-US national guideline is no longer accepted as the source">v5.7 · last updated 2026-11-11</div>
+    <div id="app-version" style="color:rgba(255,255,255,.4);font-size:11px;cursor:pointer" title="Study timer (Settings → Study timer) and a What's-new pop-up after each update" onclick="showWhatsNew()">v5.8 · last updated 2026-11-23</div>
   </div>
 </div>
 
@@ -432,6 +478,8 @@ body[data-specialty="Psych"] .only-both{display:none!important}
     <button class="btn-primary" style="padding:6px 14px;font-size:12px" onclick="exportBackup()">Download backup</button>
     <button class="btn-secondary" style="padding:6px 12px;font-size:12px" onclick="snoozeBackupNudge()">Remind me later</button>
   </div>
+  <!-- v5.8 study timer: the countdown is only shown here, never on the Study screen -->
+  <div id="dash-timer"></div>
   <div class="page-header" style="display:flex;align-items:flex-end;gap:20px;flex-wrap:wrap">
     <div style="flex:0 1 auto">
       <h2 id="greeting">Good morning</h2>
@@ -496,9 +544,12 @@ body[data-specialty="Psych"] .only-both{display:none!important}
 
 <!-- STUDY -->
 <div id="page-study" class="page">
-  <div class="page-header">
-    <h2>Study</h2>
-    <p id="study-algo-note">Spaced repetition review</p>
+  <div class="page-header" style="display:flex;align-items:flex-start;justify-content:space-between;gap:12px;flex-wrap:wrap">
+    <div>
+      <h2>Study</h2>
+      <p id="study-algo-note">Spaced repetition review</p>
+    </div>
+    <button id="study-timer-chip" onclick="timerStartFromStudy()"></button>
   </div>
   <div id="study-filter">
     <span style="font-size:13px;font-weight:600;color:var(--muted)">Subject:</span>
@@ -1254,6 +1305,10 @@ front,back,subject,content_area,tags<br>
         <div><div class="setting-label">App tour</div><div class="setting-desc">Replay the walkthrough of the basics and noteworthy features</div></div>
         <button class="btn-secondary" onclick="startTutorial()">Replay Tour</button>
       </div>
+      <div class="setting-row">
+        <div><div class="setting-label">What's new</div><div class="setting-desc">See what changed in this version (v<span class="app-v"></span>)</div></div>
+        <button class="btn-secondary" onclick="showWhatsNew()">What's new</button>
+      </div>
     </div>
     <div class="panel settings-section">
       <h3>Study Preferences</h3>
@@ -1282,6 +1337,27 @@ front,back,subject,content_area,tags<br>
       <div class="setting-row" id="row-retention">
         <div><div class="setting-label">Target retention (%)</div><div class="setting-desc">FSRS schedules each card to come back when recall drops to this level. Higher = more reviews. 90% is the standard default; 85% for lighter workload, 93-95% close to exam day.</div></div>
         <input type="number" id="set-retention" min="70" max="97" onchange="saveRetention(this.value)">
+      </div>
+    </div>
+    <div class="panel settings-section">
+      <h3>⏱ Study timer</h3>
+      <div class="setting-row">
+        <div><div class="setting-label">Daily study timer</div><div class="setting-desc">Start a countdown from the Study screen. The time left shows only on the Dashboard, so it doesn't distract you while you study. When time's up you'll get an on-screen alert wherever you are in the app. It keeps counting if you switch pages or close the app; pause or reset it from the Dashboard.</div></div>
+        <input type="checkbox" id="set-timer-on" onchange="saveTimer('on',this.checked)" style="width:22px;height:22px;cursor:pointer;flex:none;margin-left:12px">
+      </div>
+      <div id="timer-opts">
+        <div class="setting-row">
+          <div><div class="setting-label">Length (minutes)</div><div class="setting-desc">How long you want to study each day</div></div>
+          <input type="number" id="set-timer-min" min="1" max="480" onchange="saveTimer('minutes',this.value)">
+        </div>
+        <div class="setting-row">
+          <div><div class="setting-label">Start automatically</div><div class="setting-desc">Start the timer as soon as you open Study, if it isn't already running and you haven't finished it today</div></div>
+          <input type="checkbox" id="set-timer-auto" onchange="saveTimer('autoStart',this.checked)" style="width:22px;height:22px;cursor:pointer;flex:none;margin-left:12px">
+        </div>
+        <div class="setting-row">
+          <div><div class="setting-label">Chime when time's up</div><div class="setting-desc">Play a short sound along with the on-screen alert</div></div>
+          <input type="checkbox" id="set-timer-sound" onchange="saveTimer('sound',this.checked)" style="width:22px;height:22px;cursor:pointer;flex:none;margin-left:12px">
+        </div>
       </div>
     </div>
     <div class="panel settings-section" id="beta-section">
@@ -1802,6 +1878,29 @@ A: [answer]. Citation: Harrison's Principles of Internal Medicine, 21e, Ch. 245.
   </div>
 </div>
 
+<!-- v5.8: study timer finished -->
+<div id="timer-done-overlay" role="dialog" aria-modal="true" aria-labelledby="timer-done-title">
+  <div class="tm-wave"></div><div class="tm-wave"></div><div class="tm-wave"></div>
+  <div id="timer-done-card">
+    <div class="tm-big">⏰</div>
+    <h3 id="timer-done-title">Time's up!</h3>
+    <p id="timer-done-text"></p>
+    <div class="tm-btns">
+      <button class="btn-secondary" onclick="timerExtend(10)">+10 min</button>
+      <button class="btn-primary" id="timer-done-ok" onclick="closeTimerDone()">Done</button>
+    </div>
+  </div>
+</div>
+
+<!-- v5.8: what's new after an update -->
+<div id="whatsnew-overlay" role="dialog" aria-modal="true" aria-labelledby="whatsnew-head">
+  <div id="whatsnew-card">
+    <div id="whatsnew-head"></div>
+    <div id="whatsnew-body"></div>
+    <div id="whatsnew-foot"><button class="btn-primary" id="whatsnew-ok" onclick="closeWhatsNew()">Got it</button></div>
+  </div>
+</div>
+
 <div id="toast"></div>
 
 <!-- EDIT CARD MODAL -->
@@ -1892,8 +1991,8 @@ A: [answer]. Citation: Harrison's Principles of Internal Medicine, 21e, Ch. 245.
 // ═══════════════════════════════════════════════════════════
 // Bump this on every release. The sidebar renders from it, and it re-checks
 // for an optional sw.js after an update. The other copy lives in sw.js (CACHE).
-const APP_VERSION='5.7';
-const APP_UPDATED='2026-11-06';   // shown in the sidebar so users can see which build they have
+const APP_VERSION='5.8';
+const APP_UPDATED='2026-11-23';   // shown in the sidebar so users can see which build they have
 
 const ABIM_CATEGORIES = [
   {name:'Cardiovascular Disease',pct:14},
@@ -3752,6 +3851,7 @@ function spreadShuffle(cards){
 }
 function initStudy(){
   audioStop();
+  timerOnStudyOpen();   // v5.8
   const algoNote=document.getElementById('study-algo-note');
   if(algoNote) algoNote.textContent=(DB.settings.scheduler||'fsrs')==='fsrs'
     ? `Spaced repetition — FSRS · target retention ${DB.settings.targetRetention||90}%`
@@ -7496,6 +7596,7 @@ function renderSettings(){
   const spSel=document.getElementById('set-specialty'); if(spSel) spSel.value=currentSpecialty();
   const mixSel=document.getElementById('set-newmix'); if(mixSel) mixSel.value=DB.settings.newCardMix||'weighted';
   renderAudioSettings();
+  renderTimerSettings();
 }
 function saveScheduler(v){
   DB.settings.scheduler=(v==='sm2')?'sm2':'fsrs';
@@ -7776,6 +7877,8 @@ function setupKeyboardShortcuts(){
   document.addEventListener('keydown', e=>{
     // only on the Study page
     if(!document.getElementById('page-study').classList.contains('active')) return;
+    // v5.8: not while the timer alert or What's-new pop-up is covering the card
+    if(document.querySelector('#timer-done-overlay.show,#whatsnew-overlay.show')) return;
     // don't hijack typing in form fields
     const tag=(e.target.tagName||'').toLowerCase();
     if(tag==='input'||tag==='textarea'||tag==='select'||e.target.isContentEditable) return;
@@ -11099,11 +11202,280 @@ function endTutorial(){
 }
 
 // ═══════════════════════════════════════════════════════════
+// STUDY TIMER (v5.8)
+// ═══════════════════════════════════════════════════════════
+// A daily countdown. Started from the Study screen (button or auto-start),
+// but the time left is shown ONLY on the Dashboard — the Study screen just
+// says it's running. It's wall-clock: it keeps going across pages and app
+// restarts (endAt is a timestamp), and can be paused/reset from the Dashboard.
+// Finished sessions are logged per day in timer.log {date: minutes}.
+const TIMER_DEFAULTS={on:false,minutes:30,autoStart:false,sound:false,endAt:null,pausedLeft:null,total:null,log:{}};
+function timerCfg(){
+  DB.settings.timer=Object.assign({},TIMER_DEFAULTS,DB.settings.timer||{});
+  DB.settings.timer.log=DB.settings.timer.log||{};
+  return DB.settings.timer;
+}
+function timerState(){
+  const t=timerCfg();
+  if(t.endAt) return 'running';
+  if(t.pausedLeft!=null) return 'paused';
+  return 'idle';
+}
+function timerLeftMs(){
+  const t=timerCfg();
+  if(t.endAt) return Math.max(0,t.endAt-Date.now());
+  if(t.pausedLeft!=null) return t.pausedLeft;
+  return (t.minutes||30)*60000;
+}
+function timerFmt(ms){
+  const s=Math.ceil(ms/1000), h=Math.floor(s/3600), m=Math.floor((s%3600)/60), ss=s%60;
+  return (h?h+':'+String(m).padStart(2,'0'):m)+':'+String(ss).padStart(2,'0');
+}
+function timerDoneToday(){ return timerCfg().log[today()]||0; }
+function timerStart(){
+  const t=timerCfg();
+  if(!t.on || t.endAt) return;
+  const ms=(t.pausedLeft!=null)?t.pausedLeft:(t.minutes||30)*60000;
+  if(t.pausedLeft==null) t.total=ms;
+  t.endAt=Date.now()+ms; t.pausedLeft=null;
+  saveDB(); timerRenderAll();
+}
+function timerStartFromStudy(){
+  const st=timerState();
+  if(st==='running') { toast('Timer is running — check the Dashboard for time left'); return; }
+  timerStart();
+  toast(st==='paused'?'Timer resumed':'Timer started — time left shows on the Dashboard');
+}
+function timerPause(){
+  const t=timerCfg(); if(!t.endAt) return;
+  t.pausedLeft=Math.max(0,t.endAt-Date.now()); t.endAt=null;
+  saveDB(); timerRenderAll();
+}
+function timerReset(){
+  const t=timerCfg();
+  t.endAt=null; t.pausedLeft=null; t.total=null;
+  saveDB(); timerRenderAll();
+}
+function timerExtend(min){
+  const t=timerCfg();
+  closeTimerDone();
+  t.total=min*60000; t.pausedLeft=null; t.endAt=Date.now()+t.total;
+  saveDB(); timerRenderAll();
+  toast('+'+min+' min — keep going!');
+}
+function timerFinish(){
+  const t=timerCfg();
+  const mins=Math.max(1,Math.round((t.total||(t.minutes||30)*60000)/60000));
+  // Credit the day the timer actually ran out (matters if the app was closed overnight).
+  const day=fmtLocalDate(new Date(t.endAt||Date.now()));
+  const late=t.endAt && (Date.now()-t.endAt>60000);
+  t.log[day]=(t.log[day]||0)+mins;
+  // Keep the log small: last ~400 days.
+  const ks=Object.keys(t.log).sort(); while(ks.length>400) delete t.log[ks.shift()];
+  t.endAt=null; t.pausedLeft=null; t.total=null;
+  saveDB(); timerRenderAll();
+  showTimerDone(mins,late);
+}
+function timerTick(){
+  const t=DB&&DB.settings&&DB.settings.timer;
+  if(!t||!t.endAt) return;
+  if(Date.now()>=t.endAt) timerFinish();
+  else if(document.getElementById('page-dashboard').classList.contains('active')) renderDashTimer();
+}
+function timerRenderAll(){ renderDashTimer(); renderStudyTimerChip(); }
+function renderDashTimer(){
+  const el=document.getElementById('dash-timer'); if(!el) return;
+  const t=timerCfg();
+  if(!t.on){ el.style.display='none'; return; }
+  el.style.display='flex';
+  const st=timerState(), left=timerLeftMs(), done=timerDoneToday();
+  const total=(st==='idle')?(t.minutes||30)*60000:(t.total||(t.minutes||30)*60000);
+  const finishedToday=(st==='idle' && done>0);
+  const frac=finishedToday?1:Math.max(0,Math.min(1,left/total));
+  const C=2*Math.PI*22;
+  el.className=st==='paused'?'paused':(finishedToday?'done':'');
+  let time, sub, btns;
+  if(st==='running'){
+    time=timerFmt(left)+' <span style="font-size:13px;font-weight:600;color:var(--muted)">left</span>';
+    sub='Study timer running'+(done?' · '+done+' min done earlier today':'');
+    btns='<button class="btn-secondary" onclick="timerPause()">⏸ Pause</button><button class="btn-secondary" onclick="timerReset()">Reset</button>';
+  } else if(st==='paused'){
+    time=timerFmt(left)+' <span style="font-size:13px;font-weight:600;color:var(--muted)">paused</span>';
+    sub='Resume here or from the Study screen';
+    btns='<button class="btn-primary" onclick="timerStart()">▶ Resume</button><button class="btn-secondary" onclick="timerReset()">Reset</button>';
+  } else if(finishedToday){
+    time='✓ '+done+' min';
+    sub='Studied today with the timer — nice work';
+    btns='<button class="btn-secondary" onclick="navigate(\'study\')">Go again in Study</button>';
+  } else {
+    time=(t.minutes||30)+' min';
+    sub='Today\'s study timer — start it from the Study screen';
+    btns='<button class="btn-primary" onclick="navigate(\'study\')">Go to Study</button>';
+  }
+  el.innerHTML=`<svg class="tm-ring" viewBox="0 0 52 52" aria-hidden="true"><circle class="tm-track" cx="26" cy="26" r="22"/><circle class="tm-fill" cx="26" cy="26" r="22" stroke-dasharray="${C.toFixed(2)}" stroke-dashoffset="${(C*(1-frac)).toFixed(2)}"/></svg>
+    <div class="tm-main"><div class="tm-time">${time}</div><div class="tm-sub">⏱ ${sub}</div></div>
+    <div class="tm-btns">${btns}</div>`;
+}
+function renderStudyTimerChip(){
+  const el=document.getElementById('study-timer-chip'); if(!el) return;
+  const t=timerCfg();
+  if(!t.on){ el.style.display='none'; return; }
+  el.style.display='inline-flex';
+  const st=timerState();
+  el.classList.toggle('running',st==='running');
+  // Deliberately no time shown here — the countdown lives on the Dashboard.
+  if(st==='running'){ el.innerHTML='<span class="tm-dot"></span>Timer running'; el.title='Time left is shown on the Dashboard'; }
+  else if(st==='paused'){ el.innerHTML='⏱ Resume timer'; el.title='Resume your paused study timer'; }
+  else { el.innerHTML='⏱ Start '+(t.minutes||30)+'-min timer'; el.title='Start your study timer'; }
+}
+function timerOnStudyOpen(){
+  const t=timerCfg();
+  renderStudyTimerChip();
+  if(t.on && t.autoStart && timerState()==='idle' && !timerDoneToday()){
+    timerStart();
+    toast('Study timer started — time left shows on the Dashboard');
+  }
+}
+function renderTimerSettings(){
+  const t=timerCfg();
+  const on=document.getElementById('set-timer-on'); if(!on) return;
+  on.checked=!!t.on;
+  document.getElementById('timer-opts').style.display=t.on?'':'none';
+  document.getElementById('set-timer-min').value=t.minutes||30;
+  document.getElementById('set-timer-auto').checked=!!t.autoStart;
+  document.getElementById('set-timer-sound').checked=!!t.sound;
+}
+function saveTimer(key,val){
+  const t=timerCfg();
+  if(key==='minutes'){
+    const n=parseInt(val,10);
+    if(isNaN(n)||n<1||n>480){ toast('Enter 1–480 minutes'); renderTimerSettings(); return; }
+    t.minutes=n;
+    toast('Timer length: '+n+' min'+(timerState()!=='idle'?' (applies next time you start it)':''));
+  } else {
+    t[key]=val;
+    if(key==='on'){
+      if(!val){ t.endAt=null; t.pausedLeft=null; t.total=null; }
+      toast(val?'Study timer on — start it from the Study screen':'Study timer off');
+    }
+    if(key==='sound' && val) timerChime();
+  }
+  saveDB(); renderTimerSettings(); timerRenderAll();
+}
+function timerChime(){
+  try{
+    const AC=window.AudioContext||window.webkitAudioContext; if(!AC) return;
+    const ctx=new AC(), now=ctx.currentTime;
+    [659.25,783.99,1046.5].forEach((f,i)=>{
+      const o=ctx.createOscillator(), g=ctx.createGain();
+      o.type='sine'; o.frequency.value=f;
+      g.gain.setValueAtTime(0.0001,now+i*0.18);
+      g.gain.exponentialRampToValueAtTime(0.25,now+i*0.18+0.02);
+      g.gain.exponentialRampToValueAtTime(0.0001,now+i*0.18+0.6);
+      o.connect(g); g.connect(ctx.destination);
+      o.start(now+i*0.18); o.stop(now+i*0.18+0.65);
+    });
+    setTimeout(()=>{ try{ctx.close();}catch(e){} },1500);
+  }catch(e){}
+}
+function showTimerDone(mins,late){
+  const ov=document.getElementById('timer-done-overlay'); if(!ov) return;
+  const done=timerDoneToday();
+  document.getElementById('timer-done-text').textContent=
+    (late?'Your timer finished while you were away. ':'')+
+    'You put in '+mins+' minute'+(mins===1?'':'s')+
+    (done>mins?' — '+done+' minutes with the timer today.':'. Good session.');
+  ov.querySelectorAll('.tm-conf').forEach(n=>n.remove());
+  const colors=['#2d6a9f','#16a34a','#d97706','#dc2626','#7c3aed','#0891b2','#f59e0b'];
+  for(let i=0;i<70;i++){
+    const c=document.createElement('span'); c.className='tm-conf';
+    c.style.left=(Math.random()*100)+'vw';
+    c.style.background=colors[i%colors.length];
+    c.style.animationDuration=(2.2+Math.random()*2.2)+'s';
+    c.style.animationDelay=(Math.random()*0.9)+'s';
+    c.style.setProperty('--dx',(Math.random()*160-80)+'px');
+    c.style.setProperty('--rot',(Math.random()*900-450)+'deg');
+    ov.appendChild(c);
+  }
+  // Restart the card's pop/shake animation if it's shown twice in a row.
+  const card=document.getElementById('timer-done-card');
+  card.style.animation='none'; void card.offsetWidth; card.style.animation='';
+  ov.classList.add('show');
+  if(timerCfg().sound) timerChime();
+  try{ if(navigator.vibrate) navigator.vibrate([180,80,180]); }catch(e){}
+  setTimeout(()=>{ const b=document.getElementById('timer-done-ok'); if(b) b.focus(); },50);
+}
+function closeTimerDone(){
+  const ov=document.getElementById('timer-done-overlay'); if(!ov) return;
+  ov.classList.remove('show');
+  ov.querySelectorAll('.tm-conf').forEach(n=>n.remove());
+}
+function setupStudyTimer(){
+  timerCfg();
+  setInterval(timerTick,1000);
+  // Background tabs throttle intervals; catch up the moment the app is visible again.
+  document.addEventListener('visibilitychange',()=>{ if(!document.hidden) timerTick(); });
+  window.addEventListener('focus',timerTick);
+  timerRenderAll();
+  timerTick();   // a timer that ran out while the app was closed fires now
+}
+
+// ═══════════════════════════════════════════════════════════
+// WHAT'S NEW (v5.8)
+// ═══════════════════════════════════════════════════════════
+// Add an entry here with every release (newest first). After an update, users
+// see one short pop-up listing everything newer than the last version they
+// opened — several skipped versions are combined into one pop-up.
+const CHANGELOG=[
+  {v:'5.8', items:[
+    '⏱ <strong>Study timer</strong> — turn it on in Settings. Start it in Study; time left shows on the Dashboard, with an alert when time\'s up.',
+    '🆕 This pop-up now lists what changed after each update.'
+  ]},
+];
+// Versions are compared as decimals, matching this app's history (3.97 → 4.0):
+// after 5.9 comes 5.91 or 6.0, never 5.10.
+function vcmp(a,b){
+  const x=parseFloat(a)||0, y=parseFloat(b)||0;
+  return x===y?0:(x>y?1:-1);
+}
+function checkWhatsNew(){
+  const seen=DB.settings.lastSeenVersion;
+  // Brand-new users get the tour instead; nothing is "new" to them.
+  if(!DB.settings.tutorialSeen){ DB.settings.lastSeenVersion=APP_VERSION; saveDB(); return; }
+  if(seen && vcmp(seen,APP_VERSION)>=0) return;
+  const entries=CHANGELOG.filter(e=>vcmp(e.v,seen||'0')>0 && vcmp(e.v,APP_VERSION)<=0);
+  if(!entries.length){ DB.settings.lastSeenVersion=APP_VERSION; saveDB(); return; }
+  showWhatsNew(entries, seen);
+}
+function showWhatsNew(entries, since){
+  entries=entries||CHANGELOG.slice(0,1);
+  const multi=entries.length>1;
+  document.getElementById('whatsnew-head').innerHTML=
+    (multi?'What\'s new':'What\'s new in v'+entries[0].v)+
+    (multi&&since?'<small>since v'+escHtml(since)+' · now v'+APP_VERSION+'</small>':'');
+  document.getElementById('whatsnew-body').innerHTML=entries.map(e=>
+    (multi?'<div class="wn-v">v'+e.v+'</div>':'')+'<ul>'+e.items.map(i=>'<li>'+i+'</li>').join('')+'</ul>'
+  ).join('');
+  document.getElementById('whatsnew-overlay').classList.add('show');
+  setTimeout(()=>{ const b=document.getElementById('whatsnew-ok'); if(b) b.focus(); },50);
+}
+function closeWhatsNew(){
+  document.getElementById('whatsnew-overlay').classList.remove('show');
+  if(DB.settings.lastSeenVersion!==APP_VERSION){ DB.settings.lastSeenVersion=APP_VERSION; saveDB(); }
+}
+document.addEventListener('keydown',e=>{
+  if(e.key!=='Escape' && e.key!=='Enter') return;
+  if(document.getElementById('timer-done-overlay').classList.contains('show')){ e.preventDefault(); e.stopImmediatePropagation(); closeTimerDone(); }
+  else if(document.getElementById('whatsnew-overlay').classList.contains('show')){ e.preventDefault(); e.stopImmediatePropagation(); closeWhatsNew(); }
+},true);
+
+// ═══════════════════════════════════════════════════════════
 // INIT
 // ═══════════════════════════════════════════════════════════
 async function init(){
   const vEl=document.getElementById('app-version');
   if(vEl) vEl.textContent=`v${APP_VERSION} · last updated ${APP_UPDATED}`;
+  document.querySelectorAll('.app-v').forEach(n=>n.textContent=APP_VERSION);
   await loadDB();
   try{ applyExamCaps(); }catch(e){}   // v4.4: keep reviews from skipping the final month before an exam
   updateContentAreaOptions();
@@ -11124,7 +11496,11 @@ async function init(){
   renderDashboard();
   conceptsOnReady();   // v4.5: pull anything the MedBoard Capture extension has waiting
 
+  setupStudyTimer();   // v5.8
+
   // First launch: run the feature tour (skippable; replayable from Settings → Help).
+  // Returning users see a short "What's new" after an update instead (v5.8).
+  checkWhatsNew();
   if(!DB.settings.tutorialSeen) startTutorial();
 
   // PWA (v3.97): the app is a single index.html, so sw.js is optional — a
